@@ -1,0 +1,1459 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no,viewport-fit=cover">
+<title>QuizApp — 刷题</title>
+<link rel="icon" href="data:,">
+<style>
+:root {
+  --bg: #f8f9fb;
+  --card: #fff;
+  --text: #1a1d28;
+  --muted: #8e94a3;
+  --line: #edf0f4;
+  --primary: #4f6ef7;
+  --primary-soft: #eef1fe;
+  --success: #22b07d;
+  --success-soft: #e8f8f1;
+  --danger: #f24e5e;
+  --danger-soft: #fef0f2;
+  --warn: #f5a623;
+  --warn-soft: #fef7eb;
+  --shadow: 0 2px 16px rgba(0,0,0,.06);
+  --radius: 14px;
+  --radius-sm: 10px;
+  --font: -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+}
+body[data-theme="dark"]{
+  --bg:#12151c;
+  --card:#1b202b;
+  --text:#f4f6fb;
+  --muted:#9aa3b5;
+  --line:#2b3240;
+  --shadow:0 2px 18px rgba(0,0,0,.24);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{height:100%;-webkit-tap-highlight-color:transparent}
+body{
+  font-family:var(--font);
+  background:var(--bg);
+  color:var(--text);
+  height:100%;
+  overflow:hidden;
+  display:flex;flex-direction:column;
+  -webkit-user-select:none;user-select:none;
+}
+.app{flex:1;display:flex;flex-direction:column;overflow:hidden;max-width:760px;margin:0 auto;width:100%}
+
+/* Top bar */
+.topbar{
+  padding:12px 16px;display:flex;align-items:center;gap:10px;
+  background:var(--card);border-bottom:1px solid var(--line);z-index:10;
+}
+.topbar h1{font-size:18px;font-weight:700;flex:1}
+.topbar .btn-back{width:36px;height:36px;border:0;background:none;font-size:20px;cursor:pointer;border-radius:50%;display:grid;place-items:center}
+.topbar .btn-back:hover{background:#f0f1f5}
+.topbar .btn-icon{width:36px;height:36px;border:0;background:var(--bg);color:var(--text);font-size:18px;cursor:pointer;border-radius:50%;display:grid;place-items:center}
+.topbar .btn-icon:hover{background:var(--primary-soft);color:var(--primary)}
+
+/* Progress bar */
+.progress-wrap{padding:8px 16px;background:var(--card)}
+.progress-bar{
+  height:4px;background:var(--line);border-radius:2px;overflow:hidden;
+  display:flex;gap:2px;
+}
+.progress-bar span{height:100%;border-radius:2px;transition:width .3s}
+.progress-bar .correct{background:var(--success)}
+.progress-bar .wrong{background:var(--danger)}
+.progress-bar .unanswered{background:var(--line)}
+.progress-info{
+  display:flex;justify-content:space-between;margin-top:6px;
+  font-size:11px;color:var(--muted)
+}
+
+/* Viewport */
+.viewport{flex:1;overflow:hidden;position:relative;touch-action:pan-y}
+
+/* Vertical scroll mode */
+.scroll-container{height:100%;overflow-y:auto;scroll-behavior:smooth;padding:12px}
+.scroll-container .card{margin-bottom:14px}
+
+/* Horizontal page mode */
+.page-frame{height:100%;overflow:hidden}
+.page-track{
+  height:100%;display:flex;transition:transform .34s cubic-bezier(.22,.8,.25,1);
+  will-change:transform
+}
+.page-slide{
+  min-width:100%;height:100%;overflow-y:auto;padding:12px;
+  display:flex;align-items:flex-start;justify-content:center
+}
+
+/* Card */
+.card{
+  background:var(--card);border-radius:var(--radius);
+  box-shadow:var(--shadow);padding:20px 18px;width:100%;max-width:100%;
+  transition:box-shadow .2s, transform .2s
+}
+.card.answered.correct{box-shadow:0 8px 28px rgba(34,176,125,.14)}
+.card.answered.wrong{box-shadow:0 8px 28px rgba(242,78,94,.14)}
+.card-header{display:flex;align-items:center;gap:8px;margin-bottom:14px}
+.card-num{font-size:13px;font-weight:700;color:var(--primary)}
+.card-type{
+  font-size:11px;padding:3px 8px;border-radius:99px;font-weight:700
+}
+.type-single{background:var(--primary-soft);color:var(--primary)}
+.type-multi{background:var(--warn-soft);color:var(--warn)}
+.type-bool{background:var(--success-soft);color:var(--success)}
+.card-body{font-size:16px;line-height:1.65;margin-bottom:18px}
+.card-body p{white-space:pre-wrap;word-break:break-word}
+
+/* Options */
+.options{display:flex;flex-direction:column;gap:8px}
+.option{
+  display:flex;align-items:flex-start;gap:10px;padding:12px 14px;
+  border:2px solid var(--line);border-radius:var(--radius-sm);
+  cursor:pointer;transition:all .15s;font-size:15px;line-height:1.4
+}
+.option:active{transform:scale(.98)}
+.option.selected{border-color:var(--primary);background:var(--primary-soft)}
+.option.correct{border-color:var(--success);background:var(--success-soft);animation:answerPop .22s ease-out}
+.option.wrong{border-color:var(--danger);background:var(--danger-soft);animation:answerShake .28s ease-out}
+.option[disabled],button[disabled]{opacity:.45;cursor:not-allowed}
+.option-letter{
+  width:26px;height:26px;border-radius:50%;display:grid;place-items:center;
+  font-weight:800;font-size:13px;flex-shrink:0;
+  background:var(--bg);color:var(--muted);transition:all .15s
+}
+.option.selected .option-letter{background:var(--primary);color:#fff}
+.option.correct .option-letter{background:var(--success);color:#fff}
+.option.wrong .option-letter{background:var(--danger);color:#fff}
+
+/* Bool buttons */
+.bool-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.bool-btn{
+  padding:40px 20px;border:2px solid var(--line);border-radius:var(--radius);
+  font-size:28px;font-weight:800;cursor:pointer;transition:all .15s;
+  display:grid;place-items:center;background:var(--card)
+}
+.bool-btn:active{transform:scale(.96)}
+.bool-btn.selected{border-color:var(--primary);background:var(--primary-soft);color:var(--primary)}
+.bool-btn.correct{border-color:var(--success);background:var(--success-soft);color:var(--success);animation:answerPop .22s ease-out}
+.bool-btn.wrong{border-color:var(--danger);background:var(--danger-soft);color:var(--danger);animation:answerShake .28s ease-out}
+
+.multi-actions{display:flex;justify-content:flex-end;margin-top:12px}
+.btn-submit{
+  min-width:112px;padding:10px 18px;border:0;border-radius:99px;
+  background:var(--primary);color:#fff;font-weight:800;cursor:pointer
+}
+.btn-submit[disabled]{background:var(--line);color:var(--muted)}
+
+/* Explanation */
+.explanation{
+  margin-top:14px;padding:12px 14px;border-radius:var(--radius-sm);
+  background:var(--success-soft);font-size:13px;line-height:1.55;display:none
+}
+.explanation.show{display:block;animation:feedbackIn .2s ease-out}
+.explanation.wrong{background:var(--danger-soft)}
+.explanation .exp-label{font-weight:800;color:var(--success);margin-bottom:4px}
+.explanation.wrong .exp-label{color:var(--danger)}
+
+/* Bottom bar */
+.bottombar{
+  padding:10px 16px 14px;display:flex;justify-content:space-between;
+  align-items:center;background:var(--card);border-top:1px solid var(--line)
+}
+.bottombar button{
+  padding:10px 18px;border:0;border-radius:99px;font-weight:700;
+  font-size:14px;cursor:pointer;transition:all .15s
+}
+.bottombar button:active{transform:scale(.96)}
+.btn-prev{background:var(--bg);color:var(--muted)}
+.btn-next{background:var(--primary);color:#fff}
+.btn-mode{background:var(--primary-soft);color:var(--primary);font-size:12px!important;padding:8px 12px!important}
+
+/* Home page */
+.home{padding:24px 16px;display:flex;flex-direction:column;gap:16px}
+.subjects-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.subject-card{
+  background:var(--card);border-radius:var(--radius);padding:20px 16px;
+  box-shadow:var(--shadow);cursor:pointer;transition:all .15s;
+  display:flex;flex-direction:column;gap:6px
+}
+.subject-card:active{transform:scale(.97)}
+.subject-card h3{font-size:15px;line-height:1.3}
+.subject-card small{color:var(--muted);font-size:12px}
+
+.bank-list{display:flex;flex-direction:column;gap:8px}
+.bank-item{
+  background:var(--card);border-radius:var(--radius);padding:16px;
+  box-shadow:var(--shadow);cursor:pointer;transition:all .15s;
+  display:flex;align-items:center;gap:12px
+}
+.bank-item:active{transform:scale(.98)}
+.bank-item .icon{font-size:24px}
+.bank-item .info{flex:1}
+.bank-item .info h4{font-size:15px;margin-bottom:2px}
+.bank-item .info small{color:var(--muted);font-size:12px}
+.bank-item .count{font-size:13px;font-weight:700;color:var(--primary)}
+.chapter-actions,.practice-actions{display:flex;gap:8px;flex-wrap:wrap}
+.chapter-actions button,.practice-actions button{
+  border:0;border-radius:99px;padding:9px 13px;font-size:13px;font-weight:800;
+  cursor:pointer;background:var(--primary-soft);color:var(--primary)
+}
+.practice-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.practice-actions button{padding:13px 12px;background:var(--primary);color:#fff}
+.practice-actions button.secondary{background:var(--warn-soft);color:var(--warn)}
+.section-title{font-size:13px;font-weight:800;color:var(--muted);padding:2px}
+.wrong-badge{font-size:12px;font-weight:800;color:var(--danger)}
+.analysis-panel{
+  background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);
+  padding:16px;display:flex;flex-direction:column;gap:12px
+}
+.analysis-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.analysis-stat{background:var(--bg);border-radius:var(--radius-sm);padding:12px}
+.analysis-stat strong{display:block;font-size:18px;margin-bottom:4px}
+.analysis-stat span{font-size:12px;color:var(--muted)}
+.chapter-analysis{display:flex;flex-direction:column;gap:8px}
+.chapter-analysis .row{display:flex;justify-content:space-between;gap:12px;font-size:13px}
+.settings-row{display:flex;flex-direction:column;gap:6px}
+.settings-row label{font-size:12px;font-weight:800;color:var(--muted)}
+.settings-row input,.settings-row select{
+  width:100%;border:1px solid var(--line);border-radius:var(--radius-sm);
+  padding:10px;font-size:13px;background:var(--card);color:var(--text)
+}
+.swatches{display:flex;gap:10px;flex-wrap:wrap}
+.swatch{
+  width:34px;height:34px;border-radius:50%;border:3px solid var(--card);
+  box-shadow:0 0 0 1px var(--line);cursor:pointer
+}
+.swatch.active{box-shadow:0 0 0 3px var(--primary-soft),0 0 0 1px var(--primary)}
+.settings-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.settings-actions button{
+  border:0;border-radius:99px;padding:12px;font-size:13px;font-weight:800;
+  background:var(--primary);color:#fff;cursor:pointer
+}
+.settings-actions button.secondary{background:var(--bg);color:var(--muted)}
+.ai-output{white-space:pre-wrap;font-size:13px;line-height:1.65;color:var(--text)}
+.ai-error{font-size:13px;color:var(--danger)}
+.lookup-toolbar{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.lookup-toolbar input,.lookup-toolbar select{
+  width:100%;border:1px solid var(--line);border-radius:var(--radius-sm);
+  padding:10px;font-size:13px;background:var(--card);color:var(--text)
+}
+.answer-list{display:flex;flex-direction:column;gap:10px}
+.answer-row{
+  background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);
+  padding:14px;display:flex;flex-direction:column;gap:8px
+}
+.answer-row .meta{display:flex;gap:8px;align-items:center;font-size:12px;color:var(--muted);flex-wrap:wrap}
+.answer-row .question{font-size:14px;line-height:1.55}
+.answer-row .answer{font-size:15px;font-weight:900;color:var(--primary)}
+.answer-row .options-mini{font-size:12px;line-height:1.55;color:var(--muted)}
+
+/* Import section */
+.import-zone{
+  border:2px dashed var(--line);border-radius:var(--radius);
+  padding:30px 20px;text-align:center;cursor:pointer;transition:all .15s;
+  background:var(--card);margin:12px 0
+}
+.import-zone:hover,.import-zone.dragover{border-color:var(--primary);background:var(--primary-soft)}
+.import-zone p{color:var(--muted);font-size:14px}
+.import-zone .big{font-size:36px;margin-bottom:8px}
+
+@keyframes answerPop{0%{transform:scale(.98)}70%{transform:scale(1.018)}100%{transform:scale(1)}}
+@keyframes answerShake{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}60%{transform:translateX(3px)}}
+@keyframes feedbackIn{0%{opacity:0;transform:translateY(-4px)}100%{opacity:1;transform:translateY(0)}}
+
+@media(min-width:760px){.app{border-left:1px solid var(--line);border-right:1px solid var(--line)}}
+</style>
+</head>
+<body>
+<div class="app" id="app"></div>
+
+<script>
+// ========== State ==========
+const STORAGE_KEY = 'quizapp_banks';
+const WRONG_KEY = 'quizapp_wrong_book';
+const DEEPSEEK_CONFIG_KEY = 'quizapp_deepseek_config';
+const UI_CONFIG_KEY = 'quizapp_ui_config';
+const DEFAULT_BANK_FILES = [
+  '毛概-导论.json',
+  '毛概-第一章.json',
+  '毛概-第二章 新民主主义革命理论.json',
+  '毛概-第三章.json',
+  '毛概-第四章.json',
+  '毛概-第五章.json',
+  '毛概-第六章.json',
+  '毛概-第七章.json',
+  '毛概-第八章.json',
+];
+
+let state = {
+  banks: [],
+  activeSession: null,
+  activeSubject: '',
+  currentIndex: 0,
+  answers: {},
+  drafts: {},
+  mode: 'page',
+  view: 'home',
+  loadingDefaults: false,
+  defaultLoadError: '',
+  touchStartX: 0,
+  touchStartY: 0,
+  scrollTimer: null,
+  wrongBook: {},
+  analysisContext: null,
+  aiAnalysisText: '',
+  aiAnalysisLoading: false,
+  aiAnalysisError: '',
+  deepseekConfig: {
+    provider: 'deepseek',
+    apiKey: '',
+    baseUrl: 'https://api.deepseek.com',
+    model: 'deepseek-v4-flash',
+    models: ['deepseek-v4-flash', 'deepseek-v4-pro'],
+  },
+  uiConfig: {
+    theme: 'light',
+    primary: '#4f6ef7',
+  },
+};
+
+// ========== Persistence ==========
+function saveBanks() {
+  const imported = state.banks.filter(b => !b.bundled);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(imported));
+}
+
+function loadBanks() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    if (Array.isArray(saved)) {
+      state.banks = saved.map((b, i) => normalizeBank(b, `import-${i}`, false));
+    }
+  } catch(e) {
+    state.banks = [];
+  }
+}
+
+function saveWrongBook() {
+  localStorage.setItem(WRONG_KEY, JSON.stringify(state.wrongBook));
+}
+
+function loadWrongBook() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(WRONG_KEY));
+    state.wrongBook = saved && typeof saved === 'object' ? saved : {};
+  } catch(e) {
+    state.wrongBook = {};
+  }
+}
+
+function saveDeepSeekConfig() {
+  const cfg = {
+    provider: state.deepseekConfig.provider,
+    apiKey: state.deepseekConfig.apiKey,
+    baseUrl: getProviderPreset(state.deepseekConfig.provider).baseUrl,
+    model: state.deepseekConfig.model,
+    models: state.deepseekConfig.models,
+  };
+  localStorage.setItem(DEEPSEEK_CONFIG_KEY, JSON.stringify(cfg));
+}
+
+function loadDeepSeekConfig() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(DEEPSEEK_CONFIG_KEY));
+    if (saved && typeof saved === 'object') {
+      state.deepseekConfig = {
+        ...state.deepseekConfig,
+        ...saved,
+      };
+      state.deepseekConfig.baseUrl = getProviderPreset(state.deepseekConfig.provider).baseUrl;
+    }
+  } catch(e) {}
+}
+
+function getProviderPreset(provider) {
+  const presets = {
+    deepseek: {
+      id: 'deepseek',
+      name: 'DeepSeek',
+      baseUrl: 'https://api.deepseek.com',
+      defaultModel: 'deepseek-v4-flash',
+      fallbackModels: ['deepseek-v4-flash', 'deepseek-v4-pro'],
+    },
+  };
+  return presets[provider] || presets.deepseek;
+}
+
+function saveUiConfig() {
+  localStorage.setItem(UI_CONFIG_KEY, JSON.stringify(state.uiConfig));
+}
+
+function loadUiConfig() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(UI_CONFIG_KEY));
+    if (saved && typeof saved === 'object') {
+      state.uiConfig = { ...state.uiConfig, ...saved };
+    }
+  } catch(e) {}
+  applyUiConfig();
+}
+
+function applyUiConfig() {
+  const theme = state.uiConfig.theme === 'system'
+    ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+    : state.uiConfig.theme;
+  document.body.dataset.theme = theme;
+  document.documentElement.style.setProperty('--primary', state.uiConfig.primary);
+  document.documentElement.style.setProperty('--primary-soft', hexToSoft(state.uiConfig.primary));
+}
+
+function hexToSoft(hex) {
+  const clean = String(hex || '#4f6ef7').replace('#', '');
+  const full = clean.length === 3 ? clean.split('').map(c => c + c).join('') : clean;
+  const r = parseInt(full.slice(0, 2), 16);
+  const g = parseInt(full.slice(2, 4), 16);
+  const b = parseInt(full.slice(4, 6), 16);
+  if ([r, g, b].some(Number.isNaN)) return '#eef1fe';
+  return `rgba(${r},${g},${b},.12)`;
+}
+
+async function loadBundledBanks() {
+  state.loadingDefaults = true;
+  state.defaultLoadError = '';
+  renderHome();
+
+  const imported = state.banks.filter(b => !b.bundled);
+  const loaded = [];
+
+  for (const file of DEFAULT_BANK_FILES) {
+    try {
+      const res = await fetch(`data/${encodeURIComponent(file)}`, { cache: 'no-store' });
+      if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+      const data = await res.json();
+      loaded.push(normalizeBank(data, `bundled:${file}`, true));
+    } catch(e) {
+      state.defaultLoadError = '内置题库加载失败，请用本地服务器打开项目。';
+      console.warn('[QuizApp] bundled bank load failed:', file, e);
+    }
+  }
+
+  state.banks = [...loaded, ...imported];
+  state.loadingDefaults = false;
+  renderHome();
+}
+
+// ========== Question helpers ==========
+function getType(q) {
+  const raw = String(q.type || '').trim().toLowerCase();
+  if (raw === 'single' || raw === '单选') return 'single';
+  if (raw === 'multi' || raw === '多选' || raw === 'multiple') return 'multi';
+  if (raw === 'bool' || raw === '判断' || raw === 'tf' || raw === 'truefalse') return 'bool';
+  return 'single';
+}
+
+function getTypeLabel(t) {
+  return { single: '单选', multi: '多选', bool: '判断' }[t] || '单选';
+}
+
+function getOptions(q) {
+  const t = getType(q);
+  if (t === 'bool') return ['对', '错'];
+  if (Array.isArray(q.options) && q.options.length) return q.options;
+  if (q.options && typeof q.options === 'object') return Object.values(q.options);
+  return ['A', 'B', 'C', 'D'];
+}
+
+function normalizeQuestion(q, i) {
+  const raw = q || {};
+  const question = raw.q || raw.question || raw['题目'] || raw.title || '';
+  return {
+    id: raw.id || `q${i + 1}`,
+    type: getType(raw),
+    q: String(question).trim(),
+    options: getOptions(raw).map(o => String(o)),
+    ans: normalizeAnswer(raw, raw.ans ?? raw.answer ?? raw['答案'] ?? raw.correct),
+    rawAns: String(raw.ans ?? raw.answer ?? raw['答案'] ?? raw.correct ?? ''),
+    exp: raw.exp || raw.explanation || raw['解析'] || raw.note || '',
+  };
+}
+
+function extractQuestions(data) {
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data.questions)) return data.questions;
+  if (Array.isArray(data.data)) return data.data;
+  for (const key of Object.keys(data || {})) {
+    if (Array.isArray(data[key]) && data[key].length > 0) return data[key];
+  }
+  return [];
+}
+
+function normalizeBank(data, fallbackId, bundled) {
+  const rawQuestions = extractQuestions(data);
+  const questions = rawQuestions
+    .map((q, i) => normalizeQuestion(q, i))
+    .filter(q => q.q && q.ans);
+  const name = data.name || data.title || data['科目'] || fallbackId.replace(/^bundled:/, '').replace(/\.json$/i, '');
+  const parsed = parseBankName(String(name));
+  return {
+    id: data.id || fallbackId || `${Date.now()}`,
+    name: String(name),
+    subject: data.subject || data['科目'] || parsed.subject,
+    chapter: data.chapter || data['章节'] || parsed.chapter,
+    questions,
+    bundled: Boolean(bundled),
+  };
+}
+
+function parseBankName(name) {
+  const clean = String(name || '').replace(/\s*\(\d+题\)\s*/g, '').trim();
+  const parts = clean.split(/\s*[-－—]\s*/).filter(Boolean);
+  if (parts.length >= 2) {
+    return { subject: parts[0], chapter: parts.slice(1).join('-') };
+  }
+  return { subject: clean || '未分类', chapter: '综合练习' };
+}
+
+function getSubjectGroups() {
+  const groups = new Map();
+  for (const bank of state.banks) {
+    const subject = bank.subject || parseBankName(bank.name).subject;
+    if (!groups.has(subject)) groups.set(subject, []);
+    groups.get(subject).push(bank);
+  }
+  return Array.from(groups, ([subject, banks]) => ({
+    subject,
+    banks,
+    questionCount: banks.reduce((sum, bank) => sum + bank.questions.length, 0),
+  }));
+}
+
+function getBanksBySubject(subject) {
+  return state.banks.filter(b => (b.subject || parseBankName(b.name).subject) === subject);
+}
+
+function buildQuestionSet(banks) {
+  return banks.flatMap(bank => bank.questions.map((q, i) => ({
+    ...q,
+    sourceBankId: bank.id,
+    sourceSubject: bank.subject || parseBankName(bank.name).subject,
+    sourceChapter: bank.chapter || parseBankName(bank.name).chapter,
+    sourceIndex: i,
+  })));
+}
+
+function questionKey(q) {
+  return `${q.sourceBankId || 'bank'}:${q.sourceIndex ?? q.id ?? q.q}`;
+}
+
+function getWrongRecords(filter = {}) {
+  return Object.values(state.wrongBook).filter(record => {
+    if (filter.subject && record.question.sourceSubject !== filter.subject) return false;
+    if (filter.chapter && record.question.sourceChapter !== filter.chapter) return false;
+    return true;
+  }).sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+}
+
+function updateWrongBook(idx) {
+  const session = state.activeSession;
+  if (!session) return;
+  const q = session.questions[idx];
+  const userAns = state.answers[idx];
+  if (!q || !userAns) return;
+  const key = questionKey(q);
+  if (checkAnswer(q, userAns)) {
+    if (state.wrongBook[key]) {
+      delete state.wrongBook[key];
+      saveWrongBook();
+    }
+    return;
+  }
+
+  const prev = state.wrongBook[key] || {};
+  state.wrongBook[key] = {
+    key,
+    question: q,
+    lastAnswer: userAns,
+    correctAnswer: getCorrectAnswer(q),
+    wrongCount: (prev.wrongCount || 0) + 1,
+    updatedAt: Date.now(),
+  };
+  saveWrongBook();
+}
+
+function shuffleQuestions(questions) {
+  const arr = questions.slice();
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function startPractice({ subject, banks, title, subtitle, shuffled }) {
+  const source = Array.isArray(banks) ? banks : [];
+  const questions = buildQuestionSet(source);
+  startQuestionPractice({ subject, title, subtitle, questions, shuffled });
+}
+
+function startQuestionPractice({ subject, title, subtitle, questions, shuffled }) {
+  if (!questions.length) return;
+  state.activeSubject = subject;
+  state.activeSession = {
+    title,
+    subtitle,
+    subject,
+    shuffled,
+    questions: shuffled ? shuffleQuestions(questions) : questions,
+  };
+  state.currentIndex = 0;
+  state.answers = {};
+  state.drafts = {};
+  state.view = 'quiz';
+  renderQuiz();
+}
+
+function normalizeAnswer(q, value) {
+  const t = getType(q);
+  const raw = String(value ?? '').trim();
+  const upper = raw.toUpperCase();
+
+  if (t === 'bool') {
+    if (['A', 'TRUE', 'T', 'YES', 'Y', '1', '对', '正确', '是', '√', '✓'].includes(upper) || ['对', '正确', '是', '√', '✓'].includes(raw)) return 'A';
+    if (['B', 'FALSE', 'F', 'NO', 'N', '0', '错', '错误', '否', '×', '✗'].includes(upper) || ['错', '错误', '否', '×', '✗'].includes(raw)) return 'B';
+  }
+
+  return upper.split('').filter(c => c >= 'A' && c <= 'Z').sort().join('');
+}
+
+function getCorrectAnswer(q) {
+  return normalizeAnswer(q, q.ans || q.rawAns || q.answer);
+}
+
+function getAnswerLabel(q) {
+  const ans = getCorrectAnswer(q);
+  if (getType(q) === 'bool') return ans === 'A' ? '对' : '错';
+  return ans;
+}
+
+function checkAnswer(q, userAns) {
+  return normalizeAnswer(q, userAns) === getCorrectAnswer(q);
+}
+
+function analyzeQuestionSet(subject = '') {
+  const banks = subject ? getBanksBySubject(subject) : state.banks;
+  const questions = buildQuestionSet(banks);
+  const typeCounts = { single: 0, multi: 0, bool: 0 };
+  const chapterStats = new Map();
+  const seen = new Map();
+  const duplicates = [];
+  const issues = [];
+
+  questions.forEach(q => {
+    const type = getType(q);
+    typeCounts[type] = (typeCounts[type] || 0) + 1;
+    const chapter = q.sourceChapter || '未分章';
+    if (!chapterStats.has(chapter)) {
+      chapterStats.set(chapter, { chapter, total: 0, single: 0, multi: 0, bool: 0, wrong: 0 });
+    }
+    const stat = chapterStats.get(chapter);
+    stat.total++;
+    stat[type]++;
+
+    const normalizedText = q.q.replace(/\s+/g, '');
+    if (seen.has(normalizedText)) duplicates.push({ text: q.q, first: seen.get(normalizedText), chapter });
+    else seen.set(normalizedText, chapter);
+
+    if (!q.ans) issues.push({ chapter, text: q.q, issue: '缺少答案' });
+    if (type !== 'bool' && (!q.options || q.options.length < 2)) issues.push({ chapter, text: q.q, issue: '选项不足' });
+  });
+
+  for (const record of getWrongRecords({ subject })) {
+    const chapter = record.question.sourceChapter || '未分章';
+    if (chapterStats.has(chapter)) chapterStats.get(chapter).wrong++;
+  }
+
+  return {
+    subject: subject || '全部科目',
+    bankCount: banks.length,
+    total: questions.length,
+    typeCounts,
+    chapterStats: Array.from(chapterStats.values()),
+    wrongCount: getWrongRecords({ subject }).length,
+    duplicates: duplicates.slice(0, 20),
+    issues: issues.slice(0, 20),
+  };
+}
+
+function buildDeepSeekPayload() {
+  const subject = state.analysisContext?.subject || '';
+  const banks = subject ? getBanksBySubject(subject) : state.banks;
+  const analysis = analyzeQuestionSet(subject);
+  const questions = buildQuestionSet(banks).map(q => ({
+    chapter: q.sourceChapter,
+    type: getTypeLabel(getType(q)),
+    question: q.q,
+    options: getType(q) === 'bool' ? undefined : q.options,
+    answer: getAnswerLabel(q),
+  }));
+
+  return {
+    analysis,
+    questions: questions.slice(0, 120),
+    note: questions.length > 120 ? `仅发送前 120 题，共 ${questions.length} 题。` : '',
+  };
+}
+
+// ========== Import ==========
+function importJSON(jsonStr) {
+  try {
+    const data = JSON.parse(jsonStr);
+    const bank = normalizeBank(data, `import:${Date.now()}`, false);
+    if (!bank.questions.length) return alert('未找到有效题目');
+    state.banks.push(bank);
+    saveBanks();
+    renderHome();
+    return true;
+  } catch(e) {
+    alert('JSON 解析失败：' + e.message);
+    return false;
+  }
+}
+
+// ========== Render ==========
+function renderHome() {
+  state.view = 'home';
+  state.activeSubject = '';
+  const app = document.getElementById('app');
+  const importedCount = state.banks.filter(b => !b.bundled).length;
+  const totalQuestions = state.banks.reduce((sum, b) => sum + b.questions.length, 0);
+  const totalWrongCount = getWrongRecords().length;
+  const subjectGroups = getSubjectGroups();
+  const subjectList = subjectGroups.map(group => `
+    <div class="bank-item" onclick="openSubject('${escapeAttr(group.subject)}')">
+      <div class="icon">📚</div>
+      <div class="info">
+        <h4>${escapeHtml(group.subject)}</h4>
+        <small>${group.banks.length} 章 · ${group.questionCount} 题</small>
+      </div>
+      <div class="count">进入</div>
+    </div>
+  `).join('');
+
+  app.innerHTML = `
+    <div class="topbar">
+      <h1>📝 刷题</h1>
+      <button class="btn-icon" onclick="renderSettings()" aria-label="设置">⚙</button>
+    </div>
+    <div class="viewport"><div class="home">
+      ${state.banks.length ? `
+        <div style="display:flex;gap:10px">
+          <div class="subject-card"><h3>${subjectGroups.length}</h3><small>科目</small></div>
+          <div class="subject-card"><h3>${totalQuestions}</h3><small>题目</small></div>
+        </div>
+        <div class="practice-actions">
+          <button onclick="openAnalysis('')">全部题目分析</button>
+          <button class="secondary" onclick="openWrongPractice('', '', true)" ${totalWrongCount ? '' : 'disabled'}>全部错题 ${totalWrongCount}</button>
+        </div>
+        <div class="bank-list">${subjectList}</div>
+      ` : `
+        <div style="text-align:center;padding:40px 20px;color:var(--muted)">
+          <div style="font-size:48px;margin-bottom:12px">📚</div>
+          <p style="font-size:16px;margin-bottom:8px">${state.loadingDefaults ? '正在加载题库' : '还没有题库'}</p>
+          <p style="font-size:13px">${state.defaultLoadError || '拖拽 JSON 文件或粘贴 JSON 文本来导入题库'}</p>
+        </div>
+      `}
+      <div class="import-zone" id="importZone" onclick="document.getElementById('fileInput').click()">
+        <div class="big">📥</div>
+        <p>点击或拖拽导入题库</p>
+        <p style="font-size:11px;margin-top:4px">支持 JSON 文件</p>
+      </div>
+      <input type="file" id="fileInput" accept=".json" hidden onchange="handleFile(this)">
+      <textarea id="pasteArea" placeholder="或粘贴 JSON 文本到这里..." style="width:100%;height:80px;border:1px solid var(--line);border-radius:var(--radius-sm);padding:10px;font-size:12px;resize:none;margin-top:0"></textarea>
+      <button class="option" style="justify-content:center;font-weight:700" onclick="const t=document.getElementById('pasteArea');if(t.value.trim()){importJSON(t.value);t.value=''}">导入手动粘贴的题库</button>
+      ${importedCount ? `<button class="option" style="justify-content:center;color:var(--danger);font-weight:700" onclick="clearImportedBanks()">清除导入题库</button>` : ''}
+    </div></div>
+  `;
+  setupImport();
+}
+
+function renderSettings() {
+  state.view = 'settings';
+  const preset = getProviderPreset(state.deepseekConfig.provider);
+  const models = Array.from(new Set([state.deepseekConfig.model, ...(state.deepseekConfig.models || preset.fallbackModels)])).filter(Boolean);
+  const colors = ['#4f6ef7', '#1f9d72', '#d94757', '#7c5cff', '#0f8b8d'];
+  const app = document.getElementById('app');
+  app.innerHTML = `
+    <div class="topbar">
+      <button class="btn-back" onclick="renderHome()" aria-label="返回">←</button>
+      <h1>设置</h1>
+    </div>
+    <div class="viewport"><div class="home">
+      <div class="analysis-panel">
+        <div class="section-title">外观</div>
+        <div class="settings-row">
+          <label>主题</label>
+          <select id="themeSelect" onchange="previewThemeSettings()">
+            <option value="light" ${state.uiConfig.theme === 'light' ? 'selected' : ''}>浅色</option>
+            <option value="dark" ${state.uiConfig.theme === 'dark' ? 'selected' : ''}>深色</option>
+            <option value="system" ${state.uiConfig.theme === 'system' ? 'selected' : ''}>跟随系统</option>
+          </select>
+        </div>
+        <div class="settings-row">
+          <label>主色</label>
+          <div class="swatches">
+            ${colors.map(color => `<button class="swatch ${state.uiConfig.primary.toLowerCase() === color ? 'active' : ''}" style="background:${color}" onclick="setPrimaryColor('${color}')" aria-label="${color}"></button>`).join('')}
+          </div>
+          <input id="customPrimary" value="${escapeAttr(state.uiConfig.primary)}" placeholder="#4f6ef7" onchange="setPrimaryColor(this.value)">
+        </div>
+      </div>
+
+      <div class="analysis-panel">
+        <div class="section-title">AI 分析服务</div>
+        <div class="settings-row">
+          <label>服务预设</label>
+          <select id="providerSelect" disabled>
+            <option value="deepseek" selected>DeepSeek</option>
+          </select>
+        </div>
+        <div style="font-size:12px;color:var(--muted)">Base URL：${escapeHtml(preset.baseUrl)}</div>
+        <div class="settings-row">
+          <label>API Key</label>
+          <input id="deepseekKey" type="password" value="${escapeAttr(state.deepseekConfig.apiKey)}" placeholder="只需要输入 DeepSeek API Key" oninput="state.deepseekConfig.apiKey=this.value.trim()">
+        </div>
+        <div class="settings-row">
+          <label>模型</label>
+          <select id="deepseekModel">
+            ${models.map(model => `<option value="${escapeAttr(model)}" ${state.deepseekConfig.model === model ? 'selected' : ''}>${escapeHtml(model)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="settings-actions">
+          <button onclick="fetchProviderModels()" onpointerup="fetchProviderModels()">搜索模型列表</button>
+          <button class="secondary" onclick="clearDeepSeekSettings()" onpointerup="clearDeepSeekSettings()">清除 Key</button>
+        </div>
+        ${state.aiAnalysisError ? `<div class="ai-error">${escapeHtml(state.aiAnalysisError)}</div>` : ''}
+      </div>
+
+      <div class="analysis-panel" style="text-align:center;padding:16px">
+        <div class="section-title">关于</div>
+        <p style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.8">
+          QuizApp v1.0<br>
+          题库来源: AutoQuiz 自动抓取导出<br>
+          感谢使用, 你们的 Star 和关注是我更新的动力!
+        </p>
+        <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+          <a href="https://github.com/konwait12" target="_blank" style="padding:6px 16px;border-radius:20px;background:#24292f;color:#fff;font-size:12px;text-decoration:none"> GitHub</a>
+          <a href="https://github.com/konwait12/AutoQuiz" target="_blank" style="padding:6px 16px;border-radius:20px;background:#4f6ef7;color:#fff;font-size:12px;text-decoration:none"> AutoQuiz</a>
+          <a href="https://space.bilibili.com/493568339" target="_blank" style="padding:6px 16px;border-radius:20px;background:#fb7299;color:#fff;font-size:12px;text-decoration:none"> B站</a>
+        </div>
+      </div>
+      <div class="settings-actions">
+        <button id="saveSettingsBtn" onclick="saveAllSettings()" onpointerup="saveAllSettings()">保存设置</button>
+        <button class="secondary" onclick="renderHome()">返回首页</button>
+      </div>
+    </div></div>
+  `;
+}
+
+function previewThemeSettings() {
+  state.uiConfig.theme = document.getElementById('themeSelect')?.value || 'light';
+  applyUiConfig();
+}
+
+function setPrimaryColor(color) {
+  const value = String(color || '').trim();
+  if (!/^#[0-9a-fA-F]{6}$/.test(value)) return;
+  state.uiConfig.primary = value;
+  applyUiConfig();
+  renderSettings();
+}
+
+function readSettingsForm() {
+  const preset = getProviderPreset('deepseek');
+  state.uiConfig.theme = document.getElementById('themeSelect')?.value || state.uiConfig.theme;
+  state.uiConfig.primary = document.getElementById('customPrimary')?.value.trim() || state.uiConfig.primary;
+  state.deepseekConfig.provider = 'deepseek';
+  state.deepseekConfig.baseUrl = preset.baseUrl;
+  state.deepseekConfig.apiKey = state.deepseekConfig.apiKey || document.getElementById('deepseekKey')?.value.trim() || '';
+  state.deepseekConfig.model = document.getElementById('deepseekModel')?.value || preset.defaultModel;
+}
+
+function saveAllSettings() {
+  readSettingsForm();
+  applyUiConfig();
+  saveUiConfig();
+  saveDeepSeekConfig();
+  renderSettings();
+}
+
+async function fetchProviderModels() {
+  readSettingsForm();
+  const preset = getProviderPreset(state.deepseekConfig.provider);
+  state.aiAnalysisError = '';
+  if (!state.deepseekConfig.apiKey) {
+    state.aiAnalysisError = '请先输入 DeepSeek API Key';
+    renderSettings();
+    return;
+  }
+  try {
+    const res = await fetch(`${preset.baseUrl}/models`, {
+      headers: { 'Authorization': `Bearer ${state.deepseekConfig.apiKey}` },
+    });
+    if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
+    const data = await res.json();
+    const models = Array.isArray(data.data) ? data.data.map(item => item.id).filter(Boolean) : [];
+    state.deepseekConfig.models = models.length ? models : preset.fallbackModels;
+    if (!state.deepseekConfig.models.includes(state.deepseekConfig.model)) {
+      state.deepseekConfig.model = state.deepseekConfig.models[0] || preset.defaultModel;
+    }
+    saveDeepSeekConfig();
+  } catch(e) {
+    state.aiAnalysisError = `模型列表获取失败：${e.message}`;
+    state.deepseekConfig.models = preset.fallbackModels;
+  }
+  renderSettings();
+}
+
+function openSubject(subject) {
+  state.view = 'subjects';
+  state.activeSubject = subject;
+  renderSubject();
+}
+
+function renderSubject() {
+  const subject = state.activeSubject;
+  const banks = getBanksBySubject(subject);
+  if (!subject || !banks.length) return renderHome();
+  const questionCount = banks.reduce((sum, b) => sum + b.questions.length, 0);
+  const subjectWrongCount = getWrongRecords({ subject }).length;
+
+  const app = document.getElementById('app');
+  app.innerHTML = `
+    <div class="topbar">
+      <button class="btn-back" onclick="renderHome()" aria-label="返回">←</button>
+      <h1>${escapeHtml(subject)}</h1>
+      <span style="font-size:13px;color:var(--muted)">${banks.length} 章</span>
+    </div>
+    <div class="viewport"><div class="home">
+      <div class="practice-actions">
+        <button onclick="startSubjectPractice(false)">全科顺序练习</button>
+        <button class="secondary" onclick="startSubjectPractice(true)">全科随机练习</button>
+        <button onclick="openAnalysis('${escapeAttr(subject)}')">题目分析</button>
+        <button class="secondary" onclick="openWrongPractice('${escapeAttr(subject)}','',true)" ${subjectWrongCount ? '' : 'disabled'}>全科错题 ${subjectWrongCount}</button>
+      </div>
+      <div style="font-size:12px;color:var(--muted);padding:0 2px">${questionCount} 题 · ${banks.length} 个章节</div>
+      <div class="bank-list">
+        ${banks.map(b => {
+          const chapter = b.chapter || parseBankName(b.name).chapter;
+          const wrongCount = getWrongRecords({ subject, chapter }).length;
+          return `
+          <div class="bank-item">
+            <div class="icon">${b.bundled ? '📘' : '📋'}</div>
+            <div class="info">
+              <h4>${escapeHtml(chapter)} ${wrongCount ? `<span class="wrong-badge">错题 ${wrongCount}</span>` : ''}</h4>
+              <small>${b.questions.length} 题 · ${b.bundled ? '内置题库' : '导入题库'}</small>
+            </div>
+            <div class="chapter-actions">
+              <button onclick="startChapterPractice('${escapeAttr(b.id)}',false)">顺序</button>
+              <button onclick="startChapterPractice('${escapeAttr(b.id)}',true)">随机</button>
+              <button onclick="openWrongPractice('${escapeAttr(subject)}','${escapeAttr(chapter)}',true)" ${wrongCount ? '' : 'disabled'}>错题</button>
+            </div>
+          </div>
+        `}).join('')}
+      </div>
+    </div></div>
+  `;
+}
+
+function startSubjectPractice(shuffled) {
+  const banks = getBanksBySubject(state.activeSubject);
+  startPractice({
+    subject: state.activeSubject,
+    banks,
+    title: state.activeSubject,
+    subtitle: shuffled ? '全科随机练习' : '全科顺序练习',
+    shuffled,
+  });
+}
+
+function startChapterPractice(id, shuffled) {
+  const bank = state.banks.find(b => b.id === id);
+  if (!bank) return;
+  const subject = bank.subject || parseBankName(bank.name).subject;
+  const chapter = bank.chapter || parseBankName(bank.name).chapter;
+  startPractice({
+    subject,
+    banks: [bank],
+    title: chapter,
+    subtitle: shuffled ? '章节随机练习' : '章节顺序练习',
+    shuffled,
+  });
+}
+
+function openWrongPractice(subject, chapter, shuffled) {
+  const records = getWrongRecords({ subject, chapter });
+  if (!records.length) return alert('当前范围还没有错题');
+  const questions = records.map(record => record.question);
+  const title = chapter || subject || '全部错题';
+  const subtitle = `${chapter ? '章节' : subject ? '全科' : '全部'}错题${shuffled ? '随机' : '顺序'}练习`;
+  startQuestionPractice({
+    subject,
+    title,
+    subtitle,
+    questions,
+    shuffled,
+  });
+}
+
+function openAnalysis(subject) {
+  state.analysisContext = { subject };
+  state.aiAnalysisText = '';
+  state.aiAnalysisError = '';
+  state.view = 'analysis';
+  renderAnalysis();
+}
+
+function renderAnalysis() {
+  const subject = state.analysisContext?.subject || '';
+  const analysis = analyzeQuestionSet(subject);
+  const app = document.getElementById('app');
+  const typeText = `单选 ${analysis.typeCounts.single || 0} · 多选 ${analysis.typeCounts.multi || 0} · 判断 ${analysis.typeCounts.bool || 0}`;
+  app.innerHTML = `
+    <div class="topbar">
+      <button class="btn-back" onclick="${subject ? 'renderSubject()' : 'renderHome()'}" aria-label="返回">←</button>
+      <h1>${escapeHtml(analysis.subject)}分析</h1>
+      <span style="font-size:13px;color:var(--muted)">${analysis.total} 题</span>
+    </div>
+    <div class="viewport"><div class="home">
+      <div class="analysis-panel">
+        <div class="analysis-grid">
+          <div class="analysis-stat"><strong>${analysis.bankCount}</strong><span>章节/题库</span></div>
+          <div class="analysis-stat"><strong>${analysis.total}</strong><span>题目总数</span></div>
+          <div class="analysis-stat"><strong>${analysis.wrongCount}</strong><span>当前错题</span></div>
+          <div class="analysis-stat"><strong>${analysis.duplicates.length}</strong><span>疑似重复</span></div>
+        </div>
+        <div style="font-size:13px;color:var(--muted)">${escapeHtml(typeText)}</div>
+      </div>
+      <div class="analysis-panel">
+        <div class="section-title">章节分布</div>
+        <div class="chapter-analysis">
+          ${analysis.chapterStats.map(row => `
+            <div class="row">
+              <span>${escapeHtml(row.chapter)}</span>
+              <span>${row.total} 题 · 单 ${row.single} 多 ${row.multi} 判 ${row.bool}${row.wrong ? ` · 错 ${row.wrong}` : ''}</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+      <div class="analysis-panel">
+        <div class="section-title">质量检查</div>
+        ${analysis.issues.length ? analysis.issues.map(item => `
+          <div style="font-size:13px;color:var(--danger)">${escapeHtml(item.chapter)} · ${escapeHtml(item.issue)} · ${escapeHtml(item.text.slice(0, 40))}</div>
+        `).join('') : '<div style="font-size:13px;color:var(--muted)">未发现缺答案或选项不足的问题</div>'}
+        ${analysis.duplicates.length ? `<div class="section-title">疑似重复题干</div>${analysis.duplicates.map(item => `
+          <div style="font-size:13px;color:var(--warn)">${escapeHtml(item.first)} / ${escapeHtml(item.chapter)} · ${escapeHtml(item.text.slice(0, 42))}</div>
+        `).join('')}` : ''}
+      </div>
+      <div class="analysis-panel">
+        <div class="section-title">DeepSeek 分析</div>
+        <div style="font-size:12px;color:var(--muted)">服务：DeepSeek · 模型：${escapeHtml(state.deepseekConfig.model)} · ${state.deepseekConfig.apiKey ? 'Key 已配置' : 'Key 未配置'}</div>
+        <div class="practice-actions">
+          <button onclick="renderSettings()">打开设置</button>
+        </div>
+        <button class="btn-submit" style="width:100%" onclick="runDeepSeekAnalysis()" ${state.aiAnalysisLoading ? 'disabled' : ''}>${state.aiAnalysisLoading ? '分析中...' : '调用 DeepSeek 分析题库'}</button>
+        ${state.aiAnalysisError ? `<div class="ai-error">${escapeHtml(state.aiAnalysisError)}</div>` : ''}
+        ${state.aiAnalysisText ? `<div class="ai-output">${escapeHtml(state.aiAnalysisText)}</div>` : '<div style="font-size:12px;color:var(--muted)">API Key 在设置页配置，只保存在本机浏览器 localStorage。静态页面直连 API 可能受浏览器 CORS 限制。</div>'}
+      </div>
+    </div></div>
+  `;
+}
+
+function clearDeepSeekSettings() {
+  state.deepseekConfig.apiKey = '';
+  saveDeepSeekConfig();
+  renderSettings();
+}
+
+async function runDeepSeekAnalysis() {
+  if (!state.deepseekConfig.apiKey) {
+    state.aiAnalysisError = '请先输入 DeepSeek API Key';
+    renderAnalysis();
+    return;
+  }
+
+  state.aiAnalysisLoading = true;
+  state.aiAnalysisError = '';
+  state.aiAnalysisText = '';
+  renderAnalysis();
+
+  try {
+    const payload = buildDeepSeekPayload();
+    const res = await fetch(`${state.deepseekConfig.baseUrl}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${state.deepseekConfig.apiKey}`,
+      },
+      body: JSON.stringify({
+        model: state.deepseekConfig.model,
+        messages: [
+          { role: 'system', content: '你是刷题题库教研分析助手。输出中文，直接给结构化分析、重点分布、易错风险和复习建议。' },
+          { role: 'user', content: `请分析这份题库数据：\n${JSON.stringify(payload)}` },
+        ],
+        temperature: 0.2,
+      }),
+    });
+
+    if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
+    const data = await res.json();
+    state.aiAnalysisText = data.choices?.[0]?.message?.content || 'DeepSeek 未返回分析内容';
+    saveDeepSeekConfig();
+  } catch(e) {
+    state.aiAnalysisError = `DeepSeek 调用失败：${e.message}`;
+  } finally {
+    state.aiAnalysisLoading = false;
+    renderAnalysis();
+  }
+}
+
+function clearImportedBanks() {
+  if (!confirm('清除手动导入的题库？内置题库会保留。')) return;
+  state.banks = state.banks.filter(b => b.bundled);
+  saveBanks();
+  renderHome();
+}
+
+function renderQuiz() {
+  const session = state.activeSession;
+  if (!session) return renderHome();
+  const total = session.questions.length;
+  if (!total) return renderHome();
+
+  state.currentIndex = Math.max(0, Math.min(state.currentIndex, total - 1));
+  const idx = state.currentIndex;
+
+  let correctCount = 0;
+  let wrongCount = 0;
+  for (let i = 0; i < total; i++) {
+    if (state.answers[i]) {
+      checkAnswer(session.questions[i], state.answers[i]) ? correctCount++ : wrongCount++;
+    }
+  }
+
+  const app = document.getElementById('app');
+  app.innerHTML = `
+    <div class="topbar">
+      <button class="btn-back" onclick="renderSubject()" aria-label="返回">←</button>
+      <h1>${escapeHtml(session.title.slice(0, 24))}</h1>
+      <span id="questionCounter" style="font-size:13px;color:var(--muted)">${idx + 1}/${total}</span>
+    </div>
+    <div class="progress-wrap">
+      <div class="progress-bar">
+        ${Array.from({ length: total }, (_, i) => {
+          const a = state.answers[i];
+          const cls = a ? (checkAnswer(session.questions[i], a) ? 'correct' : 'wrong') : 'unanswered';
+          return `<span class="${cls}" style="width:${100 / total}%;min-width:2px"></span>`;
+        }).join('')}
+      </div>
+      <div class="progress-info">
+        <span>${escapeHtml(session.subtitle)}</span><span>正确 ${correctCount}</span><span>错误 ${wrongCount}</span><span>未答 ${total - correctCount - wrongCount}</span>
+      </div>
+    </div>
+    <div class="viewport" id="viewport">
+      ${state.mode === 'scroll' ? renderScrollMode(session) : renderPageMode(session)}
+    </div>
+    <div class="bottombar">
+      <button id="prevBtn" class="btn-prev" onclick="prevQ()" ${idx === 0 ? 'disabled' : ''}>上一题</button>
+      <button class="btn-mode" onclick="cycleMode()">${state.mode === 'page' ? '竖向滑动' : '横向翻页'}</button>
+      <button id="nextBtn" class="btn-next" onclick="nextQ()" ${idx === total - 1 ? 'disabled' : ''}>下一题</button>
+    </div>
+  `;
+
+  if (state.mode === 'scroll') {
+    const card = document.getElementById(`card-${idx}`);
+    if (card) card.scrollIntoView({ behavior: 'instant', block: 'start' });
+    setupScrollTracking();
+  } else {
+    setupPageTouch();
+    updatePagePosition(false);
+  }
+}
+
+function renderPageMode(session) {
+  return `
+    <div class="page-frame">
+      <div class="page-track" id="pageTrack">
+        ${session.questions.map((q, i) => `
+          <div class="page-slide">
+            ${renderCard(q, i)}
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+}
+
+function renderScrollMode(session) {
+  return `
+    <div class="scroll-container" id="scrollContainer">
+      ${session.questions.map((q, i) => renderCard(q, i)).join('')}
+    </div>
+  `;
+}
+
+function renderCard(q, idx) {
+  const t = getType(q);
+  const userAns = state.answers[idx] || state.drafts[idx] || '';
+  const answered = Boolean(state.answers[idx]);
+  const correct = answered ? checkAnswer(q, state.answers[idx]) : null;
+  const opts = getOptions(q);
+  const letters = 'ABCDEFGH';
+  const isMulti = t === 'multi';
+  const correctAns = getCorrectAnswer(q);
+  const session = state.activeSession;
+  const showSource = session && session.subject === q.sourceSubject && session.title === session.subject;
+
+  let optHTML = '';
+  if (t === 'bool') {
+    const clsFor = letter => {
+      if (!answered) return userAns === letter ? 'selected' : '';
+      if (correctAns === letter) return 'correct';
+      if (state.answers[idx] === letter) return 'wrong';
+      return '';
+    };
+    optHTML = `
+      <div class="bool-row">
+        <div class="bool-btn ${clsFor('A')}" onclick="answerBool(${idx},'A')">✓</div>
+        <div class="bool-btn ${clsFor('B')}" onclick="answerBool(${idx},'B')">✗</div>
+      </div>
+    `;
+  } else {
+    optHTML = `
+      <div class="options">
+        ${opts.map((o, i) => {
+          const letter = letters[i];
+          const selected = userAns.includes(letter);
+          let cls = selected ? 'selected' : '';
+          if (answered) {
+            if (correctAns.includes(letter)) cls = 'correct';
+            else if (selected) cls = 'wrong';
+            else cls = '';
+          }
+          return `
+            <div class="option ${cls}" onclick="${isMulti ? `toggleMulti(${idx},'${letter}')` : `answerSingle(${idx},'${letter}')`}">
+              <span class="option-letter">${letter}</span>
+              <span>${escapeHtml(String(o))}</span>
+            </div>`;
+        }).join('')}
+      </div>
+      ${isMulti && !answered ? `
+        <div class="multi-actions">
+          <button class="btn-submit" onclick="submitMulti(${idx})" ${userAns ? '' : 'disabled'}>确认答案</button>
+        </div>
+      ` : ''}
+    `;
+  }
+
+  return `
+    <div class="card ${answered ? `answered ${correct ? 'correct' : 'wrong'}` : ''}" id="card-${idx}">
+      <div class="card-header">
+        <span class="card-num">${idx + 1}</span>
+        <span class="card-type type-${t === 'multi' ? 'multi' : t === 'bool' ? 'bool' : 'single'}">${getTypeLabel(t)}</span>
+        ${showSource ? `<span style="font-size:11px;color:var(--muted)">${escapeHtml(q.sourceChapter)}</span>` : ''}
+        ${isMulti && !answered ? '<span style="font-size:11px;color:var(--warn)">选完后确认</span>' : ''}
+      </div>
+      <div class="card-body"><p>${escapeHtml(q.q)}</p></div>
+      ${optHTML}
+      ${answered ? `
+        <div class="explanation show ${correct ? '' : 'wrong'}">
+          <div class="exp-label">${correct ? '正确' : '错误'}</div>
+          ${correct ? '' : `<div>正确答案：${escapeHtml(getAnswerLabel(q))}</div>`}
+          ${q.exp ? `<div style="margin-top:4px;color:var(--muted)">${escapeHtml(q.exp)}</div>` : ''}
+        </div>
+      ` : ''}
+    </div>
+  `;
+}
+
+function answerSingle(idx, letter) {
+  if (state.answers[idx]) return;
+  state.currentIndex = idx;
+  state.answers[idx] = letter;
+  delete state.drafts[idx];
+  updateWrongBook(idx);
+  renderQuiz();
+}
+
+function answerBool(idx, letter) {
+  if (state.answers[idx]) return;
+  state.currentIndex = idx;
+  state.answers[idx] = letter;
+  delete state.drafts[idx];
+  updateWrongBook(idx);
+  renderQuiz();
+}
+
+function toggleMulti(idx, letter) {
+  if (state.answers[idx]) return;
+  state.currentIndex = idx;
+  const cur = state.drafts[idx] || '';
+  const parts = cur.split('').filter(c => c >= 'A' && c <= 'Z');
+  const i = parts.indexOf(letter);
+  if (i >= 0) parts.splice(i, 1);
+  else parts.push(letter);
+  state.drafts[idx] = parts.sort().join('');
+  renderQuiz();
+}
+
+function submitMulti(idx) {
+  const draft = state.drafts[idx] || '';
+  if (!draft || state.answers[idx]) return;
+  state.currentIndex = idx;
+  state.answers[idx] = draft;
+  delete state.drafts[idx];
+  updateWrongBook(idx);
+  renderQuiz();
+}
+
+function nextQ() {
+  if (state.activeSession && state.currentIndex < state.activeSession.questions.length - 1) {
+    state.currentIndex++;
+    state.mode === 'page' ? updatePagePosition(true) : renderQuiz();
+  }
+}
+
+function prevQ() {
+  if (state.currentIndex > 0) {
+    state.currentIndex--;
+    state.mode === 'page' ? updatePagePosition(true) : renderQuiz();
+  }
+}
+
+function cycleMode() {
+  state.mode = state.mode === 'page' ? 'scroll' : 'page';
+  renderQuiz();
+}
+
+function updatePagePosition(animate) {
+  const track = document.getElementById('pageTrack');
+  if (!track || !state.activeSession) return;
+  if (!animate) track.style.transition = 'none';
+  track.style.transform = `translateX(${-state.currentIndex * 100}%)`;
+  if (!animate) {
+    track.offsetHeight;
+    track.style.transition = '';
+  }
+  updateNavState();
+}
+
+function updateNavState() {
+  if (!state.activeSession) return;
+  const total = state.activeSession.questions.length;
+  const counter = document.getElementById('questionCounter');
+  const prev = document.getElementById('prevBtn');
+  const next = document.getElementById('nextBtn');
+  if (counter) counter.textContent = `${state.currentIndex + 1}/${total}`;
+  if (prev) prev.disabled = state.currentIndex === 0;
+  if (next) next.disabled = state.currentIndex === total - 1;
+}
+
+function setupPageTouch() {
+  const viewport = document.getElementById('viewport');
+  if (!viewport) return;
+  viewport.addEventListener('touchstart', e => {
+    const t = e.changedTouches[0];
+    state.touchStartX = t.clientX;
+    state.touchStartY = t.clientY;
+  }, { passive: true });
+  viewport.addEventListener('touchend', e => {
+    const t = e.changedTouches[0];
+    const dx = t.clientX - state.touchStartX;
+    const dy = t.clientY - state.touchStartY;
+    if (Math.abs(dx) > 55 && Math.abs(dx) > Math.abs(dy) * 1.4) {
+      dx < 0 ? nextQ() : prevQ();
+    }
+  }, { passive: true });
+}
+
+function setupScrollTracking() {
+  const container = document.getElementById('scrollContainer');
+  if (!container || !state.activeSession) return;
+  container.addEventListener('scroll', () => {
+    window.clearTimeout(state.scrollTimer);
+    state.scrollTimer = window.setTimeout(() => {
+      const cards = Array.from(container.querySelectorAll('.card'));
+      let bestIndex = state.currentIndex;
+      let bestDistance = Infinity;
+      const top = container.getBoundingClientRect().top;
+      cards.forEach((card, i) => {
+        const distance = Math.abs(card.getBoundingClientRect().top - top - 12);
+        if (distance < bestDistance) {
+          bestDistance = distance;
+          bestIndex = i;
+        }
+      });
+      state.currentIndex = bestIndex;
+      updateNavState();
+    }, 80);
+  }, { passive: true });
+}
+
+document.addEventListener('keydown', e => {
+  if (state.view !== 'quiz') return;
+  if (e.key === 'ArrowRight') nextQ();
+  if (e.key === 'ArrowLeft') prevQ();
+});
+
+// ========== Import ==========
+function setupImport() {
+  const zone = document.getElementById('importZone');
+  if (!zone) return;
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault();
+    zone.classList.remove('dragover');
+    const file = e.dataTransfer.files[0];
+    if (file) readFile(file);
+  });
+}
+
+function handleFile(input) {
+  const file = input.files[0];
+  if (file) readFile(file);
+  input.value = '';
+}
+
+function readFile(file) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    if (importJSON(reader.result)) renderHome();
+  };
+  reader.readAsText(file, 'utf-8');
+}
+
+function escapeHtml(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function escapeAttr(s) {
+  return escapeHtml(s).replace(/'/g, '&#39;');
+}
+
+// ========== Init ==========
+loadUiConfig();
+loadBanks();
+loadWrongBook();
+loadDeepSeekConfig();
+loadBundledBanks();
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+  if (state.uiConfig.theme === 'system') applyUiConfig();
+});
+</script>
+</body>
+</html>
