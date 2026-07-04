@@ -288,6 +288,17 @@ const DEFAULT_BANK_FILES = [
   '毛概-第六章.json',
   '毛概-第七章.json',
   '毛概-第八章.json',
+  '习思-导论.json',
+  '习思-中国特色社会主义.json',
+  '习思-党的领导.json',
+  '习思-经济建设.json',
+  '习思-政治建设.json',
+  '习思-文化建设.json',
+  '习思-社会建设.json',
+  '习思-生态文明.json',
+  '习思-国家安全.json',
+  '习思-外交.json',
+  '习思-综合.json',
 ];
 
 let state = {
@@ -767,15 +778,16 @@ function renderHome() {
           <p style="font-size:13px">${state.defaultLoadError || '拖拽 JSON 文件或粘贴 JSON 文本来导入题库'}</p>
         </div>
       `}
-      <div class="import-zone" id="importZone" onclick="document.getElementById('fileInput').click()">
-        <div class="big">📥</div>
-        <p>点击或拖拽导入题库</p>
-        <p style="font-size:11px;margin-top:4px">支持 JSON 文件</p>
-      </div>
-      <input type="file" id="fileInput" accept=".json" hidden onchange="handleFile(this)">
-      <textarea id="pasteArea" placeholder="或粘贴 JSON 文本到这里..." style="width:100%;height:80px;border:1px solid var(--line);border-radius:var(--radius-sm);padding:10px;font-size:12px;resize:none;margin-top:0"></textarea>
-      <button class="option" style="justify-content:center;font-weight:700" onclick="const t=document.getElementById('pasteArea');if(t.value.trim()){importJSON(t.value);t.value=''}">导入手动粘贴的题库</button>
-      ${importedCount ? `<button class="option" style="justify-content:center;color:var(--danger);font-weight:700" onclick="clearImportedBanks()">清除导入题库</button>` : ''}
+      <details style="margin-top:10px;font-size:12px;color:var(--muted)">
+        <summary style="cursor:pointer;padding:4px 0">导入题库</summary>
+        <div class="import-zone" id="importZone" onclick="document.getElementById('fileInput').click()" style="margin-top:6px">
+          <p style="font-size:12px">点击选择 JSON 文件</p>
+        </div>
+        <input type="file" id="fileInput" accept=".json" hidden onchange="handleFile(this)">
+        <textarea id="pasteArea" placeholder="或粘贴 JSON 文本..." style="width:100%;height:60px;border:1px solid var(--line);border-radius:var(--radius-sm);padding:8px;font-size:11px;resize:none;margin-top:4px"></textarea>
+        <button class="option" style="justify-content:center;font-weight:600;font-size:11px;padding:6px" onclick="const t=document.getElementById('pasteArea');if(t.value.trim()){importJSON(t.value);t.value=''}">导入粘贴的题库</button>
+        ${importedCount ? `<button class="option" style="justify-content:center;color:var(--danger);font-weight:600;font-size:11px;padding:6px" onclick="clearImportedBanks()">清除导入题库</button>` : ''}
+      </details>
     </div></div>
   `;
   setupImport();
