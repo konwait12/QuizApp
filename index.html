@@ -457,6 +457,7 @@ let state = {
     theme: 'system',
     primary: '#4f6ef7',
     autoSaveOnExit: false,
+    randomReshuffleOnReset: true,
   },
 };
 
@@ -766,7 +767,8 @@ function restoreSavedSession(saved, options = {}) {
   const currentQuestionKey = saved.currentQuestionKey || questionKey(saved.questions?.[saved.currentIndex || 0] || {});
   const answersByKey = getSavedValueMap(saved, 'answersByKey', 'answers');
   const draftsByKey = getSavedValueMap(saved, 'draftsByKey', 'drafts');
-  const currentIndex = Math.max(0, questions.findIndex(q => questionKey(q) === currentQuestionKey));
+  const savedIndex = Math.max(0, questions.findIndex(q => questionKey(q) === currentQuestionKey));
+  const currentIndex = options.startAtFirst ? 0 : savedIndex;
   state.activeSubject = options.subject || saved.subject || '';
   state.activeSession = {
     title: options.title || saved.title || '保存的练习',
@@ -808,11 +810,15 @@ function resetCurrentPractice() {
   if (!state.activeSession) return;
   const scopeKey = state.activeSession.scopeKey || '';
   if (scopeKey) removeScopedProgress(scopeKey);
+  const reshuffled = Boolean(state.activeSession.shuffled && state.uiConfig.randomReshuffleOnReset);
+  if (reshuffled) {
+    state.activeSession.questions = shuffleQuestions(state.activeSession.questions);
+  }
   state.answers = {};
   state.drafts = {};
   state.revealedAnswers = {};
   state.currentIndex = 0;
-  showToast('已重置当前练习');
+  showToast(reshuffled ? '已重置并重新打乱' : '已重置当前练习');
   renderQuiz();
 }
 
@@ -1214,7 +1220,7 @@ function startPractice({ subject, banks, title, subtitle, shuffled, reviewMode =
     const saved = getSavedSession(scopeKey);
     if (saved) {
       const ordered = shuffled ? shuffleQuestions(questions) : questions;
-      restoreSavedSession(saved, { subject, title, subtitle, questions: ordered, shuffled, reviewMode, scopeKey, bankIds });
+      restoreSavedSession(saved, { subject, title, subtitle, questions: ordered, shuffled, reviewMode, scopeKey, bankIds, startAtFirst: Boolean(shuffled) });
       return;
     }
   }
@@ -1403,6 +1409,13 @@ function renderSettings() {
             <small>仅顺序练习和随机练习生效；从答题页返回时自动保存当前题号、已选答案和练习模式。</small>
           </span>
         </label>
+        <label class="setting-toggle">
+          <input type="checkbox" id="randomReshuffleOnReset" ${state.uiConfig.randomReshuffleOnReset ? 'checked' : ''}>
+          <span>
+            <strong>随机重做时重新打乱</strong>
+            <small>开启后，随机练习里点击重做会清空当前进度，并重新生成一套随机顺序。</small>
+          </span>
+        </label>
       </div>
 
       <div class="analysis-panel" style="text-align:center;padding:16px">
@@ -1438,6 +1451,8 @@ function setPrimaryColor(color) {
   if (!/^#[0-9a-fA-F]{6}$/.test(value)) return;
   const autoSaveEl = document.getElementById('autoSaveOnExit');
   if (autoSaveEl) state.uiConfig.autoSaveOnExit = autoSaveEl.checked;
+  const reshuffleEl = document.getElementById('randomReshuffleOnReset');
+  if (reshuffleEl) state.uiConfig.randomReshuffleOnReset = reshuffleEl.checked;
   state.uiConfig.primary = value;
   applyUiConfig();
   renderSettings();
@@ -1447,6 +1462,7 @@ function readSettingsForm() {
   state.uiConfig.theme = document.getElementById('themeSelect')?.value || state.uiConfig.theme;
   state.uiConfig.primary = document.getElementById('customPrimary')?.value.trim() || state.uiConfig.primary;
   state.uiConfig.autoSaveOnExit = Boolean(document.getElementById('autoSaveOnExit')?.checked);
+  state.uiConfig.randomReshuffleOnReset = Boolean(document.getElementById('randomReshuffleOnReset')?.checked);
 }
 
 function saveAllSettings() {
