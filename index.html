@@ -14,6 +14,8 @@
   --line: #edf0f4;
   --primary: #4f6ef7;
   --primary-soft: #eef1fe;
+  --secondary: #5b6472;
+  --secondary-soft: #f1f3f6;
   --success: #22b07d;
   --success-soft: #e8f8f1;
   --danger: #f24e5e;
@@ -51,11 +53,18 @@ body{
   padding:12px 16px;display:flex;align-items:center;gap:10px;
   background:var(--card);border-bottom:1px solid var(--line);z-index:10;
 }
-.topbar h1{font-size:18px;font-weight:700;flex:1}
+.topbar h1{font-size:18px;font-weight:700;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .topbar .btn-back{width:36px;height:36px;border:0;background:none;font-size:20px;cursor:pointer;border-radius:50%;display:grid;place-items:center}
 .topbar .btn-back:hover{background:#f0f1f5}
 .topbar .btn-icon{width:36px;height:36px;border:0;background:var(--bg);color:var(--text);font-size:18px;cursor:pointer;border-radius:50%;display:grid;place-items:center}
 .topbar .btn-icon:hover{background:var(--primary-soft);color:var(--primary)}
+.topbar-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.topbar .btn-text{
+  height:34px;border:0;border-radius:99px;padding:0 12px;
+  background:var(--primary-soft);color:var(--primary);
+  font-size:12px;font-weight:800;cursor:pointer
+}
+.topbar .btn-save{background:var(--primary);color:#fff}
 
 /* Progress bar */
 .progress-wrap{padding:8px 16px;background:var(--card)}
@@ -67,13 +76,22 @@ body{
 .progress-bar .correct{background:var(--success)}
 .progress-bar .wrong{background:var(--danger)}
 .progress-bar .unanswered{background:var(--line)}
+.progress-bar .review{background:var(--primary)}
 .progress-info{
-  display:flex;justify-content:space-between;margin-top:6px;
+  display:grid;grid-template-columns:minmax(0,1fr) auto auto auto;gap:8px;align-items:center;margin-top:6px;
   font-size:11px;color:var(--muted)
 }
+.progress-info span{white-space:nowrap}
+.progress-info span:first-child{overflow:hidden;text-overflow:ellipsis}
 
 /* Viewport */
 .viewport{flex:1;overflow:hidden;position:relative;touch-action:pan-y}
+.viewport.view-scroll{
+  overflow-y:auto;
+  overflow-x:hidden;
+  -webkit-overflow-scrolling:touch;
+  overscroll-behavior:contain;
+}
 
 /* Vertical scroll mode */
 .scroll-container{height:100%;overflow-y:auto;scroll-behavior:smooth;padding:12px}
@@ -118,8 +136,8 @@ body{
 }
 .option:active{transform:scale(.98)}
 .option.selected{border-color:var(--primary);background:var(--primary-soft)}
-.option.correct{border-color:var(--success);background:var(--success-soft);animation:answerPop .22s ease-out}
-.option.wrong{border-color:var(--danger);background:var(--danger-soft);animation:answerShake .28s ease-out}
+.option.correct{border-color:var(--success);background:var(--success-soft);color:#10241b;animation:answerPop .22s ease-out}
+.option.wrong{border-color:var(--danger);background:var(--danger-soft);color:#351116;animation:answerShake .28s ease-out}
 .option[disabled],button[disabled]{opacity:.45;cursor:not-allowed}
 .option-letter{
   width:26px;height:26px;border-radius:50%;display:grid;place-items:center;
@@ -152,10 +170,10 @@ body{
 /* Explanation */
 .explanation{
   margin-top:14px;padding:12px 14px;border-radius:var(--radius-sm);
-  background:var(--success-soft);font-size:13px;line-height:1.55;display:none
+  background:var(--success-soft);font-size:13px;line-height:1.55;display:none;color:#10241b
 }
 .explanation.show{display:block;animation:feedbackIn .2s ease-out}
-.explanation.wrong{background:var(--danger-soft)}
+.explanation.wrong{background:var(--danger-soft);color:#351116}
 .explanation .exp-label{font-weight:800;color:var(--success);margin-bottom:4px}
 .explanation.wrong .exp-label{color:var(--danger)}
 
@@ -172,6 +190,32 @@ body{
 .btn-prev{background:var(--bg);color:var(--muted)}
 .btn-next{background:var(--primary);color:#fff}
 .btn-mode{background:var(--primary-soft);color:var(--primary);font-size:12px!important;padding:8px 12px!important}
+.btn-overview{background:var(--primary-soft);color:var(--primary)}
+
+.question-overview{
+  position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:50;
+  display:grid;align-items:end
+}
+.overview-panel{
+  max-height:72vh;overflow-y:auto;background:var(--card);color:var(--text);
+  border-radius:18px 18px 0 0;padding:16px;box-shadow:0 -8px 32px rgba(0,0,0,.28)
+}
+.overview-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.overview-head strong{font-size:16px}
+.overview-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
+.overview-num{
+  height:42px;border:1px solid var(--line);border-radius:10px;
+  background:var(--bg);color:var(--muted);font-weight:900;cursor:pointer
+}
+.overview-num.current{box-shadow:0 0 0 2px var(--primary);color:var(--primary)}
+.overview-num.correct{background:var(--success);border-color:var(--success);color:#fff}
+.overview-num.wrong{background:var(--danger);border-color:var(--danger);color:#fff}
+.overview-num.review{background:var(--primary-soft);border-color:var(--primary);color:var(--primary)}
+.toast{
+  position:fixed;left:50%;bottom:86px;transform:translateX(-50%);
+  z-index:80;background:rgba(20,24,34,.94);color:#fff;border-radius:99px;
+  padding:10px 16px;font-size:13px;font-weight:800;box-shadow:0 8px 24px rgba(0,0,0,.22)
+}
 
 /* Home page */
 .home{padding:24px 16px;display:flex;flex-direction:column;gap:16px}
@@ -204,19 +248,32 @@ body{
 }
 .practice-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .practice-actions button{padding:13px 12px;background:var(--primary);color:#fff}
-.practice-actions button.secondary{background:var(--warn-soft);color:var(--warn)}
+.practice-actions button.secondary{background:var(--secondary-soft);color:var(--secondary)}
+.practice-actions button.answer-mode{background:var(--success-soft);color:var(--success)}
+.practice-actions button.lookup-mode,.chapter-actions button.lookup-mode{background:var(--warn-soft);color:var(--warn)}
+.practice-actions button.muted-mode,.chapter-actions button.muted-mode{background:var(--bg);color:var(--muted)}
+.action-panel{
+  background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);
+  padding:14px;display:flex;flex-direction:column;gap:10px
+}
+.action-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.action-grid button{
+  border:0;border-radius:var(--radius-sm);padding:13px 10px;font-size:13px;font-weight:800;
+  cursor:pointer;background:var(--primary);color:#fff
+}
+.action-grid button.secondary{background:var(--secondary-soft);color:var(--secondary)}
+.action-grid button.answer-mode{background:var(--success-soft);color:var(--success)}
+.action-grid button.lookup-mode{background:var(--warn-soft);color:var(--warn)}
+.action-grid button.muted-mode{background:var(--bg);color:var(--muted)}
+.action-grid button:last-child:nth-child(odd){grid-column:1 / -1}
+.chapter-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));min-width:210px}
+.chapter-actions button{padding:9px 8px}
 .section-title{font-size:13px;font-weight:800;color:var(--muted);padding:2px}
 .wrong-badge{font-size:12px;font-weight:800;color:var(--danger)}
 .analysis-panel{
   background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);
   padding:16px;display:flex;flex-direction:column;gap:12px
 }
-.analysis-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.analysis-stat{background:var(--bg);border-radius:var(--radius-sm);padding:12px}
-.analysis-stat strong{display:block;font-size:18px;margin-bottom:4px}
-.analysis-stat span{font-size:12px;color:var(--muted)}
-.chapter-analysis{display:flex;flex-direction:column;gap:8px}
-.chapter-analysis .row{display:flex;justify-content:space-between;gap:12px;font-size:13px}
 .settings-row{display:flex;flex-direction:column;gap:6px}
 .settings-row label{font-size:12px;font-weight:800;color:var(--muted)}
 .settings-row input,.settings-row select{
@@ -235,8 +292,6 @@ body{
   background:var(--primary);color:#fff;cursor:pointer
 }
 .settings-actions button.secondary{background:var(--bg);color:var(--muted)}
-.ai-output{white-space:pre-wrap;font-size:13px;line-height:1.65;color:var(--text)}
-.ai-error{font-size:13px;color:var(--danger)}
 .lookup-toolbar{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .lookup-toolbar input,.lookup-toolbar select{
   width:100%;border:1px solid var(--line);border-radius:var(--radius-sm);
@@ -251,6 +306,19 @@ body{
 .answer-row .question{font-size:14px;line-height:1.55}
 .answer-row .answer{font-size:15px;font-weight:900;color:var(--primary)}
 .answer-row .options-mini{font-size:12px;line-height:1.55;color:var(--muted)}
+
+@media(max-width:420px){
+  .topbar{padding:10px 12px;gap:8px}
+  .topbar h1{font-size:16px}
+  .topbar-actions{gap:6px}
+  .topbar .btn-text{height:32px;padding:0 9px}
+  #questionCounter{display:none}
+  .progress-info{font-size:10px;gap:6px;grid-template-columns:minmax(0,1fr) auto auto}
+  .progress-info span:nth-child(3){display:none}
+  .bank-item{align-items:flex-start;flex-wrap:wrap}
+  .chapter-actions{width:100%;min-width:0;grid-template-columns:repeat(3,minmax(0,1fr))}
+  .overview-grid{grid-template-columns:repeat(5,1fr)}
+}
 
 /* Import section */
 .import-zone{
@@ -276,8 +344,8 @@ body{
 // ========== State ==========
 const STORAGE_KEY = 'quizapp_banks';
 const WRONG_KEY = 'quizapp_wrong_book';
-const DEEPSEEK_CONFIG_KEY = 'quizapp_deepseek_config';
 const UI_CONFIG_KEY = 'quizapp_ui_config';
+const SAVED_SESSION_KEY = 'quizapp_saved_session';
 const DEFAULT_BANK_FILES = [
   '毛概-导论.json',
   '毛概-第一章.json',
@@ -288,50 +356,190 @@ const DEFAULT_BANK_FILES = [
   '毛概-第六章.json',
   '毛概-第七章.json',
   '毛概-第八章.json',
+  '毛概-补充题库.json',
+  '毛概-未分类.json',
   '习思-导论.json',
-  '习思-中国特色社会主义.json',
-  '习思-党的领导.json',
-  '习思-经济建设.json',
-  '习思-政治建设.json',
-  '习思-文化建设.json',
-  '习思-社会建设.json',
-  '习思-生态文明.json',
-  '习思-国家安全.json',
-  '习思-外交.json',
-  '习思-综合.json',
+  '习思-第一章.json',
+  '习思-第二章.json',
+  '习思-第三章.json',
+  '习思-第四章.json',
+  '习思-第五章.json',
+  '习思-第六章.json',
+  '习思-第七章.json',
+  '习思-第八章.json',
+  '习思-第九章.json',
+  '习思-第十章.json',
+  '习思-第十一章.json',
+  '习思-第十二章.json',
+  '习思-第十三章.json',
+  '习思-第十四章.json',
+  '习思-第十五章.json',
+  '习思-第十六章.json',
+  '习思-第十七章.json',
 ];
+const DEFAULT_BANK_FILES_RUNTIME = [
+  '毛概-导论.json',
+  '毛概-第一章.json',
+  '毛概-第二章 新民主主义革命理论.json',
+  '毛概-第三章.json',
+  '毛概-第四章.json',
+  '毛概-第五章.json',
+  '毛概-第六章.json',
+  '毛概-第七章.json',
+  '毛概-第八章.json',
+  '毛概-补充题库.json',
+  '毛概-未分类.json',
+  '习思-导论.json',
+  '习思-第一章.json',
+  '习思-第二章.json',
+  '习思-第三章.json',
+  '习思-第四章.json',
+  '习思-第五章.json',
+  '习思-第六章.json',
+  '习思-第七章.json',
+  '习思-第八章.json',
+  '习思-第九章.json',
+  '习思-第十章.json',
+  '习思-第十一章.json',
+  '习思-第十二章.json',
+  '习思-第十三章.json',
+  '习思-第十四章.json',
+  '习思-第十五章.json',
+  '习思-第十六章.json',
+  '习思-第十七章.json',
+];
+window.__QUIZAPP_EMBEDDED_BANKS__ = null;
 
 let state = {
   banks: [],
   activeSession: null,
   activeSubject: '',
+  navStack: [],
+  suppressNavPush: false,
   currentIndex: 0,
   answers: {},
   drafts: {},
   mode: 'page',
+  reviewMode: false,
   view: 'home',
   loadingDefaults: false,
   defaultLoadError: '',
   touchStartX: 0,
   touchStartY: 0,
+  pageAnimating: false,
   scrollTimer: null,
   wrongBook: {},
-  analysisContext: null,
-  aiAnalysisText: '',
-  aiAnalysisLoading: false,
-  aiAnalysisError: '',
-  deepseekConfig: {
-    provider: 'deepseek',
-    apiKey: '',
-    baseUrl: 'https://api.deepseek.com',
-    model: 'deepseek-v4-flash',
-    models: ['deepseek-v4-flash', 'deepseek-v4-pro'],
-  },
+  answerLookupContext: null,
   uiConfig: {
-    theme: 'light',
+    theme: 'system',
     primary: '#4f6ef7',
   },
 };
+
+// ========== Navigation ==========
+function getRouteSnapshot() {
+  return {
+    view: state.view,
+    activeSubject: state.activeSubject,
+    answerLookupContext: state.answerLookupContext ? { ...state.answerLookupContext } : null,
+    currentIndex: state.currentIndex,
+    mode: state.mode,
+  };
+}
+
+function pushRoute() {
+  if (state.suppressNavPush) return;
+  const current = getRouteSnapshot();
+  if (!current.view || current.view === 'home') return;
+  const last = state.navStack[state.navStack.length - 1];
+  if (last && last.view === current.view && last.activeSubject === current.activeSubject) return;
+  state.navStack.push(current);
+  if (state.navStack.length > 40) state.navStack.shift();
+}
+
+function goHome() {
+  state.navStack = [];
+  state.answerLookupContext = null;
+  renderHome();
+}
+
+function goBackRoute() {
+  const overview = document.getElementById('questionOverview');
+  if (overview) {
+    overview.remove();
+    return true;
+  }
+  if (state.view === 'home') return false;
+  state.suppressNavPush = true;
+  try {
+    if (state.view === 'quiz') {
+      return backFromQuiz();
+    }
+    const route = state.navStack.pop();
+    if (route) {
+      restoreRoute(route);
+      return true;
+    }
+    if (state.view === 'settings' || state.view === 'subjects') {
+      renderHome();
+      return true;
+    }
+    if (state.view === 'quiz' || state.view === 'answerLookup') {
+      renderSubject();
+      return true;
+    }
+    renderHome();
+    return true;
+  } finally {
+    state.suppressNavPush = false;
+  }
+}
+
+window.handleNativeBack = function handleNativeBack() {
+  return goBackRoute();
+};
+
+function backFromQuiz() {
+  const subject = state.activeSession?.subject || state.activeSubject || '';
+  state.activeSubject = subject;
+  state.activeSession = null;
+  state.navStack = state.navStack.filter(route => route.view !== 'quiz');
+  const last = state.navStack[state.navStack.length - 1];
+  if (last && last.view === 'subjects' && last.activeSubject === subject) {
+    state.navStack.pop();
+  }
+  state.answers = {};
+  state.drafts = {};
+  state.currentIndex = 0;
+  state.reviewMode = false;
+  if (subject && getBanksBySubject(subject).length) {
+    renderSubject();
+  } else {
+    renderHome();
+  }
+  return true;
+}
+
+function restoreRoute(route) {
+  state.activeSubject = route.activeSubject || '';
+  state.answerLookupContext = route.answerLookupContext || null;
+  state.currentIndex = route.currentIndex || 0;
+  state.mode = route.mode || state.mode;
+  if (route.view === 'subjects') return renderSubject();
+  if (route.view === 'settings') return renderSettings();
+  if (route.view === 'answerLookup') return renderAnswerLookup();
+  if (route.view === 'quiz' && state.activeSession) return renderQuiz();
+  return renderHome();
+}
+
+function openSettings() {
+  pushRoute();
+  renderSettings();
+}
+
+function openExternal(url) {
+  window.location.href = url;
+}
 
 // ========== Persistence ==========
 function saveBanks() {
@@ -363,41 +571,65 @@ function loadWrongBook() {
   }
 }
 
-function saveDeepSeekConfig() {
-  const cfg = {
-    provider: state.deepseekConfig.provider,
-    apiKey: state.deepseekConfig.apiKey,
-    baseUrl: getProviderPreset(state.deepseekConfig.provider).baseUrl,
-    model: state.deepseekConfig.model,
-    models: state.deepseekConfig.models,
+function saveCurrentSession() {
+  const session = state.activeSession;
+  if (!session) return;
+  const payload = {
+    ...session,
+    currentIndex: state.currentIndex,
+    answers: state.answers,
+    drafts: state.drafts,
+    mode: state.mode,
+    reviewMode: state.reviewMode,
+    savedAt: Date.now(),
   };
-  localStorage.setItem(DEEPSEEK_CONFIG_KEY, JSON.stringify(cfg));
+  localStorage.setItem(SAVED_SESSION_KEY, JSON.stringify(payload));
+  showToast('已保存当前进度');
 }
 
-function loadDeepSeekConfig() {
+function getSavedSession() {
   try {
-    const saved = JSON.parse(localStorage.getItem(DEEPSEEK_CONFIG_KEY));
-    if (saved && typeof saved === 'object') {
-      state.deepseekConfig = {
-        ...state.deepseekConfig,
-        ...saved,
-      };
-      state.deepseekConfig.baseUrl = getProviderPreset(state.deepseekConfig.provider).baseUrl;
-    }
+    const saved = JSON.parse(localStorage.getItem(SAVED_SESSION_KEY));
+    if (saved && Array.isArray(saved.questions) && saved.questions.length) return saved;
   } catch(e) {}
+  return null;
 }
 
-function getProviderPreset(provider) {
-  const presets = {
-    deepseek: {
-      id: 'deepseek',
-      name: 'DeepSeek',
-      baseUrl: 'https://api.deepseek.com',
-      defaultModel: 'deepseek-v4-flash',
-      fallbackModels: ['deepseek-v4-flash', 'deepseek-v4-pro'],
-    },
+function resumeSavedSession() {
+  const saved = getSavedSession();
+  if (!saved) return alert('没有可恢复的进度');
+  state.activeSubject = saved.subject || '';
+  state.activeSession = {
+    title: saved.title || '保存的练习',
+    subtitle: saved.subtitle || '保存进度',
+    subject: saved.subject || '',
+    shuffled: Boolean(saved.shuffled),
+    questions: saved.questions,
   };
-  return presets[provider] || presets.deepseek;
+  state.currentIndex = Math.max(0, Math.min(saved.currentIndex || 0, saved.questions.length - 1));
+  state.answers = saved.answers || {};
+  state.drafts = saved.drafts || {};
+  state.mode = saved.mode === 'scroll' ? 'scroll' : 'page';
+  state.reviewMode = Boolean(saved.reviewMode);
+  state.navStack = [];
+  state.view = 'quiz';
+  renderQuiz();
+}
+
+function clearSavedSession() {
+  localStorage.removeItem(SAVED_SESSION_KEY);
+  renderHome();
+}
+
+function showToast(text) {
+  const old = document.getElementById('toast');
+  if (old) old.remove();
+  const el = document.createElement('div');
+  el.id = 'toast';
+  el.className = 'toast';
+  el.textContent = text;
+  document.body.appendChild(el);
+  window.setTimeout(() => el.remove(), 1600);
 }
 
 function saveUiConfig() {
@@ -415,13 +647,23 @@ function loadUiConfig() {
 }
 
 function applyUiConfig() {
-  const theme = state.uiConfig.theme === 'system'
-    ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
-    : state.uiConfig.theme;
+  const theme = state.uiConfig.theme === 'system' ? getSystemTheme() : state.uiConfig.theme;
   document.body.dataset.theme = theme;
   document.documentElement.style.setProperty('--primary', state.uiConfig.primary);
   document.documentElement.style.setProperty('--primary-soft', hexToSoft(state.uiConfig.primary));
 }
+
+function getSystemTheme() {
+  if (typeof window.__nativeDarkMode === 'boolean') return window.__nativeDarkMode ? 'dark' : 'light';
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
+window.applyNativeTheme = function applyNativeTheme(isDark) {
+  window.__nativeDarkMode = Boolean(isDark);
+  if (state.uiConfig.theme === 'system') {
+    document.body.dataset.theme = isDark ? 'dark' : 'light';
+  }
+};
 
 function hexToSoft(hex) {
   const clean = String(hex || '#4f6ef7').replace('#', '');
@@ -440,15 +682,24 @@ async function loadBundledBanks() {
 
   const imported = state.banks.filter(b => !b.bundled);
   const loaded = [];
+  const embeddedBanks = Array.isArray(window.__QUIZAPP_EMBEDDED_BANKS__) ? window.__QUIZAPP_EMBEDDED_BANKS__ : null;
 
-  for (const file of DEFAULT_BANK_FILES) {
+  if (embeddedBanks && embeddedBanks.length) {
+    state.banks = [
+      ...embeddedBanks.map((data, i) => normalizeBank(data, `embedded:${i}`, true)),
+      ...imported,
+    ];
+    state.loadingDefaults = false;
+    renderHome();
+    return;
+  }
+
+  for (const file of DEFAULT_BANK_FILES_RUNTIME) {
     try {
-      const res = await fetch(`data/${encodeURIComponent(file)}`, { cache: 'no-store' });
-      if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-      const data = await res.json();
+      const data = await loadBankJson(file);
       loaded.push(normalizeBank(data, `bundled:${file}`, true));
     } catch(e) {
-      state.defaultLoadError = '内置题库加载失败，请用本地服务器打开项目。';
+      state.defaultLoadError = '内置题库加载失败，请检查 APK 是否为最新版。';
       console.warn('[QuizApp] bundled bank load failed:', file, e);
     }
   }
@@ -456,6 +707,38 @@ async function loadBundledBanks() {
   state.banks = [...loaded, ...imported];
   state.loadingDefaults = false;
   renderHome();
+}
+
+function getBankUrl(file) {
+  return `data/${String(file).split('/').map(part => encodeURIComponent(part)).join('/')}`;
+}
+
+async function loadBankJson(file) {
+  const url = getBankUrl(file);
+  try {
+    const res = await fetch(url, { cache: 'no-store' });
+    if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+    return await res.json();
+  } catch(fetchError) {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('GET', url, true);
+      xhr.overrideMimeType('application/json;charset=utf-8');
+      xhr.onload = () => {
+        if (xhr.status === 0 || (xhr.status >= 200 && xhr.status < 300)) {
+          try {
+            resolve(JSON.parse(xhr.responseText));
+          } catch(parseError) {
+            reject(parseError);
+          }
+          return;
+        }
+        reject(new Error(`${xhr.status} ${xhr.statusText || 'XHR failed'}`));
+      };
+      xhr.onerror = () => reject(fetchError);
+      xhr.send();
+    });
+  }
 }
 
 // ========== Question helpers ==========
@@ -474,21 +757,80 @@ function getTypeLabel(t) {
 function getOptions(q) {
   const t = getType(q);
   if (t === 'bool') return ['对', '错'];
-  if (Array.isArray(q.options) && q.options.length) return q.options;
-  if (q.options && typeof q.options === 'object') return Object.values(q.options);
+  if (Array.isArray(q.options) && q.options.length) return normalizeOptions(q.options);
+  if (q.options && typeof q.options === 'object') return normalizeOptions(Object.values(q.options));
   return ['A', 'B', 'C', 'D'];
+}
+
+function normalizeOptions(options) {
+  const raw = Array.isArray(options) ? options.map(o => String(o || '').trim()).filter(Boolean) : [];
+  if (!raw.length) return [];
+
+  if (raw.length === 1) {
+    const split = splitOptionBlock(raw[0]);
+    if (split.length > 1) return split;
+  }
+
+  return raw.flatMap(item => {
+    const split = splitOptionBlock(item);
+    return split.length > 1 ? split : [stripOptionLabel(item)];
+  }).map(o => o.trim()).filter(Boolean);
+}
+
+function splitOptionBlock(text) {
+  const clean = String(text || '')
+    .replace(/\u200b|\u200c|\u200d|\ufeff/g, '')
+    .replace(/\r/g, '\n')
+    .trim();
+  const matches = [];
+  const re = /(?:^|\n)\s*([A-H])(?:[.．、]|[\s])+\s*([\s\S]*?)(?=\n\s*[A-H](?:[.．、]|[\s])+\s*|$)/g;
+  let match;
+  while ((match = re.exec(clean))) {
+    const value = stripOptionLabel(match[2]).trim();
+    if (value) matches.push(value);
+  }
+  return matches;
+}
+
+function stripOptionLabel(text) {
+  return String(text || '').replace(/^\s*[A-H](?:[.．、]|\s+)\s*/i, '').trim();
+}
+
+function cleanQuestionText(text) {
+  return String(text || '')
+    .replace(/\u200b|\u200c|\u200d|\ufeff/g, '')
+    .replace(/[─━]{5,}/g, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
+function inferQuestionType(raw, rawAnswer, options) {
+  const declared = getType(raw);
+  const joinedOptions = (options || []).join('|');
+  const rawText = String(raw.type || raw['题型'] || '');
+  const answerLetters = String(rawAnswer ?? '').toUpperCase().split('').filter(c => c >= 'A' && c <= 'Z');
+
+  if (rawText.includes('判断') || /^([AB]|对|错|正确|错误|√|✓|×|✗)$/i.test(String(rawAnswer ?? '').trim())) {
+    if ((options || []).length <= 2 || /^(对|错)\|?(错)?$/.test(joinedOptions.replace(/\s/g, ''))) return 'bool';
+  }
+  if (rawText.includes('多选') || answerLetters.length > 1) return 'multi';
+  if (rawText.includes('单选')) return 'single';
+  return declared;
 }
 
 function normalizeQuestion(q, i) {
   const raw = q || {};
   const question = raw.q || raw.question || raw['题目'] || raw.title || '';
+  const answerValue = raw.ans ?? raw.answer ?? raw['答案'] ?? raw.correct;
+  const options = normalizeOptions(Array.isArray(raw.options) ? raw.options : (raw.options && typeof raw.options === 'object' ? Object.values(raw.options) : []));
+  const type = inferQuestionType(raw, answerValue, options);
   return {
     id: raw.id || `q${i + 1}`,
-    type: getType(raw),
-    q: String(question).trim(),
-    options: getOptions(raw).map(o => String(o)),
-    ans: normalizeAnswer(raw, raw.ans ?? raw.answer ?? raw['答案'] ?? raw.correct),
-    rawAns: String(raw.ans ?? raw.answer ?? raw['答案'] ?? raw.correct ?? ''),
+    type,
+    q: cleanQuestionText(question),
+    options: (type === 'bool' ? ['对', '错'] : (options.length ? options : getOptions({ ...raw, type }))).map(o => String(o)),
+    ans: normalizeAnswer({ ...raw, type }, answerValue),
+    rawAns: String(answerValue ?? ''),
     exp: raw.exp || raw.explanation || raw['解析'] || raw.note || '',
   };
 }
@@ -510,14 +852,35 @@ function normalizeBank(data, fallbackId, bundled) {
     .filter(q => q.q && q.ans);
   const name = data.name || data.title || data['科目'] || fallbackId.replace(/^bundled:/, '').replace(/\.json$/i, '');
   const parsed = parseBankName(String(name));
+  const subject = data.subject || data['科目'] || parsed.subject;
+  const chapter = getDisplayChapter(subject, data.chapter || data['章节'] || parsed.chapter);
   return {
     id: data.id || fallbackId || `${Date.now()}`,
     name: String(name),
-    subject: data.subject || data['科目'] || parsed.subject,
-    chapter: data.chapter || data['章节'] || parsed.chapter,
+    subject,
+    chapter,
     questions,
     bundled: Boolean(bundled),
   };
+}
+
+function getDisplayChapter(subject, chapter) {
+  const clean = String(chapter || '').trim() || '综合练习';
+  if (subject !== '习思') return clean;
+  const map = {
+    '导论': '导论',
+    '中国特色社会主义': '第一章 中国特色社会主义',
+    '党的领导': '第二章 坚持党的全面领导',
+    '经济建设': '第三章 经济建设',
+    '政治建设': '第四章 政治建设',
+    '文化建设': '第五章 文化建设',
+    '社会建设': '第六章 社会建设',
+    '生态文明': '第七章 生态文明建设',
+    '国家安全': '第八章 国家安全',
+    '外交': '第九章 中国特色大国外交',
+    '综合': '综合题库',
+  };
+  return map[clean] || clean;
 }
 
 function parseBankName(name) {
@@ -544,7 +907,22 @@ function getSubjectGroups() {
 }
 
 function getBanksBySubject(subject) {
-  return state.banks.filter(b => (b.subject || parseBankName(b.name).subject) === subject);
+  return state.banks
+    .filter(b => (b.subject || parseBankName(b.name).subject) === subject)
+    .sort((a, b) => chapterSortValue(a.chapter) - chapterSortValue(b.chapter));
+}
+
+function chapterSortValue(chapter) {
+  const text = String(chapter || '');
+  if (text.startsWith('导论')) return 0;
+  if (text.startsWith('综合')) return 999;
+  const map = { 一:1, 二:2, 三:3, 四:4, 五:5, 六:6, 七:7, 八:8, 九:9, 十:10 };
+  const match = text.match(/^第([一二三四五六七八九十]+)章/);
+  if (!match) return 500;
+  const zh = match[1];
+  if (zh === '十') return 10;
+  if (zh.startsWith('十')) return 10 + (map[zh.slice(1)] || 0);
+  return map[zh] || 500;
 }
 
 function buildQuestionSet(banks) {
@@ -605,14 +983,15 @@ function shuffleQuestions(questions) {
   return arr;
 }
 
-function startPractice({ subject, banks, title, subtitle, shuffled }) {
+function startPractice({ subject, banks, title, subtitle, shuffled, reviewMode = false }) {
   const source = Array.isArray(banks) ? banks : [];
   const questions = buildQuestionSet(source);
-  startQuestionPractice({ subject, title, subtitle, questions, shuffled });
+  startQuestionPractice({ subject, title, subtitle, questions, shuffled, reviewMode });
 }
 
-function startQuestionPractice({ subject, title, subtitle, questions, shuffled }) {
+function startQuestionPractice({ subject, title, subtitle, questions, shuffled, reviewMode = false }) {
   if (!questions.length) return;
+  pushRoute();
   state.activeSubject = subject;
   state.activeSession = {
     title,
@@ -624,6 +1003,7 @@ function startQuestionPractice({ subject, title, subtitle, questions, shuffled }
   state.currentIndex = 0;
   state.answers = {};
   state.drafts = {};
+  state.reviewMode = Boolean(reviewMode);
   state.view = 'quiz';
   renderQuiz();
 }
@@ -655,70 +1035,6 @@ function checkAnswer(q, userAns) {
   return normalizeAnswer(q, userAns) === getCorrectAnswer(q);
 }
 
-function analyzeQuestionSet(subject = '') {
-  const banks = subject ? getBanksBySubject(subject) : state.banks;
-  const questions = buildQuestionSet(banks);
-  const typeCounts = { single: 0, multi: 0, bool: 0 };
-  const chapterStats = new Map();
-  const seen = new Map();
-  const duplicates = [];
-  const issues = [];
-
-  questions.forEach(q => {
-    const type = getType(q);
-    typeCounts[type] = (typeCounts[type] || 0) + 1;
-    const chapter = q.sourceChapter || '未分章';
-    if (!chapterStats.has(chapter)) {
-      chapterStats.set(chapter, { chapter, total: 0, single: 0, multi: 0, bool: 0, wrong: 0 });
-    }
-    const stat = chapterStats.get(chapter);
-    stat.total++;
-    stat[type]++;
-
-    const normalizedText = q.q.replace(/\s+/g, '');
-    if (seen.has(normalizedText)) duplicates.push({ text: q.q, first: seen.get(normalizedText), chapter });
-    else seen.set(normalizedText, chapter);
-
-    if (!q.ans) issues.push({ chapter, text: q.q, issue: '缺少答案' });
-    if (type !== 'bool' && (!q.options || q.options.length < 2)) issues.push({ chapter, text: q.q, issue: '选项不足' });
-  });
-
-  for (const record of getWrongRecords({ subject })) {
-    const chapter = record.question.sourceChapter || '未分章';
-    if (chapterStats.has(chapter)) chapterStats.get(chapter).wrong++;
-  }
-
-  return {
-    subject: subject || '全部科目',
-    bankCount: banks.length,
-    total: questions.length,
-    typeCounts,
-    chapterStats: Array.from(chapterStats.values()),
-    wrongCount: getWrongRecords({ subject }).length,
-    duplicates: duplicates.slice(0, 20),
-    issues: issues.slice(0, 20),
-  };
-}
-
-function buildDeepSeekPayload() {
-  const subject = state.analysisContext?.subject || '';
-  const banks = subject ? getBanksBySubject(subject) : state.banks;
-  const analysis = analyzeQuestionSet(subject);
-  const questions = buildQuestionSet(banks).map(q => ({
-    chapter: q.sourceChapter,
-    type: getTypeLabel(getType(q)),
-    question: q.q,
-    options: getType(q) === 'bool' ? undefined : q.options,
-    answer: getAnswerLabel(q),
-  }));
-
-  return {
-    analysis,
-    questions: questions.slice(0, 120),
-    note: questions.length > 120 ? `仅发送前 120 题，共 ${questions.length} 题。` : '',
-  };
-}
-
 // ========== Import ==========
 function importJSON(jsonStr) {
   try {
@@ -739,11 +1055,13 @@ function importJSON(jsonStr) {
 function renderHome() {
   state.view = 'home';
   state.activeSubject = '';
+  state.answerLookupContext = null;
   const app = document.getElementById('app');
   const importedCount = state.banks.filter(b => !b.bundled).length;
   const totalQuestions = state.banks.reduce((sum, b) => sum + b.questions.length, 0);
   const totalWrongCount = getWrongRecords().length;
   const subjectGroups = getSubjectGroups();
+  const saved = getSavedSession();
   const subjectList = subjectGroups.map(group => `
     <div class="bank-item" onclick="openSubject('${escapeAttr(group.subject)}')">
       <div class="icon">📚</div>
@@ -758,17 +1076,31 @@ function renderHome() {
   app.innerHTML = `
     <div class="topbar">
       <h1>📝 刷题</h1>
-      <button class="btn-icon" onclick="renderSettings()" aria-label="设置">⚙</button>
+      <button class="btn-icon" onclick="openSettings()" aria-label="设置">⚙</button>
     </div>
-    <div class="viewport"><div class="home">
+    <div class="viewport view-scroll"><div class="home">
+      ${saved ? `
+        <div class="analysis-panel">
+          <div class="section-title">保存的进度</div>
+          <div style="font-size:14px;font-weight:800">${escapeHtml(saved.title || '保存的练习')}</div>
+          <div style="font-size:12px;color:var(--muted)">${saved.currentIndex + 1}/${saved.questions.length} · ${escapeHtml(saved.reviewMode ? '背题模式' : (saved.subtitle || '练习'))}</div>
+          <div class="settings-actions">
+            <button onclick="resumeSavedSession()">继续</button>
+            <button class="secondary" onclick="clearSavedSession()">清除</button>
+          </div>
+        </div>
+      ` : ''}
       ${state.banks.length ? `
         <div style="display:flex;gap:10px">
           <div class="subject-card"><h3>${subjectGroups.length}</h3><small>科目</small></div>
           <div class="subject-card"><h3>${totalQuestions}</h3><small>题目</small></div>
         </div>
-        <div class="practice-actions">
-          <button onclick="openAnalysis('')">全部题目分析</button>
-          <button class="secondary" onclick="openWrongPractice('', '', true)" ${totalWrongCount ? '' : 'disabled'}>全部错题 ${totalWrongCount}</button>
+        <div class="action-panel">
+          <div class="section-title">全局工具</div>
+          <div class="action-grid">
+            <button class="lookup-mode" onclick="openAnswerLookup('', '')">全部答案表</button>
+            <button class="secondary" onclick="openWrongPractice('', '', true)" ${totalWrongCount ? '' : 'disabled'}>全部错题 ${totalWrongCount}</button>
+          </div>
         </div>
         <div class="bank-list">${subjectList}</div>
       ` : `
@@ -781,9 +1113,9 @@ function renderHome() {
       <details style="margin-top:10px;font-size:12px;color:var(--muted)">
         <summary style="cursor:pointer;padding:4px 0">导入题库</summary>
         <div class="import-zone" id="importZone" onclick="document.getElementById('fileInput').click()" style="margin-top:6px">
-          <p style="font-size:12px">点击选择 JSON 文件</p>
+          <p style="font-size:12px">打开手机文件管理器选择 JSON</p>
         </div>
-        <input type="file" id="fileInput" accept=".json" hidden onchange="handleFile(this)">
+        <input type="file" id="fileInput" accept=".json,application/json,text/json,text/plain,*/*" hidden onchange="handleFile(this)">
         <textarea id="pasteArea" placeholder="或粘贴 JSON 文本..." style="width:100%;height:60px;border:1px solid var(--line);border-radius:var(--radius-sm);padding:8px;font-size:11px;resize:none;margin-top:4px"></textarea>
         <button class="option" style="justify-content:center;font-weight:600;font-size:11px;padding:6px" onclick="const t=document.getElementById('pasteArea');if(t.value.trim()){importJSON(t.value);t.value=''}">导入粘贴的题库</button>
         ${importedCount ? `<button class="option" style="justify-content:center;color:var(--danger);font-weight:600;font-size:11px;padding:6px" onclick="clearImportedBanks()">清除导入题库</button>` : ''}
@@ -795,16 +1127,14 @@ function renderHome() {
 
 function renderSettings() {
   state.view = 'settings';
-  const preset = getProviderPreset(state.deepseekConfig.provider);
-  const models = Array.from(new Set([state.deepseekConfig.model, ...(state.deepseekConfig.models || preset.fallbackModels)])).filter(Boolean);
   const colors = ['#4f6ef7', '#1f9d72', '#d94757', '#7c5cff', '#0f8b8d'];
   const app = document.getElementById('app');
   app.innerHTML = `
     <div class="topbar">
-      <button class="btn-back" onclick="renderHome()" aria-label="返回">←</button>
+      <button class="btn-back" onclick="goBackRoute()" aria-label="返回">←</button>
       <h1>设置</h1>
     </div>
-    <div class="viewport"><div class="home">
+    <div class="viewport view-scroll"><div class="home">
       <div class="analysis-panel">
         <div class="section-title">外观</div>
         <div class="settings-row">
@@ -824,48 +1154,24 @@ function renderSettings() {
         </div>
       </div>
 
-      <div class="analysis-panel">
-        <div class="section-title">AI 分析服务</div>
-        <div class="settings-row">
-          <label>服务预设</label>
-          <select id="providerSelect" disabled>
-            <option value="deepseek" selected>DeepSeek</option>
-          </select>
-        </div>
-        <div style="font-size:12px;color:var(--muted)">Base URL：${escapeHtml(preset.baseUrl)}</div>
-        <div class="settings-row">
-          <label>API Key</label>
-          <input id="deepseekKey" type="password" value="${escapeAttr(state.deepseekConfig.apiKey)}" placeholder="只需要输入 DeepSeek API Key" oninput="state.deepseekConfig.apiKey=this.value.trim()">
-        </div>
-        <div class="settings-row">
-          <label>模型</label>
-          <select id="deepseekModel">
-            ${models.map(model => `<option value="${escapeAttr(model)}" ${state.deepseekConfig.model === model ? 'selected' : ''}>${escapeHtml(model)}</option>`).join('')}
-          </select>
-        </div>
-        <div class="settings-actions">
-          <button onclick="fetchProviderModels()" onpointerup="fetchProviderModels()">搜索模型列表</button>
-          <button class="secondary" onclick="clearDeepSeekSettings()" onpointerup="clearDeepSeekSettings()">清除 Key</button>
-        </div>
-        ${state.aiAnalysisError ? `<div class="ai-error">${escapeHtml(state.aiAnalysisError)}</div>` : ''}
-      </div>
-
       <div class="analysis-panel" style="text-align:center;padding:16px">
-        <div class="section-title">关于</div>
-        <p style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.8">
-          QuizApp v1.0<br>
-          题库来源: AutoQuiz 自动抓取导出<br>
-          感谢使用, 你们的 Star 和关注是我更新的动力!
-        </p>
-        <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
-          <a href="https://github.com/konwait12" target="_blank" style="padding:6px 16px;border-radius:20px;background:#24292f;color:#fff;font-size:12px;text-decoration:none"> GitHub</a>
-          <a href="https://github.com/konwait12/AutoQuiz" target="_blank" style="padding:6px 16px;border-radius:20px;background:#4f6ef7;color:#fff;font-size:12px;text-decoration:none"> AutoQuiz</a>
-          <a href="https://space.bilibili.com/493568339" target="_blank" style="padding:6px 16px;border-radius:20px;background:#fb7299;color:#fff;font-size:12px;text-decoration:none"> B站</a>
+        <div class="section-title">作者信息</div>
+        <div style="font-size:13px;line-height:1.9;text-align:left">
+          <div><strong>作者</strong>：konwait12</div>
+          <div><strong>GitHub</strong>：github.com/konwait12</div>
+          <div><strong>AutoQuiz</strong>：github.com/konwait12/AutoQuiz</div>
+          <div><strong>B站</strong>：space.bilibili.com/493568339</div>
+          <div style="color:var(--muted);font-size:12px;margin-top:6px">题库来源：AutoQuiz 自动抓取导出</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px">
+          <button class="btn-submit" onclick="openExternal('https://github.com/konwait12')">GitHub</button>
+          <button class="btn-submit" onclick="openExternal('https://space.bilibili.com/493568339')">B站</button>
+          <button class="btn-submit" style="grid-column:1 / -1;background:var(--secondary)" onclick="openExternal('https://github.com/konwait12/AutoQuiz')">AutoQuiz 项目</button>
         </div>
       </div>
       <div class="settings-actions">
-        <button id="saveSettingsBtn" onclick="saveAllSettings()" onpointerup="saveAllSettings()">保存设置</button>
-        <button class="secondary" onclick="renderHome()">返回首页</button>
+        <button id="saveSettingsBtn" onclick="saveAllSettings()">保存设置</button>
+        <button class="secondary" onclick="goHome()">返回首页</button>
       </div>
     </div></div>
   `;
@@ -885,58 +1191,26 @@ function setPrimaryColor(color) {
 }
 
 function readSettingsForm() {
-  const preset = getProviderPreset('deepseek');
   state.uiConfig.theme = document.getElementById('themeSelect')?.value || state.uiConfig.theme;
   state.uiConfig.primary = document.getElementById('customPrimary')?.value.trim() || state.uiConfig.primary;
-  state.deepseekConfig.provider = 'deepseek';
-  state.deepseekConfig.baseUrl = preset.baseUrl;
-  state.deepseekConfig.apiKey = state.deepseekConfig.apiKey || document.getElementById('deepseekKey')?.value.trim() || '';
-  state.deepseekConfig.model = document.getElementById('deepseekModel')?.value || preset.defaultModel;
 }
 
 function saveAllSettings() {
   readSettingsForm();
   applyUiConfig();
   saveUiConfig();
-  saveDeepSeekConfig();
-  renderSettings();
-}
-
-async function fetchProviderModels() {
-  readSettingsForm();
-  const preset = getProviderPreset(state.deepseekConfig.provider);
-  state.aiAnalysisError = '';
-  if (!state.deepseekConfig.apiKey) {
-    state.aiAnalysisError = '请先输入 DeepSeek API Key';
-    renderSettings();
-    return;
-  }
-  try {
-    const res = await fetch(`${preset.baseUrl}/models`, {
-      headers: { 'Authorization': `Bearer ${state.deepseekConfig.apiKey}` },
-    });
-    if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
-    const data = await res.json();
-    const models = Array.isArray(data.data) ? data.data.map(item => item.id).filter(Boolean) : [];
-    state.deepseekConfig.models = models.length ? models : preset.fallbackModels;
-    if (!state.deepseekConfig.models.includes(state.deepseekConfig.model)) {
-      state.deepseekConfig.model = state.deepseekConfig.models[0] || preset.defaultModel;
-    }
-    saveDeepSeekConfig();
-  } catch(e) {
-    state.aiAnalysisError = `模型列表获取失败：${e.message}`;
-    state.deepseekConfig.models = preset.fallbackModels;
-  }
   renderSettings();
 }
 
 function openSubject(subject) {
+  pushRoute();
   state.view = 'subjects';
   state.activeSubject = subject;
   renderSubject();
 }
 
 function renderSubject() {
+  state.view = 'subjects';
   const subject = state.activeSubject;
   const banks = getBanksBySubject(subject);
   if (!subject || !banks.length) return renderHome();
@@ -946,16 +1220,30 @@ function renderSubject() {
   const app = document.getElementById('app');
   app.innerHTML = `
     <div class="topbar">
-      <button class="btn-back" onclick="renderHome()" aria-label="返回">←</button>
+      <button class="btn-back" onclick="goBackRoute()" aria-label="返回">←</button>
       <h1>${escapeHtml(subject)}</h1>
       <span style="font-size:13px;color:var(--muted)">${banks.length} 章</span>
     </div>
-    <div class="viewport"><div class="home">
-      <div class="practice-actions">
-        <button onclick="startSubjectPractice(false)">全科顺序练习</button>
-        <button class="secondary" onclick="startSubjectPractice(true)">全科随机练习</button>
-        <button onclick="openAnalysis('${escapeAttr(subject)}')">题目分析</button>
-        <button class="secondary" onclick="openWrongPractice('${escapeAttr(subject)}','',true)" ${subjectWrongCount ? '' : 'disabled'}>全科错题 ${subjectWrongCount}</button>
+    <div class="viewport view-scroll"><div class="home">
+      <div class="action-panel">
+        <div class="section-title">练习模式</div>
+        <div class="action-grid">
+          <button onclick="startSubjectPractice(false)">全科顺序练习</button>
+          <button class="secondary" onclick="startSubjectPractice(true)">全科随机练习</button>
+        </div>
+      </div>
+      <div class="action-panel">
+        <div class="section-title">背题与答案</div>
+        <div class="action-grid">
+          <button class="answer-mode" onclick="startSubjectReview()">全科背题模式</button>
+          <button class="lookup-mode" onclick="openAnswerLookup('${escapeAttr(subject)}', '')">全科答案表</button>
+        </div>
+      </div>
+      <div class="action-panel">
+        <div class="section-title">错题复习</div>
+        <div class="action-grid">
+          <button class="secondary" onclick="openWrongPractice('${escapeAttr(subject)}','',true)" ${subjectWrongCount ? '' : 'disabled'}>全科错题 ${subjectWrongCount}</button>
+        </div>
       </div>
       <div style="font-size:12px;color:var(--muted);padding:0 2px">${questionCount} 题 · ${banks.length} 个章节</div>
       <div class="bank-list">
@@ -972,6 +1260,8 @@ function renderSubject() {
             <div class="chapter-actions">
               <button onclick="startChapterPractice('${escapeAttr(b.id)}',false)">顺序</button>
               <button onclick="startChapterPractice('${escapeAttr(b.id)}',true)">随机</button>
+              <button onclick="startChapterReview('${escapeAttr(b.id)}')">背题</button>
+              <button class="lookup-mode" onclick="openAnswerLookup('${escapeAttr(subject)}','${escapeAttr(chapter)}')">答案</button>
               <button onclick="openWrongPractice('${escapeAttr(subject)}','${escapeAttr(chapter)}',true)" ${wrongCount ? '' : 'disabled'}>错题</button>
             </div>
           </div>
@@ -992,6 +1282,18 @@ function startSubjectPractice(shuffled) {
   });
 }
 
+function startSubjectReview() {
+  const banks = getBanksBySubject(state.activeSubject);
+  startPractice({
+    subject: state.activeSubject,
+    banks,
+    title: state.activeSubject,
+    subtitle: '全科背题模式',
+    shuffled: false,
+    reviewMode: true,
+  });
+}
+
 function startChapterPractice(id, shuffled) {
   const bank = state.banks.find(b => b.id === id);
   if (!bank) return;
@@ -1003,6 +1305,21 @@ function startChapterPractice(id, shuffled) {
     title: chapter,
     subtitle: shuffled ? '章节随机练习' : '章节顺序练习',
     shuffled,
+  });
+}
+
+function startChapterReview(id) {
+  const bank = state.banks.find(b => b.id === id);
+  if (!bank) return;
+  const subject = bank.subject || parseBankName(bank.name).subject;
+  const chapter = bank.chapter || parseBankName(bank.name).chapter;
+  startPractice({
+    subject,
+    banks: [bank],
+    title: chapter,
+    subtitle: '章节背题模式',
+    shuffled: false,
+    reviewMode: true,
   });
 }
 
@@ -1021,115 +1338,88 @@ function openWrongPractice(subject, chapter, shuffled) {
   });
 }
 
-function openAnalysis(subject) {
-  state.analysisContext = { subject };
-  state.aiAnalysisText = '';
-  state.aiAnalysisError = '';
-  state.view = 'analysis';
-  renderAnalysis();
+function openAnswerLookup(subject = '', chapter = '') {
+  pushRoute();
+  state.activeSubject = subject || '';
+  state.answerLookupContext = { subject: subject || '', chapter: chapter || '', query: '' };
+  state.view = 'answerLookup';
+  renderAnswerLookup();
 }
 
-function renderAnalysis() {
-  const subject = state.analysisContext?.subject || '';
-  const analysis = analyzeQuestionSet(subject);
+function getLookupQuestions(subject = '', chapter = '') {
+  const banks = subject ? getBanksBySubject(subject) : state.banks;
+  return buildQuestionSet(banks).filter(q => !chapter || q.sourceChapter === chapter);
+}
+
+function renderAnswerLookup() {
+  state.view = 'answerLookup';
+  const context = state.answerLookupContext || { subject: state.activeSubject || '', chapter: '', query: '' };
+  state.answerLookupContext = context;
+  const subject = context.subject || '';
+  const banks = subject ? getBanksBySubject(subject) : state.banks;
+  const chapters = Array.from(new Set(buildQuestionSet(banks).map(q => q.sourceChapter || '未分类'))).filter(Boolean);
+  const questions = getLookupQuestions(subject, context.chapter || '');
+  const title = subject ? `${subject}答案表` : '全部答案表';
+  const letters = 'ABCDEFGH';
+
   const app = document.getElementById('app');
-  const typeText = `单选 ${analysis.typeCounts.single || 0} · 多选 ${analysis.typeCounts.multi || 0} · 判断 ${analysis.typeCounts.bool || 0}`;
   app.innerHTML = `
     <div class="topbar">
-      <button class="btn-back" onclick="${subject ? 'renderSubject()' : 'renderHome()'}" aria-label="返回">←</button>
-      <h1>${escapeHtml(analysis.subject)}分析</h1>
-      <span style="font-size:13px;color:var(--muted)">${analysis.total} 题</span>
+      <button class="btn-back" onclick="goBackRoute()" aria-label="返回">←</button>
+      <h1>${escapeHtml(title)}</h1>
+      <span id="answerLookupCount" style="font-size:13px;color:var(--muted)">${questions.length} 题</span>
     </div>
-    <div class="viewport"><div class="home">
+    <div class="viewport view-scroll"><div class="home">
       <div class="analysis-panel">
-        <div class="analysis-grid">
-          <div class="analysis-stat"><strong>${analysis.bankCount}</strong><span>章节/题库</span></div>
-          <div class="analysis-stat"><strong>${analysis.total}</strong><span>题目总数</span></div>
-          <div class="analysis-stat"><strong>${analysis.wrongCount}</strong><span>当前错题</span></div>
-          <div class="analysis-stat"><strong>${analysis.duplicates.length}</strong><span>疑似重复</span></div>
+        <div class="section-title">答案查询</div>
+        <div class="lookup-toolbar">
+          <input id="answerLookupSearch" value="${escapeAttr(context.query || '')}" placeholder="搜索题干 / 选项 / 答案" oninput="state.answerLookupContext.query=this.value;filterAnswerRows()">
+          <select onchange="state.answerLookupContext.chapter=this.value;renderAnswerLookup()">
+            <option value="">全部章节</option>
+            ${chapters.map(chapter => `<option value="${escapeAttr(chapter)}" ${context.chapter === chapter ? 'selected' : ''}>${escapeHtml(chapter)}</option>`).join('')}
+          </select>
         </div>
-        <div style="font-size:13px;color:var(--muted)">${escapeHtml(typeText)}</div>
       </div>
-      <div class="analysis-panel">
-        <div class="section-title">章节分布</div>
-        <div class="chapter-analysis">
-          ${analysis.chapterStats.map(row => `
-            <div class="row">
-              <span>${escapeHtml(row.chapter)}</span>
-              <span>${row.total} 题 · 单 ${row.single} 多 ${row.multi} 判 ${row.bool}${row.wrong ? ` · 错 ${row.wrong}` : ''}</span>
+      <div class="answer-list" id="answerList">
+        ${questions.map((q, i) => {
+          const opts = getOptions(q);
+          const answerText = getAnswerLabel(q);
+          const optionText = opts.length ? opts.map((o, n) => `${letters[n]}. ${String(o)}`).join(' ｜ ') : '判断题：A. 对 ｜ B. 错';
+          const searchText = `${q.q} ${optionText} ${answerText} ${q.sourceSubject || ''} ${q.sourceChapter || ''} ${q.exp || ''}`.toLowerCase();
+          return `
+            <div class="answer-row" data-search="${escapeAttr(searchText)}">
+              <div class="meta">
+                <span>#${i + 1}</span>
+                <span>${escapeHtml(q.sourceSubject || '')}</span>
+                <span>${escapeHtml(q.sourceChapter || '')}</span>
+                <span>${escapeHtml(getTypeLabel(getType(q)))}</span>
+              </div>
+              <div class="question">${escapeHtml(q.q)}</div>
+              <div class="options-mini">${escapeHtml(optionText)}</div>
+              <div class="answer">正确答案：${escapeHtml(answerText)}</div>
+              ${q.exp ? `<div class="options-mini">解析：${escapeHtml(q.exp)}</div>` : ''}
             </div>
-          `).join('')}
-        </div>
-      </div>
-      <div class="analysis-panel">
-        <div class="section-title">质量检查</div>
-        ${analysis.issues.length ? analysis.issues.map(item => `
-          <div style="font-size:13px;color:var(--danger)">${escapeHtml(item.chapter)} · ${escapeHtml(item.issue)} · ${escapeHtml(item.text.slice(0, 40))}</div>
-        `).join('') : '<div style="font-size:13px;color:var(--muted)">未发现缺答案或选项不足的问题</div>'}
-        ${analysis.duplicates.length ? `<div class="section-title">疑似重复题干</div>${analysis.duplicates.map(item => `
-          <div style="font-size:13px;color:var(--warn)">${escapeHtml(item.first)} / ${escapeHtml(item.chapter)} · ${escapeHtml(item.text.slice(0, 42))}</div>
-        `).join('')}` : ''}
-      </div>
-      <div class="analysis-panel">
-        <div class="section-title">DeepSeek 分析</div>
-        <div style="font-size:12px;color:var(--muted)">服务：DeepSeek · 模型：${escapeHtml(state.deepseekConfig.model)} · ${state.deepseekConfig.apiKey ? 'Key 已配置' : 'Key 未配置'}</div>
-        <div class="practice-actions">
-          <button onclick="renderSettings()">打开设置</button>
-        </div>
-        <button class="btn-submit" style="width:100%" onclick="runDeepSeekAnalysis()" ${state.aiAnalysisLoading ? 'disabled' : ''}>${state.aiAnalysisLoading ? '分析中...' : '调用 DeepSeek 分析题库'}</button>
-        ${state.aiAnalysisError ? `<div class="ai-error">${escapeHtml(state.aiAnalysisError)}</div>` : ''}
-        ${state.aiAnalysisText ? `<div class="ai-output">${escapeHtml(state.aiAnalysisText)}</div>` : '<div style="font-size:12px;color:var(--muted)">API Key 在设置页配置，只保存在本机浏览器 localStorage。静态页面直连 API 可能受浏览器 CORS 限制。</div>'}
+          `;
+        }).join('')}
       </div>
     </div></div>
   `;
+  filterAnswerRows();
 }
 
-function clearDeepSeekSettings() {
-  state.deepseekConfig.apiKey = '';
-  saveDeepSeekConfig();
-  renderSettings();
-}
-
-async function runDeepSeekAnalysis() {
-  if (!state.deepseekConfig.apiKey) {
-    state.aiAnalysisError = '请先输入 DeepSeek API Key';
-    renderAnalysis();
-    return;
-  }
-
-  state.aiAnalysisLoading = true;
-  state.aiAnalysisError = '';
-  state.aiAnalysisText = '';
-  renderAnalysis();
-
-  try {
-    const payload = buildDeepSeekPayload();
-    const res = await fetch(`${state.deepseekConfig.baseUrl}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${state.deepseekConfig.apiKey}`,
-      },
-      body: JSON.stringify({
-        model: state.deepseekConfig.model,
-        messages: [
-          { role: 'system', content: '你是刷题题库教研分析助手。输出中文，直接给结构化分析、重点分布、易错风险和复习建议。' },
-          { role: 'user', content: `请分析这份题库数据：\n${JSON.stringify(payload)}` },
-        ],
-        temperature: 0.2,
-      }),
-    });
-
-    if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
-    const data = await res.json();
-    state.aiAnalysisText = data.choices?.[0]?.message?.content || 'DeepSeek 未返回分析内容';
-    saveDeepSeekConfig();
-  } catch(e) {
-    state.aiAnalysisError = `DeepSeek 调用失败：${e.message}`;
-  } finally {
-    state.aiAnalysisLoading = false;
-    renderAnalysis();
-  }
+function filterAnswerRows() {
+  const list = document.getElementById('answerList');
+  if (!list) return;
+  const query = String(state.answerLookupContext?.query || '').trim().toLowerCase();
+  const rows = Array.from(list.querySelectorAll('.answer-row'));
+  let visible = 0;
+  rows.forEach(row => {
+    const show = !query || row.dataset.search.includes(query);
+    row.style.display = show ? '' : 'none';
+    if (show) visible++;
+  });
+  const counter = document.getElementById('answerLookupCount');
+  if (counter) counter.textContent = `${visible}/${rows.length} 题`;
 }
 
 function clearImportedBanks() {
@@ -1140,6 +1430,7 @@ function clearImportedBanks() {
 }
 
 function renderQuiz() {
+  state.view = 'quiz';
   const session = state.activeSession;
   if (!session) return renderHome();
   const total = session.questions.length;
@@ -1150,29 +1441,36 @@ function renderQuiz() {
 
   let correctCount = 0;
   let wrongCount = 0;
-  for (let i = 0; i < total; i++) {
-    if (state.answers[i]) {
-      checkAnswer(session.questions[i], state.answers[i]) ? correctCount++ : wrongCount++;
+  if (!state.reviewMode) {
+    for (let i = 0; i < total; i++) {
+      if (state.answers[i]) {
+        checkAnswer(session.questions[i], state.answers[i]) ? correctCount++ : wrongCount++;
+      }
     }
   }
+  const unansweredCount = state.reviewMode ? 0 : total - correctCount - wrongCount;
 
   const app = document.getElementById('app');
   app.innerHTML = `
     <div class="topbar">
-      <button class="btn-back" onclick="renderSubject()" aria-label="返回">←</button>
+      <button class="btn-back" onclick="backFromQuiz()" aria-label="返回">←</button>
       <h1>${escapeHtml(session.title.slice(0, 24))}</h1>
-      <span id="questionCounter" style="font-size:13px;color:var(--muted)">${idx + 1}/${total}</span>
+      <div class="topbar-actions">
+        <span id="questionCounter" style="font-size:13px;color:var(--muted)">${idx + 1}/${total}</span>
+        <button class="btn-text" onclick="cycleMode()">${state.mode === 'page' ? '竖向' : '横向'}</button>
+        <button class="btn-text btn-save" onclick="saveCurrentSession()">保存</button>
+      </div>
     </div>
     <div class="progress-wrap">
       <div class="progress-bar">
         ${Array.from({ length: total }, (_, i) => {
           const a = state.answers[i];
-          const cls = a ? (checkAnswer(session.questions[i], a) ? 'correct' : 'wrong') : 'unanswered';
+          const cls = state.reviewMode ? 'review' : (a ? (checkAnswer(session.questions[i], a) ? 'correct' : 'wrong') : 'unanswered');
           return `<span class="${cls}" style="width:${100 / total}%;min-width:2px"></span>`;
         }).join('')}
       </div>
       <div class="progress-info">
-        <span>${escapeHtml(session.subtitle)}</span><span>正确 ${correctCount}</span><span>错误 ${wrongCount}</span><span>未答 ${total - correctCount - wrongCount}</span>
+        <span>${escapeHtml(session.subtitle)}</span><span>${state.reviewMode ? '背题' : `正确 ${correctCount}`}</span><span>${state.reviewMode ? '答案可见' : `错误 ${wrongCount}`}</span><span>${state.reviewMode ? `${total} 题` : `未答 ${unansweredCount}`}</span>
       </div>
     </div>
     <div class="viewport" id="viewport">
@@ -1180,7 +1478,7 @@ function renderQuiz() {
     </div>
     <div class="bottombar">
       <button id="prevBtn" class="btn-prev" onclick="prevQ()" ${idx === 0 ? 'disabled' : ''}>上一题</button>
-      <button class="btn-mode" onclick="cycleMode()">${state.mode === 'page' ? '竖向滑动' : '横向翻页'}</button>
+      <button class="btn-overview" onclick="showQuestionOverview()">题号总览</button>
       <button id="nextBtn" class="btn-next" onclick="nextQ()" ${idx === total - 1 ? 'disabled' : ''}>下一题</button>
     </div>
   `;
@@ -1191,17 +1489,21 @@ function renderQuiz() {
     setupScrollTracking();
   } else {
     setupPageTouch();
-    updatePagePosition(false);
+    updateNavState();
   }
 }
 
 function renderPageMode(session) {
+  const total = session.questions.length;
+  const indices = [state.currentIndex - 1, state.currentIndex, state.currentIndex + 1]
+    .filter(i => i >= 0 && i < total);
+  const currentPos = Math.max(0, indices.indexOf(state.currentIndex));
   return `
     <div class="page-frame">
-      <div class="page-track" id="pageTrack">
-        ${session.questions.map((q, i) => `
+      <div class="page-track" id="pageTrack" data-current-pos="${currentPos}" style="transform:translateX(${-currentPos * 100}%)">
+        ${indices.map(i => `
           <div class="page-slide">
-            ${renderCard(q, i)}
+            ${renderCard(session.questions[i], i)}
           </div>
         `).join('')}
       </div>
@@ -1217,11 +1519,59 @@ function renderScrollMode(session) {
   `;
 }
 
+function getQuestionStatus(idx) {
+  if (!state.activeSession) return '';
+  if (state.reviewMode) return 'review';
+  const answer = state.answers[idx];
+  if (!answer) return '';
+  return checkAnswer(state.activeSession.questions[idx], answer) ? 'correct' : 'wrong';
+}
+
+function showQuestionOverview() {
+  const session = state.activeSession;
+  if (!session) return;
+  const old = document.getElementById('questionOverview');
+  if (old) old.remove();
+
+  const wrap = document.createElement('div');
+  wrap.id = 'questionOverview';
+  wrap.className = 'question-overview';
+  wrap.innerHTML = `
+    <div class="overview-panel">
+      <div class="overview-head">
+        <strong>题号总览</strong>
+        <button class="btn-submit" onclick="closeQuestionOverview()">关闭</button>
+      </div>
+      <div class="overview-grid">
+        ${session.questions.map((_, i) => `
+          <button class="overview-num ${getQuestionStatus(i)} ${i === state.currentIndex ? 'current' : ''}" onclick="jumpToQuestion(${i})">${i + 1}</button>
+        `).join('')}
+      </div>
+    </div>
+  `;
+  wrap.addEventListener('click', e => {
+    if (e.target === wrap) closeQuestionOverview();
+  });
+  document.body.appendChild(wrap);
+}
+
+function closeQuestionOverview() {
+  const el = document.getElementById('questionOverview');
+  if (el) el.remove();
+}
+
+function jumpToQuestion(idx) {
+  if (!state.activeSession) return;
+  state.currentIndex = Math.max(0, Math.min(idx, state.activeSession.questions.length - 1));
+  closeQuestionOverview();
+  renderQuiz();
+}
+
 function renderCard(q, idx) {
   const t = getType(q);
   const userAns = state.answers[idx] || state.drafts[idx] || '';
-  const answered = Boolean(state.answers[idx]);
-  const correct = answered ? checkAnswer(q, state.answers[idx]) : null;
+  const answered = state.reviewMode || Boolean(state.answers[idx]);
+  const correct = state.reviewMode ? true : (answered ? checkAnswer(q, state.answers[idx]) : null);
   const opts = getOptions(q);
   const letters = 'ABCDEFGH';
   const isMulti = t === 'multi';
@@ -1232,6 +1582,7 @@ function renderCard(q, idx) {
   let optHTML = '';
   if (t === 'bool') {
     const clsFor = letter => {
+      if (state.reviewMode) return correctAns === letter ? 'correct' : '';
       if (!answered) return userAns === letter ? 'selected' : '';
       if (correctAns === letter) return 'correct';
       if (state.answers[idx] === letter) return 'wrong';
@@ -1239,8 +1590,8 @@ function renderCard(q, idx) {
     };
     optHTML = `
       <div class="bool-row">
-        <div class="bool-btn ${clsFor('A')}" onclick="answerBool(${idx},'A')">✓</div>
-        <div class="bool-btn ${clsFor('B')}" onclick="answerBool(${idx},'B')">✗</div>
+        <div class="bool-btn ${clsFor('A')}" onclick="${state.reviewMode ? '' : `answerBool(${idx},'A')`}">✓</div>
+        <div class="bool-btn ${clsFor('B')}" onclick="${state.reviewMode ? '' : `answerBool(${idx},'B')`}">✗</div>
       </div>
     `;
   } else {
@@ -1250,13 +1601,15 @@ function renderCard(q, idx) {
           const letter = letters[i];
           const selected = userAns.includes(letter);
           let cls = selected ? 'selected' : '';
-          if (answered) {
+          if (state.reviewMode) {
+            cls = correctAns.includes(letter) ? 'correct' : '';
+          } else if (answered) {
             if (correctAns.includes(letter)) cls = 'correct';
             else if (selected) cls = 'wrong';
             else cls = '';
           }
           return `
-            <div class="option ${cls}" onclick="${isMulti ? `toggleMulti(${idx},'${letter}')` : `answerSingle(${idx},'${letter}')`}">
+            <div class="option ${cls}" onclick="${state.reviewMode ? '' : (isMulti ? `toggleMulti(${idx},'${letter}')` : `answerSingle(${idx},'${letter}')`)}">
               <span class="option-letter">${letter}</span>
               <span>${escapeHtml(String(o))}</span>
             </div>`;
@@ -1281,9 +1634,9 @@ function renderCard(q, idx) {
       <div class="card-body"><p>${escapeHtml(q.q)}</p></div>
       ${optHTML}
       ${answered ? `
-        <div class="explanation show ${correct ? '' : 'wrong'}">
-          <div class="exp-label">${correct ? '正确' : '错误'}</div>
-          ${correct ? '' : `<div>正确答案：${escapeHtml(getAnswerLabel(q))}</div>`}
+        <div class="explanation show ${state.reviewMode || correct ? '' : 'wrong'}">
+          <div class="exp-label">${state.reviewMode ? '答案' : (correct ? '正确' : '错误')}</div>
+          ${state.reviewMode || !correct ? `<div>正确答案：${escapeHtml(getAnswerLabel(q))}</div>` : ''}
           ${q.exp ? `<div style="margin-top:4px;color:var(--muted)">${escapeHtml(q.exp)}</div>` : ''}
         </div>
       ` : ''}
@@ -1333,21 +1686,43 @@ function submitMulti(idx) {
 
 function nextQ() {
   if (state.activeSession && state.currentIndex < state.activeSession.questions.length - 1) {
+    if (state.mode === 'page') return animatePage(1);
     state.currentIndex++;
-    state.mode === 'page' ? updatePagePosition(true) : renderQuiz();
+    renderQuiz();
   }
 }
 
 function prevQ() {
   if (state.currentIndex > 0) {
+    if (state.mode === 'page') return animatePage(-1);
     state.currentIndex--;
-    state.mode === 'page' ? updatePagePosition(true) : renderQuiz();
+    renderQuiz();
   }
 }
 
 function cycleMode() {
   state.mode = state.mode === 'page' ? 'scroll' : 'page';
   renderQuiz();
+}
+
+function animatePage(delta) {
+  if (state.pageAnimating || !state.activeSession) return;
+  const target = state.currentIndex + delta;
+  if (target < 0 || target >= state.activeSession.questions.length) return;
+  const track = document.getElementById('pageTrack');
+  if (!track) {
+    state.currentIndex = target;
+    renderQuiz();
+    return;
+  }
+  const currentPos = Number(track.dataset.currentPos || 0);
+  state.pageAnimating = true;
+  track.style.transform = `translateX(${-(currentPos + delta) * 100}%)`;
+  window.setTimeout(() => {
+    state.currentIndex = target;
+    state.pageAnimating = false;
+    renderQuiz();
+  }, 340);
 }
 
 function updatePagePosition(animate) {
@@ -1461,7 +1836,6 @@ function escapeAttr(s) {
 loadUiConfig();
 loadBanks();
 loadWrongBook();
-loadDeepSeekConfig();
 loadBundledBanks();
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
   if (state.uiConfig.theme === 'system') applyUiConfig();
