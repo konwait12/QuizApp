@@ -168,14 +168,31 @@ body{
 .btn-submit[disabled]{background:var(--line);color:var(--muted)}
 
 /* Explanation */
+.answer-reveal{display:flex;justify-content:flex-end;margin-top:12px}
+.answer-reveal button{
+  border:1px solid var(--line);border-radius:99px;padding:9px 14px;
+  background:var(--card);color:var(--muted);font-size:13px;font-weight:800;
+  cursor:pointer;transition:all .15s
+}
+.answer-reveal button:active{transform:scale(.96)}
+.answer-reveal button.active{border-color:var(--primary);background:var(--primary-soft);color:var(--primary)}
 .explanation{
   margin-top:14px;padding:12px 14px;border-radius:var(--radius-sm);
   background:var(--success-soft);font-size:13px;line-height:1.55;display:none;color:#10241b
 }
 .explanation.show{display:block;animation:feedbackIn .2s ease-out}
 .explanation.wrong{background:var(--danger-soft);color:#351116}
+.explanation.reveal{background:var(--primary-soft);color:var(--text)}
 .explanation .exp-label{font-weight:800;color:var(--success);margin-bottom:4px}
 .explanation.wrong .exp-label{color:var(--danger)}
+.explanation.reveal .exp-label{color:var(--primary)}
+.feedback-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.feedback-actions button{
+  border:0;border-radius:99px;padding:8px 12px;font-size:12px;
+  font-weight:800;cursor:pointer;background:var(--primary);color:#fff
+}
+.feedback-actions button.secondary{background:var(--card);color:var(--muted);border:1px solid var(--line)}
+.feedback-actions button.danger{background:var(--danger);color:#fff}
 
 /* Bottom bar */
 .bottombar{
@@ -280,6 +297,14 @@ body{
   width:100%;border:1px solid var(--line);border-radius:var(--radius-sm);
   padding:10px;font-size:13px;background:var(--card);color:var(--text)
 }
+.setting-toggle{
+  display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:start;
+  padding:10px;border:1px solid var(--line);border-radius:var(--radius-sm);
+  background:var(--bg)
+}
+.setting-toggle input{width:18px;height:18px;margin-top:2px;accent-color:var(--primary)}
+.setting-toggle strong{font-size:13px}
+.setting-toggle small{display:block;margin-top:3px;color:var(--muted);font-size:12px;line-height:1.45}
 .swatches{display:flex;gap:10px;flex-wrap:wrap}
 .swatch{
   width:34px;height:34px;border-radius:50%;border:3px solid var(--card);
@@ -346,6 +371,7 @@ const STORAGE_KEY = 'quizapp_banks';
 const WRONG_KEY = 'quizapp_wrong_book';
 const UI_CONFIG_KEY = 'quizapp_ui_config';
 const SAVED_SESSION_KEY = 'quizapp_saved_session';
+const SAVED_PROGRESS_KEY = 'quizapp_saved_progress';
 const DEFAULT_BANK_FILES = [
   '毛概-导论.json',
   '毛概-第一章.json',
@@ -356,8 +382,6 @@ const DEFAULT_BANK_FILES = [
   '毛概-第六章.json',
   '毛概-第七章.json',
   '毛概-第八章.json',
-  '毛概-补充题库.json',
-  '毛概-未分类.json',
   '习思-导论.json',
   '习思-第一章.json',
   '习思-第二章.json',
@@ -387,8 +411,6 @@ const DEFAULT_BANK_FILES_RUNTIME = [
   '毛概-第六章.json',
   '毛概-第七章.json',
   '毛概-第八章.json',
-  '毛概-补充题库.json',
-  '毛概-未分类.json',
   '习思-导论.json',
   '习思-第一章.json',
   '习思-第二章.json',
@@ -419,6 +441,7 @@ let state = {
   currentIndex: 0,
   answers: {},
   drafts: {},
+  revealedAnswers: {},
   mode: 'page',
   reviewMode: false,
   view: 'home',
@@ -433,6 +456,7 @@ let state = {
   uiConfig: {
     theme: 'system',
     primary: '#4f6ef7',
+    autoSaveOnExit: false,
   },
 };
 
@@ -501,6 +525,8 @@ window.handleNativeBack = function handleNativeBack() {
 
 function backFromQuiz() {
   const subject = state.activeSession?.subject || state.activeSubject || '';
+  const autoSaved = Boolean(state.activeSession && state.uiConfig.autoSaveOnExit);
+  if (autoSaved) saveCurrentSession({ silent: true });
   state.activeSubject = subject;
   state.activeSession = null;
   state.navStack = state.navStack.filter(route => route.view !== 'quiz');
@@ -517,6 +543,7 @@ function backFromQuiz() {
   } else {
     renderHome();
   }
+  if (autoSaved) showToast('已自动保存进度');
   return true;
 }
 
@@ -571,54 +598,214 @@ function loadWrongBook() {
   }
 }
 
-function saveCurrentSession() {
+function saveCurrentSession(options = {}) {
   const session = state.activeSession;
   if (!session) return;
+  const scopeKey = session.scopeKey || makeQuestionScopeKey(session.subject, session.questions, state.reviewMode, session.title);
+  const currentQuestion = session.questions[state.currentIndex];
   const payload = {
     ...session,
+    scopeKey,
     currentIndex: state.currentIndex,
+    currentQuestionKey: currentQuestion ? questionKey(currentQuestion) : '',
     answers: state.answers,
     drafts: state.drafts,
+    answersByKey: mapIndexedValuesByQuestionKey(session.questions, state.answers),
+    draftsByKey: mapIndexedValuesByQuestionKey(session.questions, state.drafts),
+    questionOrderKeys: session.questions.map(questionKey),
     mode: state.mode,
     reviewMode: state.reviewMode,
     savedAt: Date.now(),
   };
   localStorage.setItem(SAVED_SESSION_KEY, JSON.stringify(payload));
-  showToast('已保存当前进度');
+  saveScopedProgress(scopeKey, payload);
+  if (!options.silent) showToast('已保存当前进度');
 }
 
-function getSavedSession() {
+function getSavedSession(scopeKey = '') {
   try {
+    if (scopeKey) {
+      const scoped = getSavedProgress()[scopeKey];
+      if (scoped && isValidSavedSession(scoped)) return scoped;
+    }
     const saved = JSON.parse(localStorage.getItem(SAVED_SESSION_KEY));
-    if (saved && Array.isArray(saved.questions) && saved.questions.length) return saved;
+    if (saved && isValidSavedSession(saved) && (!scopeKey || saved.scopeKey === scopeKey)) return saved;
   } catch(e) {}
+  if (!scopeKey) {
+    const list = Object.values(getSavedProgress()).filter(isValidSavedSession);
+    if (list.length) return list.sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0))[0];
+  }
   return null;
 }
 
-function resumeSavedSession() {
-  const saved = getSavedSession();
+function isValidSavedSession(saved) {
+  return saved && (
+    (Array.isArray(saved.questions) && saved.questions.length) ||
+    (Array.isArray(saved.questionOrderKeys) && saved.questionOrderKeys.length)
+  );
+}
+
+function getSavedProgress() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(SAVED_PROGRESS_KEY));
+    return saved && typeof saved === 'object' ? saved : {};
+  } catch(e) {
+    return {};
+  }
+}
+
+function saveProgressStore(store) {
+  localStorage.setItem(SAVED_PROGRESS_KEY, JSON.stringify(store));
+}
+
+function saveScopedProgress(scopeKey, payload) {
+  if (!scopeKey) return;
+  const store = getSavedProgress();
+  store[scopeKey] = payload;
+  saveProgressStore(store);
+}
+
+function removeScopedProgress(scopeKey) {
+  if (!scopeKey) return;
+  const store = getSavedProgress();
+  delete store[scopeKey];
+  saveProgressStore(store);
+  try {
+    const saved = JSON.parse(localStorage.getItem(SAVED_SESSION_KEY));
+    if (saved && saved.scopeKey === scopeKey) localStorage.removeItem(SAVED_SESSION_KEY);
+  } catch(e) {}
+}
+
+function mapIndexedValuesByQuestionKey(questions, values) {
+  const result = {};
+  for (const [index, value] of Object.entries(values || {})) {
+    if (!value) continue;
+    const question = questions[Number(index)];
+    if (question) result[questionKey(question)] = value;
+  }
+  return result;
+}
+
+function getSavedValueMap(saved, keyedField, indexedField) {
+  const direct = saved && saved[keyedField];
+  if (direct && typeof direct === 'object') return { ...direct };
+  return mapIndexedValuesByQuestionKey(saved?.questions || [], saved?.[indexedField] || {});
+}
+
+function mapQuestionKeysToIndices(questions, keyedValues) {
+  const result = {};
+  questions.forEach((question, index) => {
+    const value = keyedValues?.[questionKey(question)];
+    if (value) result[index] = value;
+  });
+  return result;
+}
+
+function makeQuestionScopeKey(subject, questions, reviewMode, title = '') {
+  const keys = (questions || []).map(questionKey).sort().join('|');
+  return `${reviewMode ? 'review' : 'practice'}:${subject || title || 'all'}:${hashString(keys)}`;
+}
+
+function makeBankScopeKey(subject, banks, reviewMode) {
+  const ids = (banks || []).map(b => b.id || b.name).sort().join('|');
+  return `${reviewMode ? 'review' : 'practice'}:${subject || 'all'}:${hashString(ids)}`;
+}
+
+function hashString(value) {
+  let hash = 0;
+  const text = String(value || '');
+  for (let i = 0; i < text.length; i++) {
+    hash = ((hash << 5) - hash + text.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash).toString(36);
+}
+
+function getQuestionsFromSavedSession(saved) {
+  let questions = [];
+  if (Array.isArray(saved.bankIds) && saved.bankIds.length) {
+    const banks = saved.bankIds.map(id => state.banks.find(b => b.id === id)).filter(Boolean);
+    if (banks.length) questions = buildQuestionSet(banks);
+  }
+  if (!questions.length && Array.isArray(saved.questions)) questions = saved.questions;
+  if (saved.questionOrderKeys && saved.questionOrderKeys.length) {
+    questions = orderQuestionsByKeys(questions, saved.questionOrderKeys);
+  }
+  return questions;
+}
+
+function orderQuestionsByKeys(questions, orderedKeys) {
+  const map = new Map((questions || []).map(q => [questionKey(q), q]));
+  const used = new Set();
+  const ordered = [];
+  for (const key of orderedKeys || []) {
+    const question = map.get(key);
+    if (question) {
+      ordered.push(question);
+      used.add(key);
+    }
+  }
+  for (const question of questions || []) {
+    const key = questionKey(question);
+    if (!used.has(key)) ordered.push(question);
+  }
+  return ordered;
+}
+
+function restoreSavedSession(saved, options = {}) {
   if (!saved) return alert('没有可恢复的进度');
-  state.activeSubject = saved.subject || '';
+  const questions = options.questions || getQuestionsFromSavedSession(saved);
+  if (!questions.length) return alert('保存的题库已不存在');
+  const currentQuestionKey = saved.currentQuestionKey || questionKey(saved.questions?.[saved.currentIndex || 0] || {});
+  const answersByKey = getSavedValueMap(saved, 'answersByKey', 'answers');
+  const draftsByKey = getSavedValueMap(saved, 'draftsByKey', 'drafts');
+  const currentIndex = Math.max(0, questions.findIndex(q => questionKey(q) === currentQuestionKey));
+  state.activeSubject = options.subject || saved.subject || '';
   state.activeSession = {
-    title: saved.title || '保存的练习',
-    subtitle: saved.subtitle || '保存进度',
-    subject: saved.subject || '',
-    shuffled: Boolean(saved.shuffled),
-    questions: saved.questions,
+    title: options.title || saved.title || '保存的练习',
+    subtitle: options.subtitle || saved.subtitle || '保存进度',
+    subject: options.subject || saved.subject || '',
+    shuffled: options.shuffled ?? Boolean(saved.shuffled),
+    questions,
+    scopeKey: options.scopeKey || saved.scopeKey || makeQuestionScopeKey(saved.subject, questions, Boolean(saved.reviewMode), saved.title),
+    bankIds: options.bankIds || saved.bankIds || [],
   };
-  state.currentIndex = Math.max(0, Math.min(saved.currentIndex || 0, saved.questions.length - 1));
-  state.answers = saved.answers || {};
-  state.drafts = saved.drafts || {};
+  state.currentIndex = currentIndex;
+  state.answers = mapQuestionKeysToIndices(questions, answersByKey);
+  state.drafts = mapQuestionKeysToIndices(questions, draftsByKey);
+  state.revealedAnswers = {};
   state.mode = saved.mode === 'scroll' ? 'scroll' : 'page';
-  state.reviewMode = Boolean(saved.reviewMode);
+  state.reviewMode = options.reviewMode ?? Boolean(saved.reviewMode);
   state.navStack = [];
   state.view = 'quiz';
   renderQuiz();
 }
 
-function clearSavedSession() {
-  localStorage.removeItem(SAVED_SESSION_KEY);
-  renderHome();
+function resumeSavedSession(scopeKey = '') {
+  restoreSavedSession(getSavedSession(scopeKey));
+}
+
+function clearSavedSession(scopeKey = '') {
+  if (scopeKey) {
+    removeScopedProgress(scopeKey);
+  } else {
+    const saved = getSavedSession();
+    if (saved?.scopeKey) removeScopedProgress(saved.scopeKey);
+    localStorage.removeItem(SAVED_SESSION_KEY);
+  }
+  if (state.view === 'subjects') renderSubject();
+  else renderHome();
+}
+
+function resetCurrentPractice() {
+  if (!state.activeSession) return;
+  const scopeKey = state.activeSession.scopeKey || '';
+  if (scopeKey) removeScopedProgress(scopeKey);
+  state.answers = {};
+  state.drafts = {};
+  state.revealedAnswers = {};
+  state.currentIndex = 0;
+  showToast('已重置当前练习');
+  renderQuiz();
 }
 
 function showToast(text) {
@@ -947,21 +1134,18 @@ function getWrongRecords(filter = {}) {
   }).sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
 }
 
-function updateWrongBook(idx) {
+function isInWrongBook(question) {
+  return Boolean(state.wrongBook[questionKey(question)]);
+}
+
+function addWrongToBook(idx) {
   const session = state.activeSession;
   if (!session) return;
   const q = session.questions[idx];
   const userAns = state.answers[idx];
   if (!q || !userAns) return;
+  if (checkAnswer(q, userAns)) return;
   const key = questionKey(q);
-  if (checkAnswer(q, userAns)) {
-    if (state.wrongBook[key]) {
-      delete state.wrongBook[key];
-      saveWrongBook();
-    }
-    return;
-  }
-
   const prev = state.wrongBook[key] || {};
   state.wrongBook[key] = {
     key,
@@ -972,6 +1156,31 @@ function updateWrongBook(idx) {
     updatedAt: Date.now(),
   };
   saveWrongBook();
+  showToast('已加入错题集');
+  renderQuiz();
+}
+
+function removeWrongFromBookByKey(key, rerender = true) {
+  if (!key || !state.wrongBook[key]) return;
+  delete state.wrongBook[key];
+  saveWrongBook();
+  showToast('已从错题集删除');
+  if (state.activeSession?.wrongPractice) {
+    state.activeSession.questions = state.activeSession.questions.filter(q => questionKey(q) !== key);
+    if (!state.activeSession.questions.length) {
+      state.activeSession = null;
+      renderSubject();
+      return;
+    }
+    state.currentIndex = Math.min(state.currentIndex, state.activeSession.questions.length - 1);
+  }
+  if (rerender) renderQuiz();
+}
+
+function removeWrongFromBook(idx) {
+  const q = state.activeSession?.questions?.[idx];
+  if (!q) return;
+  removeWrongFromBookByKey(questionKey(q));
 }
 
 function shuffleQuestions(questions) {
@@ -983,14 +1192,27 @@ function shuffleQuestions(questions) {
   return arr;
 }
 
-function startPractice({ subject, banks, title, subtitle, shuffled, reviewMode = false }) {
+function startPractice({ subject, banks, title, subtitle, shuffled, reviewMode = false, forceNew = false }) {
   const source = Array.isArray(banks) ? banks : [];
   const questions = buildQuestionSet(source);
-  startQuestionPractice({ subject, title, subtitle, questions, shuffled, reviewMode });
+  const scopeKey = makeBankScopeKey(subject, source, reviewMode);
+  const bankIds = source.map(bank => bank.id);
+  if (!forceNew) {
+    const saved = getSavedSession(scopeKey);
+    if (saved) {
+      const ordered = shuffled ? shuffleQuestions(questions) : questions;
+      restoreSavedSession(saved, { subject, title, subtitle, questions: ordered, shuffled, reviewMode, scopeKey, bankIds });
+      return;
+    }
+  }
+  startQuestionPractice({ subject, title, subtitle, questions, shuffled, reviewMode, scopeKey, bankIds, forceNew });
 }
 
-function startQuestionPractice({ subject, title, subtitle, questions, shuffled, reviewMode = false }) {
+function startQuestionPractice({ subject, title, subtitle, questions, shuffled, reviewMode = false, scopeKey = '', bankIds = [], wrongPractice = false, forceNew = false }) {
   if (!questions.length) return;
+  const finalQuestions = shuffled ? shuffleQuestions(questions) : questions;
+  const finalScopeKey = scopeKey || makeQuestionScopeKey(subject, questions, reviewMode, title);
+  if (forceNew) removeScopedProgress(finalScopeKey);
   pushRoute();
   state.activeSubject = subject;
   state.activeSession = {
@@ -998,11 +1220,15 @@ function startQuestionPractice({ subject, title, subtitle, questions, shuffled, 
     subtitle,
     subject,
     shuffled,
-    questions: shuffled ? shuffleQuestions(questions) : questions,
+    questions: finalQuestions,
+    scopeKey: finalScopeKey,
+    bankIds,
+    wrongPractice,
   };
   state.currentIndex = 0;
   state.answers = {};
   state.drafts = {};
+  state.revealedAnswers = {};
   state.reviewMode = Boolean(reviewMode);
   state.view = 'quiz';
   renderQuiz();
@@ -1099,7 +1325,7 @@ function renderHome() {
           <div class="section-title">全局工具</div>
           <div class="action-grid">
             <button class="lookup-mode" onclick="openAnswerLookup('', '')">全部答案表</button>
-            <button class="secondary" onclick="openWrongPractice('', '', true)" ${totalWrongCount ? '' : 'disabled'}>全部错题 ${totalWrongCount}</button>
+            <button class="secondary" onclick="openWrongPractice('', '', true)" ${totalWrongCount ? '' : 'disabled'}>全部错题集 ${totalWrongCount}</button>
           </div>
         </div>
         <div class="bank-list">${subjectList}</div>
@@ -1154,6 +1380,17 @@ function renderSettings() {
         </div>
       </div>
 
+      <div class="analysis-panel">
+        <div class="section-title">功能自定义</div>
+        <label class="setting-toggle">
+          <input type="checkbox" id="autoSaveOnExit" ${state.uiConfig.autoSaveOnExit ? 'checked' : ''}>
+          <span>
+            <strong>退出刷题时自动保存</strong>
+            <small>从答题页返回科目页或首页时，自动保存当前题号、已选答案和练习模式。</small>
+          </span>
+        </label>
+      </div>
+
       <div class="analysis-panel" style="text-align:center;padding:16px">
         <div class="section-title">作者信息</div>
         <div style="font-size:13px;line-height:1.9;text-align:left">
@@ -1185,6 +1422,8 @@ function previewThemeSettings() {
 function setPrimaryColor(color) {
   const value = String(color || '').trim();
   if (!/^#[0-9a-fA-F]{6}$/.test(value)) return;
+  const autoSaveEl = document.getElementById('autoSaveOnExit');
+  if (autoSaveEl) state.uiConfig.autoSaveOnExit = autoSaveEl.checked;
   state.uiConfig.primary = value;
   applyUiConfig();
   renderSettings();
@@ -1193,6 +1432,7 @@ function setPrimaryColor(color) {
 function readSettingsForm() {
   state.uiConfig.theme = document.getElementById('themeSelect')?.value || state.uiConfig.theme;
   state.uiConfig.primary = document.getElementById('customPrimary')?.value.trim() || state.uiConfig.primary;
+  state.uiConfig.autoSaveOnExit = Boolean(document.getElementById('autoSaveOnExit')?.checked);
 }
 
 function saveAllSettings() {
@@ -1230,6 +1470,7 @@ function renderSubject() {
         <div class="action-grid">
           <button onclick="startSubjectPractice(false)">全科顺序练习</button>
           <button class="secondary" onclick="startSubjectPractice(true)">全科随机练习</button>
+          <button class="muted-mode" onclick="startSubjectPractice(false,true)">全科重新做</button>
         </div>
       </div>
       <div class="action-panel">
@@ -1240,9 +1481,9 @@ function renderSubject() {
         </div>
       </div>
       <div class="action-panel">
-        <div class="section-title">错题复习</div>
+        <div class="section-title">错题集</div>
         <div class="action-grid">
-          <button class="secondary" onclick="openWrongPractice('${escapeAttr(subject)}','',true)" ${subjectWrongCount ? '' : 'disabled'}>全科错题 ${subjectWrongCount}</button>
+          <button class="secondary" onclick="openWrongPractice('${escapeAttr(subject)}','',true)" ${subjectWrongCount ? '' : 'disabled'}>全科错题集 ${subjectWrongCount}</button>
         </div>
       </div>
       <div style="font-size:12px;color:var(--muted);padding:0 2px">${questionCount} 题 · ${banks.length} 个章节</div>
@@ -1254,15 +1495,16 @@ function renderSubject() {
           <div class="bank-item">
             <div class="icon">${b.bundled ? '📘' : '📋'}</div>
             <div class="info">
-              <h4>${escapeHtml(chapter)} ${wrongCount ? `<span class="wrong-badge">错题 ${wrongCount}</span>` : ''}</h4>
+              <h4>${escapeHtml(chapter)} ${wrongCount ? `<span class="wrong-badge">错题集 ${wrongCount}</span>` : ''}</h4>
               <small>${b.questions.length} 题 · ${b.bundled ? '内置题库' : '导入题库'}</small>
             </div>
             <div class="chapter-actions">
               <button onclick="startChapterPractice('${escapeAttr(b.id)}',false)">顺序</button>
               <button onclick="startChapterPractice('${escapeAttr(b.id)}',true)">随机</button>
+              <button class="muted-mode" onclick="startChapterPractice('${escapeAttr(b.id)}',false,true)">重做</button>
               <button onclick="startChapterReview('${escapeAttr(b.id)}')">背题</button>
               <button class="lookup-mode" onclick="openAnswerLookup('${escapeAttr(subject)}','${escapeAttr(chapter)}')">答案</button>
-              <button onclick="openWrongPractice('${escapeAttr(subject)}','${escapeAttr(chapter)}',true)" ${wrongCount ? '' : 'disabled'}>错题</button>
+              <button onclick="openWrongPractice('${escapeAttr(subject)}','${escapeAttr(chapter)}',true)" ${wrongCount ? '' : 'disabled'}>错题集</button>
             </div>
           </div>
         `}).join('')}
@@ -1271,7 +1513,7 @@ function renderSubject() {
   `;
 }
 
-function startSubjectPractice(shuffled) {
+function startSubjectPractice(shuffled, forceNew = false) {
   const banks = getBanksBySubject(state.activeSubject);
   startPractice({
     subject: state.activeSubject,
@@ -1279,10 +1521,11 @@ function startSubjectPractice(shuffled) {
     title: state.activeSubject,
     subtitle: shuffled ? '全科随机练习' : '全科顺序练习',
     shuffled,
+    forceNew,
   });
 }
 
-function startSubjectReview() {
+function startSubjectReview(forceNew = false) {
   const banks = getBanksBySubject(state.activeSubject);
   startPractice({
     subject: state.activeSubject,
@@ -1291,10 +1534,11 @@ function startSubjectReview() {
     subtitle: '全科背题模式',
     shuffled: false,
     reviewMode: true,
+    forceNew,
   });
 }
 
-function startChapterPractice(id, shuffled) {
+function startChapterPractice(id, shuffled, forceNew = false) {
   const bank = state.banks.find(b => b.id === id);
   if (!bank) return;
   const subject = bank.subject || parseBankName(bank.name).subject;
@@ -1305,10 +1549,11 @@ function startChapterPractice(id, shuffled) {
     title: chapter,
     subtitle: shuffled ? '章节随机练习' : '章节顺序练习',
     shuffled,
+    forceNew,
   });
 }
 
-function startChapterReview(id) {
+function startChapterReview(id, forceNew = false) {
   const bank = state.banks.find(b => b.id === id);
   if (!bank) return;
   const subject = bank.subject || parseBankName(bank.name).subject;
@@ -1320,21 +1565,24 @@ function startChapterReview(id) {
     subtitle: '章节背题模式',
     shuffled: false,
     reviewMode: true,
+    forceNew,
   });
 }
 
 function openWrongPractice(subject, chapter, shuffled) {
   const records = getWrongRecords({ subject, chapter });
-  if (!records.length) return alert('当前范围还没有错题');
+  if (!records.length) return alert('当前范围还没有错题集题目');
   const questions = records.map(record => record.question);
-  const title = chapter || subject || '全部错题';
-  const subtitle = `${chapter ? '章节' : subject ? '全科' : '全部'}错题${shuffled ? '随机' : '顺序'}练习`;
+  const title = chapter || subject || '全部错题集';
+  const subtitle = `${chapter ? '章节' : subject ? '全科' : '全部'}错题集${shuffled ? '随机' : '顺序'}练习`;
   startQuestionPractice({
     subject,
     title,
     subtitle,
     questions,
     shuffled,
+    wrongPractice: true,
+    forceNew: true,
   });
 }
 
@@ -1458,6 +1706,7 @@ function renderQuiz() {
       <div class="topbar-actions">
         <span id="questionCounter" style="font-size:13px;color:var(--muted)">${idx + 1}/${total}</span>
         <button class="btn-text" onclick="cycleMode()">${state.mode === 'page' ? '竖向' : '横向'}</button>
+        <button class="btn-text" onclick="resetCurrentPractice()">重做</button>
         <button class="btn-text btn-save" onclick="saveCurrentSession()">保存</button>
       </div>
     </div>
@@ -1569,7 +1818,8 @@ function jumpToQuestion(idx) {
 
 function renderCard(q, idx) {
   const t = getType(q);
-  const userAns = state.answers[idx] || state.drafts[idx] || '';
+  const hasDraft = Object.prototype.hasOwnProperty.call(state.drafts, idx);
+  const userAns = hasDraft ? state.drafts[idx] : (state.answers[idx] || '');
   const answered = state.reviewMode || Boolean(state.answers[idx]);
   const correct = state.reviewMode ? true : (answered ? checkAnswer(q, state.answers[idx]) : null);
   const opts = getOptions(q);
@@ -1578,6 +1828,8 @@ function renderCard(q, idx) {
   const correctAns = getCorrectAnswer(q);
   const session = state.activeSession;
   const showSource = session && session.subject === q.sourceSubject && session.title === session.subject;
+  const inWrongBook = isInWrongBook(q);
+  const revealed = !state.reviewMode && !answered && Boolean(state.revealedAnswers[idx]);
 
   let optHTML = '';
   if (t === 'bool') {
@@ -1615,9 +1867,9 @@ function renderCard(q, idx) {
             </div>`;
         }).join('')}
       </div>
-      ${isMulti && !answered ? `
+      ${isMulti ? `
         <div class="multi-actions">
-          <button class="btn-submit" onclick="submitMulti(${idx})" ${userAns ? '' : 'disabled'}>确认答案</button>
+          <button class="btn-submit" onclick="submitMulti(${idx})" ${state.drafts[idx] ? '' : 'disabled'}>确认答案</button>
         </div>
       ` : ''}
     `;
@@ -1633,54 +1885,87 @@ function renderCard(q, idx) {
       </div>
       <div class="card-body"><p>${escapeHtml(q.q)}</p></div>
       ${optHTML}
+      ${!state.reviewMode && !answered ? `
+        <div class="answer-reveal">
+          <button class="${revealed ? 'active' : ''}" onclick="toggleAnswerReveal(${idx})">${revealed ? '收起答案' : '看答案'}</button>
+        </div>
+      ` : ''}
+      ${revealed ? `
+        <div class="explanation show reveal">
+          <div class="exp-label">答案</div>
+          <div>正确答案：${escapeHtml(getAnswerLabel(q))}</div>
+          ${q.exp ? `<div style="margin-top:4px;color:var(--muted)">${escapeHtml(q.exp)}</div>` : ''}
+        </div>
+      ` : ''}
+      ${state.activeSession?.wrongPractice ? `
+        <div class="feedback-actions">
+          <button class="danger" onclick="removeWrongFromBook(${idx})">从错题集删除</button>
+        </div>
+      ` : ''}
       ${answered ? `
         <div class="explanation show ${state.reviewMode || correct ? '' : 'wrong'}">
           <div class="exp-label">${state.reviewMode ? '答案' : (correct ? '正确' : '错误')}</div>
           ${state.reviewMode || !correct ? `<div>正确答案：${escapeHtml(getAnswerLabel(q))}</div>` : ''}
           ${q.exp ? `<div style="margin-top:4px;color:var(--muted)">${escapeHtml(q.exp)}</div>` : ''}
+          ${!state.reviewMode && !correct && !state.activeSession?.wrongPractice ? `
+            <div class="feedback-actions">
+              ${inWrongBook
+                ? `<button class="secondary" onclick="removeWrongFromBook(${idx})">从错题集删除</button>`
+                : `<button onclick="addWrongToBook(${idx})">加入错题集</button>`}
+            </div>
+          ` : ''}
         </div>
       ` : ''}
     </div>
   `;
 }
 
-function answerSingle(idx, letter) {
-  if (state.answers[idx]) return;
+function toggleAnswerReveal(idx) {
   state.currentIndex = idx;
-  state.answers[idx] = letter;
+  if (state.revealedAnswers[idx]) delete state.revealedAnswers[idx];
+  else state.revealedAnswers[idx] = true;
+  renderQuiz();
+}
+
+function answerSingle(idx, letter) {
+  state.currentIndex = idx;
+  if (state.answers[idx] === letter) delete state.answers[idx];
+  else state.answers[idx] = letter;
   delete state.drafts[idx];
-  updateWrongBook(idx);
+  delete state.revealedAnswers[idx];
   renderQuiz();
 }
 
 function answerBool(idx, letter) {
-  if (state.answers[idx]) return;
   state.currentIndex = idx;
-  state.answers[idx] = letter;
+  if (state.answers[idx] === letter) delete state.answers[idx];
+  else state.answers[idx] = letter;
   delete state.drafts[idx];
-  updateWrongBook(idx);
+  delete state.revealedAnswers[idx];
   renderQuiz();
 }
 
 function toggleMulti(idx, letter) {
-  if (state.answers[idx]) return;
   state.currentIndex = idx;
-  const cur = state.drafts[idx] || '';
+  const cur = Object.prototype.hasOwnProperty.call(state.drafts, idx) ? state.drafts[idx] : (state.answers[idx] || '');
   const parts = cur.split('').filter(c => c >= 'A' && c <= 'Z');
   const i = parts.indexOf(letter);
   if (i >= 0) parts.splice(i, 1);
   else parts.push(letter);
-  state.drafts[idx] = parts.sort().join('');
+  const next = parts.sort().join('');
+  if (next) state.drafts[idx] = next;
+  else delete state.drafts[idx];
+  delete state.answers[idx];
+  delete state.revealedAnswers[idx];
   renderQuiz();
 }
 
 function submitMulti(idx) {
   const draft = state.drafts[idx] || '';
-  if (!draft || state.answers[idx]) return;
+  if (!draft) return;
   state.currentIndex = idx;
   state.answers[idx] = draft;
   delete state.drafts[idx];
-  updateWrongBook(idx);
   renderQuiz();
 }
 
