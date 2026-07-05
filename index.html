@@ -525,7 +525,7 @@ window.handleNativeBack = function handleNativeBack() {
 
 function backFromQuiz() {
   const subject = state.activeSession?.subject || state.activeSubject || '';
-  const autoSaved = Boolean(state.activeSession && state.uiConfig.autoSaveOnExit);
+  const autoSaved = Boolean(isSavablePracticeSession() && state.uiConfig.autoSaveOnExit);
   if (autoSaved) saveCurrentSession({ silent: true });
   state.activeSubject = subject;
   state.activeSession = null;
@@ -598,9 +598,17 @@ function loadWrongBook() {
   }
 }
 
+function isSavablePracticeSession(session = state.activeSession) {
+  return Boolean(session && !state.reviewMode && !session.wrongPractice);
+}
+
 function saveCurrentSession(options = {}) {
   const session = state.activeSession;
   if (!session) return;
+  if (!isSavablePracticeSession(session)) {
+    if (!options.silent) showToast('当前模式不需要保存进度');
+    return;
+  }
   const scopeKey = session.scopeKey || makeQuestionScopeKey(session.subject, session.questions, state.reviewMode, session.title);
   const currentQuestion = session.questions[state.currentIndex];
   const payload = {
@@ -817,6 +825,11 @@ function showToast(text) {
   el.textContent = text;
   document.body.appendChild(el);
   window.setTimeout(() => el.remove(), 1600);
+}
+
+function clearToast() {
+  const old = document.getElementById('toast');
+  if (old) old.remove();
 }
 
 function saveUiConfig() {
@@ -1210,6 +1223,7 @@ function startPractice({ subject, banks, title, subtitle, shuffled, reviewMode =
 
 function startQuestionPractice({ subject, title, subtitle, questions, shuffled, reviewMode = false, scopeKey = '', bankIds = [], wrongPractice = false, forceNew = false }) {
   if (!questions.length) return;
+  clearToast();
   const finalQuestions = shuffled ? shuffleQuestions(questions) : questions;
   const finalScopeKey = scopeKey || makeQuestionScopeKey(subject, questions, reviewMode, title);
   if (forceNew) removeScopedProgress(finalScopeKey);
@@ -1386,7 +1400,7 @@ function renderSettings() {
           <input type="checkbox" id="autoSaveOnExit" ${state.uiConfig.autoSaveOnExit ? 'checked' : ''}>
           <span>
             <strong>退出刷题时自动保存</strong>
-            <small>从答题页返回科目页或首页时，自动保存当前题号、已选答案和练习模式。</small>
+            <small>仅顺序练习和随机练习生效；从答题页返回时自动保存当前题号、已选答案和练习模式。</small>
           </span>
         </label>
       </div>
@@ -1686,6 +1700,7 @@ function renderQuiz() {
 
   state.currentIndex = Math.max(0, Math.min(state.currentIndex, total - 1));
   const idx = state.currentIndex;
+  const savablePractice = isSavablePracticeSession(session);
 
   let correctCount = 0;
   let wrongCount = 0;
@@ -1706,8 +1721,10 @@ function renderQuiz() {
       <div class="topbar-actions">
         <span id="questionCounter" style="font-size:13px;color:var(--muted)">${idx + 1}/${total}</span>
         <button class="btn-text" onclick="cycleMode()">${state.mode === 'page' ? '竖向' : '横向'}</button>
-        <button class="btn-text" onclick="resetCurrentPractice()">重做</button>
-        <button class="btn-text btn-save" onclick="saveCurrentSession()">保存</button>
+        ${savablePractice ? `
+          <button class="btn-text" onclick="resetCurrentPractice()">重做</button>
+          <button class="btn-text btn-save" onclick="saveCurrentSession()">保存</button>
+        ` : ''}
       </div>
     </div>
     <div class="progress-wrap">
