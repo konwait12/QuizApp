@@ -312,11 +312,22 @@ body{
 }
 .swatch.active{box-shadow:0 0 0 3px var(--primary-soft),0 0 0 1px var(--primary)}
 .settings-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.settings-actions.top{position:sticky;top:8px;z-index:5}
 .settings-actions button{
   border:0;border-radius:99px;padding:12px;font-size:13px;font-weight:800;
   background:var(--primary);color:#fff;cursor:pointer
 }
 .settings-actions button.secondary{background:var(--bg);color:var(--muted)}
+.settings-notice{
+  border:1px solid var(--primary);
+  background:var(--primary-soft);
+  color:var(--primary);
+  border-radius:var(--radius);
+  padding:12px 14px;
+  font-size:13px;
+  font-weight:800;
+  line-height:1.45
+}
 .lookup-toolbar{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .lookup-toolbar input,.lookup-toolbar select{
   width:100%;border:1px solid var(--line);border-radius:var(--radius-sm);
@@ -372,6 +383,7 @@ const WRONG_KEY = 'quizapp_wrong_book';
 const UI_CONFIG_KEY = 'quizapp_ui_config';
 const SAVED_SESSION_KEY = 'quizapp_saved_session';
 const SAVED_PROGRESS_KEY = 'quizapp_saved_progress';
+const VIEW_PROGRESS_KEY = 'quizapp_view_progress';
 const DEFAULT_BANK_FILES = [
   '毛概-导论.json',
   '毛概-第一章.json',
@@ -458,6 +470,8 @@ let state = {
     primary: '#4f6ef7',
     autoSaveOnExit: false,
     randomReshuffleOnReset: true,
+    rememberReviewPosition: true,
+    rememberAnswerLookupPosition: true,
   },
 };
 
@@ -483,6 +497,7 @@ function pushRoute() {
 }
 
 function goHome() {
+  saveCurrentViewPosition();
   state.navStack = [];
   state.answerLookupContext = null;
   renderHome();
@@ -495,6 +510,7 @@ function goBackRoute() {
     return true;
   }
   if (state.view === 'home') return false;
+  saveCurrentViewPosition();
   state.suppressNavPush = true;
   try {
     if (state.view === 'quiz') {
@@ -526,6 +542,7 @@ window.handleNativeBack = function handleNativeBack() {
 
 function backFromQuiz() {
   const subject = state.activeSession?.subject || state.activeSubject || '';
+  saveReviewPosition();
   const autoSaved = Boolean(isSavablePracticeSession() && state.uiConfig.autoSaveOnExit);
   if (autoSaved) saveCurrentSession({ silent: true });
   state.activeSubject = subject;
@@ -665,6 +682,30 @@ function getSavedProgress() {
 
 function saveProgressStore(store) {
   localStorage.setItem(SAVED_PROGRESS_KEY, JSON.stringify(store));
+}
+
+function getViewProgress() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(VIEW_PROGRESS_KEY));
+    return saved && typeof saved === 'object' ? saved : {};
+  } catch(e) {
+    return {};
+  }
+}
+
+function saveViewProgress(store) {
+  localStorage.setItem(VIEW_PROGRESS_KEY, JSON.stringify(store));
+}
+
+function setViewProgress(key, payload) {
+  if (!key) return;
+  const store = getViewProgress();
+  store[key] = { ...payload, updatedAt: Date.now() };
+  saveViewProgress(store);
+}
+
+function getViewProgressItem(key) {
+  return getViewProgress()[key] || null;
 }
 
 function saveScopedProgress(scopeKey, payload) {
@@ -1145,6 +1186,72 @@ function questionKey(q) {
   return `${q.sourceBankId || 'bank'}:${q.sourceIndex ?? q.id ?? q.q}`;
 }
 
+function makeReviewScopeKey(subject, bankIds, title = '') {
+  const ids = (bankIds || []).slice().sort().join('|');
+  return `review-position:${subject || title || 'all'}:${hashString(ids)}`;
+}
+
+function makeAnswerLookupScope(subject = '', baseChapter = '') {
+  return `answer-lookup:${subject || 'all'}:${baseChapter || 'all'}`;
+}
+
+function saveReviewPosition() {
+  const session = state.activeSession;
+  if (!session || !state.reviewMode || !state.uiConfig.rememberReviewPosition) return;
+  const question = session.questions[state.currentIndex];
+  setViewProgress(makeReviewScopeKey(session.subject, session.bankIds, session.title), {
+    type: 'review',
+    subject: session.subject || '',
+    title: session.title || '',
+    bankIds: session.bankIds || [],
+    currentIndex: state.currentIndex,
+    currentQuestionKey: question ? questionKey(question) : '',
+    mode: state.mode,
+  });
+}
+
+function applyReviewPosition(session) {
+  if (!session || !state.reviewMode || !state.uiConfig.rememberReviewPosition) return;
+  const saved = getViewProgressItem(makeReviewScopeKey(session.subject, session.bankIds, session.title));
+  if (!saved) return;
+  const index = session.questions.findIndex(q => questionKey(q) === saved.currentQuestionKey);
+  state.currentIndex = index >= 0 ? index : Math.max(0, Math.min(saved.currentIndex || 0, session.questions.length - 1));
+  if (saved.mode === 'scroll' || saved.mode === 'page') state.mode = saved.mode;
+}
+
+function saveAnswerLookupPosition() {
+  const context = state.answerLookupContext;
+  if (!context || !state.uiConfig.rememberAnswerLookupPosition) return;
+  const viewport = document.getElementById('answerLookupViewport');
+  setViewProgress(makeAnswerLookupScope(context.subject || '', context.baseChapter || ''), {
+    type: 'answerLookup',
+    subject: context.subject || '',
+    baseChapter: context.baseChapter || '',
+    chapter: context.chapter || '',
+    query: context.query || '',
+    scrollTop: viewport ? viewport.scrollTop : (context.scrollTop || 0),
+  });
+}
+
+function restoreAnswerLookupContext(subject = '', baseChapter = '') {
+  const fallback = { subject: subject || '', baseChapter: baseChapter || '', chapter: baseChapter || '', query: '', scrollTop: 0 };
+  if (!state.uiConfig.rememberAnswerLookupPosition) return fallback;
+  const saved = getViewProgressItem(makeAnswerLookupScope(subject || '', baseChapter || ''));
+  if (!saved) return fallback;
+  return {
+    subject: subject || saved.subject || '',
+    baseChapter: baseChapter || saved.baseChapter || '',
+    chapter: saved.chapter || baseChapter || '',
+    query: saved.query || '',
+    scrollTop: Number(saved.scrollTop || 0),
+  };
+}
+
+function saveCurrentViewPosition() {
+  if (state.view === 'answerLookup') saveAnswerLookupPosition();
+  if (state.view === 'quiz') saveReviewPosition();
+}
+
 function getWrongRecords(filter = {}) {
   return Object.values(state.wrongBook).filter(record => {
     if (filter.subject && record.question.sourceSubject !== filter.subject) return false;
@@ -1250,6 +1357,7 @@ function startQuestionPractice({ subject, title, subtitle, questions, shuffled, 
   state.drafts = {};
   state.revealedAnswers = {};
   state.reviewMode = Boolean(reviewMode);
+  applyReviewPosition(state.activeSession);
   state.view = 'quiz';
   renderQuiz();
 }
@@ -1381,6 +1489,11 @@ function renderSettings() {
       <h1>设置</h1>
     </div>
     <div class="viewport view-scroll"><div class="home">
+      <div class="settings-notice">修改主题、颜色和功能自定义后，请点击“保存设置”才会在下次打开时继续生效。</div>
+      <div class="settings-actions top">
+        <button id="saveSettingsTopBtn" onclick="saveAllSettings()">保存设置</button>
+        <button class="secondary" onclick="goHome()">返回首页</button>
+      </div>
       <div class="analysis-panel">
         <div class="section-title">外观</div>
         <div class="settings-row">
@@ -1416,6 +1529,20 @@ function renderSettings() {
             <small>开启后，随机练习里点击重做会清空当前进度，并重新生成一套随机顺序。</small>
           </span>
         </label>
+        <label class="setting-toggle">
+          <input type="checkbox" id="rememberReviewPosition" ${state.uiConfig.rememberReviewPosition ? 'checked' : ''}>
+          <span>
+            <strong>背题模式记住上次位置</strong>
+            <small>再次进入同一科目或章节的背题模式时，恢复上次看到的题号和横向/竖向模式。</small>
+          </span>
+        </label>
+        <label class="setting-toggle">
+          <input type="checkbox" id="rememberAnswerLookupPosition" ${state.uiConfig.rememberAnswerLookupPosition ? 'checked' : ''}>
+          <span>
+            <strong>答案表记住上次位置</strong>
+            <small>再次打开同一范围的答案表时，恢复上次选择的章节、搜索内容和滚动位置。</small>
+          </span>
+        </label>
       </div>
 
       <div class="analysis-panel" style="text-align:center;padding:16px">
@@ -1423,14 +1550,14 @@ function renderSettings() {
         <div style="font-size:13px;line-height:1.9;text-align:left">
           <div><strong>作者</strong>：konwait12</div>
           <div><strong>GitHub</strong>：github.com/konwait12</div>
-          <div><strong>AutoQuiz</strong>：github.com/konwait12/AutoQuiz</div>
+          <div><strong>项目仓库</strong>：github.com/konwait12/QuizApp</div>
           <div><strong>B站</strong>：space.bilibili.com/493568339</div>
-          <div style="color:var(--muted);font-size:12px;margin-top:6px">题库来源：AutoQuiz 自动抓取导出</div>
+          <div style="color:var(--muted);font-size:12px;margin-top:6px">题库来源：内置题库与导入 JSON</div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px">
           <button class="btn-submit" onclick="openExternal('https://github.com/konwait12')">GitHub</button>
           <button class="btn-submit" onclick="openExternal('https://space.bilibili.com/493568339')">B站</button>
-          <button class="btn-submit" style="grid-column:1 / -1;background:var(--secondary)" onclick="openExternal('https://github.com/konwait12/AutoQuiz')">AutoQuiz 项目</button>
+          <button class="btn-submit" style="grid-column:1 / -1;background:var(--secondary)" onclick="openExternal('https://github.com/konwait12/QuizApp')">QuizApp 项目</button>
         </div>
       </div>
       <div class="settings-actions">
@@ -1453,6 +1580,10 @@ function setPrimaryColor(color) {
   if (autoSaveEl) state.uiConfig.autoSaveOnExit = autoSaveEl.checked;
   const reshuffleEl = document.getElementById('randomReshuffleOnReset');
   if (reshuffleEl) state.uiConfig.randomReshuffleOnReset = reshuffleEl.checked;
+  const rememberReviewEl = document.getElementById('rememberReviewPosition');
+  if (rememberReviewEl) state.uiConfig.rememberReviewPosition = rememberReviewEl.checked;
+  const rememberAnswerEl = document.getElementById('rememberAnswerLookupPosition');
+  if (rememberAnswerEl) state.uiConfig.rememberAnswerLookupPosition = rememberAnswerEl.checked;
   state.uiConfig.primary = value;
   applyUiConfig();
   renderSettings();
@@ -1463,6 +1594,8 @@ function readSettingsForm() {
   state.uiConfig.primary = document.getElementById('customPrimary')?.value.trim() || state.uiConfig.primary;
   state.uiConfig.autoSaveOnExit = Boolean(document.getElementById('autoSaveOnExit')?.checked);
   state.uiConfig.randomReshuffleOnReset = Boolean(document.getElementById('randomReshuffleOnReset')?.checked);
+  state.uiConfig.rememberReviewPosition = Boolean(document.getElementById('rememberReviewPosition')?.checked);
+  state.uiConfig.rememberAnswerLookupPosition = Boolean(document.getElementById('rememberAnswerLookupPosition')?.checked);
 }
 
 function saveAllSettings() {
@@ -1470,6 +1603,7 @@ function saveAllSettings() {
   applyUiConfig();
   saveUiConfig();
   renderSettings();
+  showToast('设置已保存');
 }
 
 function openSubject(subject) {
@@ -1619,7 +1753,7 @@ function openWrongPractice(subject, chapter, shuffled) {
 function openAnswerLookup(subject = '', chapter = '') {
   pushRoute();
   state.activeSubject = subject || '';
-  state.answerLookupContext = { subject: subject || '', chapter: chapter || '', query: '' };
+  state.answerLookupContext = restoreAnswerLookupContext(subject || '', chapter || '');
   state.view = 'answerLookup';
   renderAnswerLookup();
 }
@@ -1647,12 +1781,12 @@ function renderAnswerLookup() {
       <h1>${escapeHtml(title)}</h1>
       <span id="answerLookupCount" style="font-size:13px;color:var(--muted)">${questions.length} 题</span>
     </div>
-    <div class="viewport view-scroll"><div class="home">
+    <div class="viewport view-scroll" id="answerLookupViewport"><div class="home">
       <div class="analysis-panel">
         <div class="section-title">答案查询</div>
         <div class="lookup-toolbar">
           <input id="answerLookupSearch" value="${escapeAttr(context.query || '')}" placeholder="搜索题干 / 选项 / 答案" oninput="state.answerLookupContext.query=this.value;filterAnswerRows()">
-          <select onchange="state.answerLookupContext.chapter=this.value;renderAnswerLookup()">
+          <select onchange="state.answerLookupContext.chapter=this.value;state.answerLookupContext.scrollTop=0;saveAnswerLookupPosition();renderAnswerLookup()">
             <option value="">全部章节</option>
             ${chapters.map(chapter => `<option value="${escapeAttr(chapter)}" ${context.chapter === chapter ? 'selected' : ''}>${escapeHtml(chapter)}</option>`).join('')}
           </select>
@@ -1682,10 +1816,11 @@ function renderAnswerLookup() {
       </div>
     </div></div>
   `;
-  filterAnswerRows();
+  filterAnswerRows(false);
+  setupAnswerLookupTracking();
 }
 
-function filterAnswerRows() {
+function filterAnswerRows(shouldSave = true) {
   const list = document.getElementById('answerList');
   if (!list) return;
   const query = String(state.answerLookupContext?.query || '').trim().toLowerCase();
@@ -1698,6 +1833,20 @@ function filterAnswerRows() {
   });
   const counter = document.getElementById('answerLookupCount');
   if (counter) counter.textContent = `${visible}/${rows.length} 题`;
+  if (shouldSave) saveAnswerLookupPosition();
+}
+
+function setupAnswerLookupTracking() {
+  const viewport = document.getElementById('answerLookupViewport');
+  if (!viewport) return;
+  const targetTop = Number(state.answerLookupContext?.scrollTop || 0);
+  requestAnimationFrame(() => {
+    viewport.scrollTop = targetTop;
+  });
+  viewport.addEventListener('scroll', () => {
+    window.clearTimeout(state.scrollTimer);
+    state.scrollTimer = window.setTimeout(saveAnswerLookupPosition, 120);
+  }, { passive: true });
 }
 
 function clearImportedBanks() {
@@ -1845,6 +1994,7 @@ function closeQuestionOverview() {
 function jumpToQuestion(idx) {
   if (!state.activeSession) return;
   state.currentIndex = Math.max(0, Math.min(idx, state.activeSession.questions.length - 1));
+  saveReviewPosition();
   closeQuestionOverview();
   renderQuiz();
 }
@@ -2006,6 +2156,7 @@ function nextQ() {
   if (state.activeSession && state.currentIndex < state.activeSession.questions.length - 1) {
     if (state.mode === 'page') return animatePage(1);
     state.currentIndex++;
+    saveReviewPosition();
     renderQuiz();
   }
 }
@@ -2014,12 +2165,14 @@ function prevQ() {
   if (state.currentIndex > 0) {
     if (state.mode === 'page') return animatePage(-1);
     state.currentIndex--;
+    saveReviewPosition();
     renderQuiz();
   }
 }
 
 function cycleMode() {
   state.mode = state.mode === 'page' ? 'scroll' : 'page';
+  saveReviewPosition();
   renderQuiz();
 }
 
@@ -2030,6 +2183,7 @@ function animatePage(delta) {
   const track = document.getElementById('pageTrack');
   if (!track) {
     state.currentIndex = target;
+    saveReviewPosition();
     renderQuiz();
     return;
   }
@@ -2039,6 +2193,7 @@ function animatePage(delta) {
   window.setTimeout(() => {
     state.currentIndex = target;
     state.pageAnimating = false;
+    saveReviewPosition();
     renderQuiz();
   }, 340);
 }
@@ -2102,6 +2257,7 @@ function setupScrollTracking() {
         }
       });
       state.currentIndex = bestIndex;
+      saveReviewPosition();
       updateNavState();
     }, 80);
   }, { passive: true });
