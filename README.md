@@ -82,6 +82,12 @@
 
 浏览器版可以直接双击 `index.html` 打开。
 
+版本检测不需要单独服务器。应用读取 GitHub Releases Latest，发现 release 版本号高于当前 `APP_VERSION` 且资产里存在 APK 时，会提示用户更新。
+
+- Android APK 内会优先调用系统下载器下载 Release 里的 APK，下载完成后拉起系统安装器。
+- 浏览器或网络环境不稳定时，可以打开 GitHub Release 页面手动下载。
+- 覆盖安装同包名、同签名的 APK 不会清除本机题库、做题进度、错题集、设置和学习统计；卸载旧版或清除应用数据会删除本地数据。
+
 APK 打包：
 
 ```powershell

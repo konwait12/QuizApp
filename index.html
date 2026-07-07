@@ -343,11 +343,24 @@ body[data-theme="dark"] .answer-reveal button{
   background:var(--bg);color:var(--text);padding:12px;font-size:14px
 }
 .app-dialog-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.app-dialog-actions.triple{grid-template-columns:1fr 1fr 1fr}
 .app-dialog-actions button{
   border:0;border-radius:99px;padding:11px 12px;font-size:13px;font-weight:900;
   background:var(--primary);color:#fff;cursor:pointer
 }
 .app-dialog-actions button.secondary{background:var(--bg);color:var(--muted)}
+.announcement-dialog{width:min(560px,100%);max-height:calc(100dvh - 40px);overflow:auto}
+.announcement-body{display:flex;flex-direction:column;gap:10px;color:var(--muted);font-size:13px;line-height:1.7}
+.announcement-body h4{font-size:14px;color:var(--text);line-height:1.35}
+.announcement-body p,.announcement-body ul{margin:0}
+.announcement-body ul{padding-left:18px}
+.announcement-body li{margin:3px 0}
+.announcement-option{
+  display:flex;align-items:center;gap:8px;border:1px solid var(--line);
+  background:var(--bg);border-radius:var(--radius-sm);padding:10px 12px;
+  font-size:13px;color:var(--muted);cursor:pointer
+}
+.announcement-option input{width:auto}
 
 /* Home page */
 .home{padding:24px 16px;display:flex;flex-direction:column;gap:16px}
@@ -1269,6 +1282,9 @@ body[data-theme="dark"] .settings-actions.top{background:var(--bar-bg)}
 <script>
 // ========== State ==========
 const STORAGE_KEY = 'quizapp_banks';
+const APP_VERSION = 'v1.0.12';
+const RELEASE_API_URL = 'https://api.github.com/repos/konwait12/QuizApp/releases/latest';
+const RELEASE_PAGE_URL = 'https://github.com/konwait12/QuizApp/releases/latest';
 const WRONG_KEY = 'quizapp_wrong_book';
 const UI_CONFIG_KEY = 'quizapp_ui_config';
 const SAVED_SESSION_KEY = 'quizapp_saved_session';
@@ -1279,6 +1295,13 @@ const STUDY_STATS_KEY = 'quizapp_study_stats';
 const LIBRARY_NODES_KEY = 'quizapp_library_nodes';
 const BANK_META_KEY = 'quizapp_bank_meta';
 const RECYCLE_BIN_KEY = 'quizapp_recycle_bin';
+const UI_CONFIG_VERSION = 2;
+const ANNOUNCEMENT_ID = 'project-intro-20260707';
+const ANNOUNCEMENT_SEEN_KEY = 'quizapp_announcement_seen';
+const ANNOUNCEMENT_SUPPRESS_KEY = 'quizapp_announcement_suppressed';
+const UPDATE_LAST_CHECK_KEY = 'quizapp_update_last_check';
+const UPDATE_DISMISSED_TAG_KEY = 'quizapp_update_dismissed_tag';
+const UPDATE_CHECK_INTERVAL_MS = 12 * 60 * 60 * 1000;
 const STUDY_STATS_META_KEY = '__meta';
 const STUDY_STATS_RETENTION_DAYS = 92;
 const DEFAULT_BANK_DIRECTORY = './data/';
@@ -1391,6 +1414,7 @@ let state = {
   panelExpanded: {},
   chapterActionsExpanded: {},
   uiConfig: {
+    configVersion: UI_CONFIG_VERSION,
     theme: 'light',
     palette: 'forest',
     primary: '#1f8f62',
@@ -1399,9 +1423,10 @@ let state = {
     randomReshuffleOnReset: true,
     rememberReviewPosition: true,
     rememberAnswerLookupPosition: true,
+    autoUpdateCheck: true,
     persistStudyStats: true,
     studyChartRange: 'week',
-    toolPanelsDefaultExpanded: true,
+    toolPanelsDefaultExpanded: false,
     showSavedProgressEntry: true,
     showSavedProgressHint: true,
     savedProgressWidgetWidth: 420,
@@ -1555,6 +1580,16 @@ function openSettings() {
 
 function openExternal(url) {
   window.location.href = url;
+}
+
+function downloadApk(url) {
+  if (!url) return showNotice('没有找到 APK 下载链接');
+  if (window.QuizAppNative && typeof window.QuizAppNative.downloadAndInstallApk === 'function') {
+    window.QuizAppNative.downloadAndInstallApk(url);
+    showToast('已开始下载 APK');
+    return;
+  }
+  openExternal(url);
 }
 
 // ========== Persistence ==========
@@ -2355,7 +2390,12 @@ function loadUiConfig() {
   try {
     const saved = JSON.parse(localStorage.getItem(UI_CONFIG_KEY));
     if (saved && typeof saved === 'object') {
-      state.uiConfig = { ...state.uiConfig, ...saved };
+      const migrated = { ...saved };
+      const version = Number(migrated.configVersion || 0);
+      if (version < 2 && migrated.toolPanelsDefaultExpanded === true) {
+        migrated.toolPanelsDefaultExpanded = false;
+      }
+      state.uiConfig = { ...state.uiConfig, ...migrated, configVersion: UI_CONFIG_VERSION };
     }
   } catch(e) {}
   if (!PALETTE_PRESETS[state.uiConfig.palette]) state.uiConfig.palette = 'classic';
@@ -4359,8 +4399,7 @@ function openStorageFilePicker() {
 
 function openDefaultBankDirectory() {
   if (/Android/i.test(navigator.userAgent) || window.location.href.includes('/android_asset/')) {
-    showNotice(`手机端默认题库位置是相对目录 ${DEFAULT_BANK_DIRECTORY}。请选择 JSON 文件导入到当前层级。`);
-    openStorageFilePicker();
+    showNotice(`手机端内置题库打包在 APK 的相对目录 ${DEFAULT_BANK_DIRECTORY} 中，系统文件管理器不能直接打开 APK 内置资源。需要添加题库时，请使用旁边的“导入到主页”按钮。`);
     return;
   }
   const target = new URL(DEFAULT_BANK_DIRECTORY, window.location.href).href;
@@ -4371,32 +4410,239 @@ function openDefaultBankDirectory() {
       return;
     }
   } catch(e) {}
-  showNotice(`默认题库位置是相对目录 ${DEFAULT_BANK_DIRECTORY}。当前环境不能直接打开文件夹，请用系统文件选择器导入 JSON。`);
-  triggerImportForPath([]);
+  showNotice(`默认题库位置是相对目录 ${DEFAULT_BANK_DIRECTORY}。当前环境不能直接打开文件夹；需要添加题库时，请使用“导入到主页”按钮。`);
 }
 
-function renderUsageHelpDetails() {
+function renderAnnouncementBody() {
+  return `
+    <div class="announcement-body">
+      <h4>项目说明</h4>
+      <p>QuizApp 是一个开源免费的本地刷题工具，主要用于课程复习、题库练习、答案查询、错题集整理和学习时长统计。题库可以内置在 <code>data</code> 目录，也可以由用户在编辑模式或设置页导入 JSON。</p>
+      <h4>当前边界</h4>
+      <p>目前还没有做服务器/客户端架构，也没有云端账号、云同步、通知推送、题库远程分发和版本自动下发。当前版本的数据主要保存在本机浏览器或 APK WebView 的本地存储中，换设备前需要自行备份题库和重要数据。</p>
+      <h4>更新与数据</h4>
+      <p>设置页可以手动检查 GitHub Release，也可以开启启动自动检测。检测到新版 APK 后，直接覆盖安装同包名同签名的 APK，不会清除本机题库、进度、错题集、设置和学习统计；不要先卸载旧版，也不要清除应用数据。</p>
+      <h4>使用感谢</h4>
+      <p>感谢使用和测试这个小工具。现在的功能仍会继续根据真实刷题体验修复和调整，遇到题库解析、保存进度、手机适配等问题，可以继续反馈。</p>
+      <h4>基本用法</h4>
+      <ul>
+        <li>首页显示科目，进入科目后显示章节或题库。</li>
+        <li>顺序练习按题库顺序做题，随机练习每次进入会重新打乱。</li>
+        <li>背题模式直接查看答案，答案表用于快速查询全部答案。</li>
+        <li>答错后可手动加入错题集，错题集不受普通重做影响。</li>
+        <li>设置和编辑模式里可以调整组件显示、题库层级、导入 JSON 和回收站。</li>
+      </ul>
+      <h4>免责声明</h4>
+      <p>本项目是开源免费的本地学习工具，不售卖软件、不售卖题库、不提供付费代练或代做服务。题库内容由用户自行整理或导入，请确认来源合规，并仅用于课程复习、知识巩固和个人学习记录。</p>
+    </div>
+  `;
+}
+
+function renderAnnouncementBoard() {
   return `
     <details class="help-details">
       <summary>
-        <strong>使用说明与免责声明</strong>
+        <strong>公告栏</strong>
         <span>展开</span>
       </summary>
-      <div class="help-body">
-        <h4>题库与层级</h4>
-        <p>首页显示科目，进入科目后显示章节或题库。编辑模式下可以管理层级、导入 JSON、删除到回收站。</p>
-        <h4>练习方式</h4>
-        <p>顺序练习按题库原顺序做题；随机练习每次进入会打乱题目顺序；背题模式直接显示答案；答案表用于快速查询。</p>
-        <h4>保存与重做</h4>
-        <p>答题页右上角可以手动保存。开启自动保存后，退出顺序/随机练习会保存当前题号和已选答案。重做会清空当前范围的练习进度。</p>
-        <h4>错题集</h4>
-        <p>答错后可手动加入错题集。错题集不受普通重做影响，可以在错题集练习中删除题目。</p>
-        <h4>学习统计</h4>
-        <p>首页“今日学习时长”卡片可进入学习统计，查看近 7 天、近 30 天、本月和上月曲线。最多保留最近 3 个月。</p>
-        <h4>免责声明</h4>
-        <p>本项目是开源免费的本地刷题工具，不售卖软件、不售卖题库、不提供付费代练或代做服务。题库内容由用户自行整理或导入，请仅用于课程复习、知识巩固和个人学习记录。</p>
-      </div>
+      ${renderAnnouncementBody()}
     </details>
+  `;
+}
+
+function markAnnouncementSeen(suppress = false) {
+  localStorage.setItem(ANNOUNCEMENT_SEEN_KEY, ANNOUNCEMENT_ID);
+  if (suppress) localStorage.setItem(ANNOUNCEMENT_SUPPRESS_KEY, '1');
+}
+
+function shouldShowStartupAnnouncement() {
+  return localStorage.getItem(ANNOUNCEMENT_SUPPRESS_KEY) !== '1'
+    && localStorage.getItem(ANNOUNCEMENT_SEEN_KEY) !== ANNOUNCEMENT_ID;
+}
+
+function showAnnouncementDialog({ startup = false } = {}) {
+  closeAppDialog();
+  const mask = document.createElement('div');
+  mask.className = 'app-dialog-mask';
+  const dialog = document.createElement('div');
+  dialog.className = 'app-dialog announcement-dialog';
+  dialog.innerHTML = `
+    <h3>QuizApp 公告</h3>
+    ${renderAnnouncementBody()}
+    ${startup ? `
+      <label class="announcement-option">
+        <input id="announcementDontShow" type="checkbox">
+        <span>以后不再自动显示</span>
+      </label>
+    ` : ''}
+    <div class="app-dialog-actions">
+      <button type="button">${startup ? '知道了' : '关闭'}</button>
+    </div>
+  `;
+  mask.appendChild(dialog);
+  document.body.appendChild(mask);
+  const close = () => {
+    if (startup) markAnnouncementSeen(Boolean(document.getElementById('announcementDontShow')?.checked));
+    closeAppDialog();
+  };
+  dialog.querySelector('button').onclick = close;
+  mask.onclick = e => { if (e.target === mask) close(); };
+  dialog.querySelector('button')?.focus();
+}
+
+function showStartupAnnouncementIfNeeded() {
+  if (shouldShowStartupAnnouncement()) {
+    window.setTimeout(() => showAnnouncementDialog({ startup: true }), 260);
+  }
+}
+
+function normalizeVersionTag(value) {
+  return String(value || '').trim().replace(/^v/i, '');
+}
+
+function compareVersionTags(a, b) {
+  const left = normalizeVersionTag(a).split(/[.-]/).map(part => Number.parseInt(part, 10));
+  const right = normalizeVersionTag(b).split(/[.-]/).map(part => Number.parseInt(part, 10));
+  const length = Math.max(left.length, right.length);
+  for (let i = 0; i < length; i++) {
+    const av = Number.isFinite(left[i]) ? left[i] : 0;
+    const bv = Number.isFinite(right[i]) ? right[i] : 0;
+    if (av > bv) return 1;
+    if (av < bv) return -1;
+  }
+  return 0;
+}
+
+function getLatestApkAsset(release) {
+  const assets = Array.isArray(release?.assets) ? release.assets : [];
+  return assets.find(asset => /\.apk$/i.test(asset?.name || '')) || null;
+}
+
+function formatUpdateCheckTime() {
+  const time = Number(localStorage.getItem(UPDATE_LAST_CHECK_KEY) || 0);
+  if (!time) return '尚未检查';
+  try {
+    return new Date(time).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+  } catch(e) {
+    return '已检查';
+  }
+}
+
+async function fetchLatestRelease() {
+  const res = await fetch(RELEASE_API_URL, {
+    cache: 'no-store',
+    headers: { 'Accept': 'application/vnd.github+json' },
+  });
+  if (!res.ok) throw new Error(`GitHub 返回 ${res.status}`);
+  return res.json();
+}
+
+async function checkForUpdates(options = {}) {
+  const manual = Boolean(options.manual);
+  if (!manual && state.uiConfig.autoUpdateCheck === false) return null;
+  const now = Date.now();
+  const last = Number(localStorage.getItem(UPDATE_LAST_CHECK_KEY) || 0);
+  if (!manual && last && now - last < UPDATE_CHECK_INTERVAL_MS) return null;
+
+  if (manual) showToast('正在检查更新');
+  try {
+    const release = await fetchLatestRelease();
+    localStorage.setItem(UPDATE_LAST_CHECK_KEY, String(Date.now()));
+    const latestTag = release?.tag_name || release?.tagName || '';
+    const apkAsset = getLatestApkAsset(release);
+    const hasNewer = latestTag && compareVersionTags(latestTag, APP_VERSION) > 0;
+    if (hasNewer && apkAsset) {
+      if (!manual && localStorage.getItem(UPDATE_DISMISSED_TAG_KEY) === latestTag) return release;
+      showUpdateDialog({ release, apkAsset, manual });
+    } else if (manual) {
+      showNotice(`当前已是最新版本：${APP_VERSION}`);
+    }
+    if (state.view === 'settings' && !document.querySelector('.app-dialog-mask')) renderSettings();
+    return release;
+  } catch(e) {
+    if (manual) showNotice(`检查更新失败：${e.message || e}`);
+    return null;
+  }
+}
+
+function showUpdateDialog({ release, apkAsset, manual = false }) {
+  closeAppDialog();
+  const latestTag = release?.tag_name || release?.tagName || '';
+  const releaseUrl = release?.html_url || release?.url || RELEASE_PAGE_URL;
+  const downloadUrl = apkAsset?.browser_download_url || apkAsset?.url || releaseUrl;
+  const mask = document.createElement('div');
+  mask.className = 'app-dialog-mask';
+  const dialog = document.createElement('div');
+  dialog.className = 'app-dialog announcement-dialog';
+  dialog.innerHTML = `
+    <h3>发现新版本 ${escapeHtml(latestTag)}</h3>
+    <div class="announcement-body">
+      <p>当前版本：<strong>${escapeHtml(APP_VERSION)}</strong></p>
+      <p>GitHub Release 已发布新版 APK。点击“下载 APK”会优先调用系统下载器，下载完成后拉起系统安装器；浏览器环境会直接打开 APK 下载链接。</p>
+      <p>覆盖安装不会清除本机题库、做题进度、错题集、设置和学习统计；这些数据保存在同一个 App 包名的数据区。不要先卸载旧版，也不要清除应用数据。</p>
+      <p>如果系统提示签名不一致，说明安装包不是同一个签名来源，不能覆盖安装，请改用本项目 release 内的 APK。</p>
+    </div>
+    <label class="announcement-option">
+      <input id="updateDontShowThisTag" type="checkbox">
+      <span>这个版本不再自动提醒</span>
+    </label>
+    <div class="app-dialog-actions triple">
+      <button class="secondary" type="button">稍后</button>
+      <button class="secondary" type="button">Release</button>
+      <button type="button">下载 APK</button>
+    </div>
+  `;
+  mask.appendChild(dialog);
+  document.body.appendChild(mask);
+  const [laterBtn, releaseBtn, downloadBtn] = dialog.querySelectorAll('button');
+  const close = () => {
+    if (document.getElementById('updateDontShowThisTag')?.checked && latestTag) {
+      localStorage.setItem(UPDATE_DISMISSED_TAG_KEY, latestTag);
+    }
+    closeAppDialog();
+  };
+  laterBtn.onclick = close;
+  releaseBtn.onclick = () => openExternal(releaseUrl);
+  downloadBtn.onclick = () => {
+    if (latestTag) localStorage.setItem(UPDATE_DISMISSED_TAG_KEY, latestTag);
+    downloadApk(downloadUrl);
+  };
+  mask.onclick = e => { if (e.target === mask) close(); };
+  downloadBtn.focus();
+}
+
+function scheduleAutoUpdateCheck() {
+  window.setTimeout(() => {
+    if (document.querySelector('.app-dialog-mask')) {
+      scheduleAutoUpdateCheck();
+      return;
+    }
+    checkForUpdates({ manual: false });
+  }, 1800);
+}
+
+function renderUpdatePanel() {
+  return `
+    <div class="analysis-panel">
+      <div class="section-title">版本与更新</div>
+      <div class="storage-path-card">
+        <strong>当前版本</strong>
+        <code>${escapeHtml(APP_VERSION)}</code>
+        <small>更新检测直接读取 GitHub Releases Latest，不需要服务器。Release 里必须放 APK，检测到更高版本号时会弹窗提示下载。</small>
+      </div>
+      <label class="setting-toggle">
+        <input type="checkbox" id="autoUpdateCheck" ${state.uiConfig.autoUpdateCheck !== false ? 'checked' : ''}>
+        <span>
+          <strong>启动时自动检测 GitHub 新版本</strong>
+          <small>默认开启。自动检测按间隔执行，不会上传本地题库、做题记录或任何个人数据。</small>
+        </span>
+      </label>
+      <div class="settings-actions storage-actions">
+        <button onclick="checkForUpdates({ manual: true })">检查更新</button>
+        <button class="secondary" onclick="openExternal('${RELEASE_PAGE_URL}')">打开 Release</button>
+      </div>
+      <div class="settings-notice">上次检查：${escapeHtml(formatUpdateCheckTime())}。覆盖安装同包名同签名 APK 不会影响本地数据；卸载旧版或清除应用数据会删除本地数据。</div>
+    </div>
   `;
 }
 
@@ -4412,7 +4658,8 @@ function renderSettings() {
     </div>
     <div class="viewport view-scroll"><div class="home settings-page">
       <div class="settings-notice">修改设置后请点击右上角“保存设置”。主题预览会立即显示，但只有保存后下次打开才会继续生效。</div>
-      ${renderUsageHelpDetails()}
+      ${renderAnnouncementBoard()}
+      ${renderUpdatePanel()}
       <div class="analysis-panel">
         <div class="section-title">外观与图标</div>
         <div class="settings-row">
@@ -4645,6 +4892,8 @@ function readTransientSettings() {
   if (rememberReviewEl) state.uiConfig.rememberReviewPosition = rememberReviewEl.checked;
   const rememberAnswerEl = document.getElementById('rememberAnswerLookupPosition');
   if (rememberAnswerEl) state.uiConfig.rememberAnswerLookupPosition = rememberAnswerEl.checked;
+  const autoUpdateEl = document.getElementById('autoUpdateCheck');
+  if (autoUpdateEl) state.uiConfig.autoUpdateCheck = autoUpdateEl.checked;
   const panelDefaultEl = document.getElementById('toolPanelsDefaultExpanded');
   if (panelDefaultEl) state.uiConfig.toolPanelsDefaultExpanded = panelDefaultEl.checked;
   const savedEntryEl = document.getElementById('showSavedProgressEntry');
@@ -5616,6 +5865,8 @@ loadRecycleBin();
 loadBanks();
 loadWrongBook();
 loadBundledBanks();
+showStartupAnnouncementIfNeeded();
+scheduleAutoUpdateCheck();
 startStudyTimer();
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
   if (state.uiConfig.theme === 'system') applyUiConfig();

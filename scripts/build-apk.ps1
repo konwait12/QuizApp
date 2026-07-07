@@ -1,5 +1,7 @@
 param(
-  [string]$Version = "v1.0.11"
+  [string]$Version = "v1.0.12",
+  [string]$AppVersion = "",
+  [int]$VersionCode = 0
 )
 
 $ErrorActionPreference = "Stop"
@@ -59,6 +61,17 @@ $classesApk = Join-Path $buildDir "quizapp-classes.apk"
 $alignedApk = Join-Path $buildDir "quizapp-aligned.apk"
 $finalApk = Join-Path $projectRoot "output\QuizApp-$Version-debug.apk"
 $keystore = Join-Path $projectRoot "output\quizapp-debug.keystore"
+$manifestFile = Join-Path $buildDir "AndroidManifest.xml"
+$resolvedAppVersion = if ($AppVersion) { $AppVersion } else { $Version }
+$resolvedVersionName = $resolvedAppVersion.TrimStart("v")
+if (-not $VersionCode -or $VersionCode -lt 1) {
+  $versionMatch = [regex]::Match($resolvedVersionName, "(\d+)\.(\d+)\.(\d+)")
+  if ($versionMatch.Success) {
+    $VersionCode = [int]$versionMatch.Groups[1].Value * 10000 + [int]$versionMatch.Groups[2].Value * 100 + [int]$versionMatch.Groups[3].Value
+  } else {
+    $VersionCode = 1
+  }
+}
 
 if (Test-Path -LiteralPath $buildDir) { Remove-Item -LiteralPath $buildDir -Recurse -Force }
 New-Item -ItemType Directory -Force -Path $assetDir, $classesDir, $dexDir | Out-Null
@@ -93,7 +106,13 @@ foreach ($sourceBankFile in $sourceBankFiles) {
 }
 $embeddedJson = $embeddedBanks | ConvertTo-Json -Depth 100 -Compress
 $indexText = $indexText.Replace("window.__QUIZAPP_EMBEDDED_BANKS__ = null;", "window.__QUIZAPP_EMBEDDED_BANKS__ = $embeddedJson;")
+$indexText = [regex]::Replace($indexText, "const APP_VERSION = 'v[^']+';", "const APP_VERSION = '$resolvedAppVersion';")
 [System.IO.File]::WriteAllText($assetIndex, $indexText, [System.Text.UTF8Encoding]::new($false))
+
+$manifestText = [System.IO.File]::ReadAllText((Join-Path $androidDir "AndroidManifest.xml"), [System.Text.Encoding]::UTF8)
+$manifestText = [regex]::Replace($manifestText, 'android:versionCode="\d+"', "android:versionCode=`"$VersionCode`"")
+$manifestText = [regex]::Replace($manifestText, 'android:versionName="[^"]+"', "android:versionName=`"$resolvedVersionName`"")
+[System.IO.File]::WriteAllText($manifestFile, $manifestText, [System.Text.UTF8Encoding]::new($false))
 
 $javaSources = Get-ChildItem -LiteralPath (Join-Path $androidDir "src") -Recurse -Filter "*.java" | ForEach-Object { $_.FullName }
 & $javac -encoding UTF-8 -source 8 -target 8 -bootclasspath $platformJar -d $classesDir $javaSources
@@ -106,7 +125,7 @@ if ($LASTEXITCODE -ne 0) { throw "d8 failed" }
 
 & $aapt2 link `
   -o $unsignedApk `
-  --manifest (Join-Path $androidDir "AndroidManifest.xml") `
+  --manifest $manifestFile `
   -I $platformJar `
   -A $assetDir `
   --min-sdk-version 23 `
@@ -153,6 +172,8 @@ if ($LASTEXITCODE -ne 0) { throw "apksigner verify failed" }
 $apk = Get-Item -LiteralPath $finalApk
 Write-Host "APK=$($apk.FullName)"
 Write-Host "SIZE=$($apk.Length)"
+Write-Host "APP_VERSION=$resolvedAppVersion"
+Write-Host "VERSION_CODE=$VersionCode"
 
 if ($substCreated) {
   & subst $substDrive /D | Out-Null
