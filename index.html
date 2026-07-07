@@ -22,7 +22,8 @@
   --danger-soft: #fef0f2;
   --warn: #f5a623;
   --warn-soft: #fef7eb;
-  --shadow: 0 2px 16px rgba(0,0,0,.06);
+  --shadow: 0 10px 28px rgba(23,31,56,.07);
+  --shadow-soft: 0 1px 2px rgba(23,31,56,.04),0 10px 30px rgba(23,31,56,.055);
   --radius: 14px;
   --radius-sm: 10px;
   --font: -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
@@ -33,13 +34,21 @@ body[data-theme="dark"]{
   --text:#f4f6fb;
   --muted:#9aa3b5;
   --line:#2b3240;
+  --primary-soft:#263153;
+  --secondary-soft:#252b36;
+  --success-soft:#17382d;
+  --danger-soft:#3a1f27;
+  --warn-soft:#3b301b;
   --shadow:0 2px 18px rgba(0,0,0,.24);
+  --shadow-soft:0 1px 2px rgba(0,0,0,.3),0 12px 32px rgba(0,0,0,.24);
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html{height:100%;-webkit-tap-highlight-color:transparent}
 body{
   font-family:var(--font);
-  background:var(--bg);
+  background:
+    radial-gradient(circle at 12% -10%,rgba(79,110,247,.08),transparent 34%),
+    var(--bg);
   color:var(--text);
   height:100%;
   overflow:hidden;
@@ -50,24 +59,58 @@ body{
 
 /* Top bar */
 .topbar{
-  padding:12px 16px;display:flex;align-items:center;gap:10px;
-  background:var(--card);border-bottom:1px solid var(--line);z-index:10;
+  min-height:58px;padding:10px 16px;display:flex;align-items:center;gap:10px;
+  background:rgba(255,255,255,.92);border-bottom:1px solid var(--line);z-index:10;
+  backdrop-filter:blur(10px)
 }
-.topbar h1{font-size:18px;font-weight:700;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.topbar .btn-back{width:36px;height:36px;border:0;background:none;font-size:20px;cursor:pointer;border-radius:50%;display:grid;place-items:center}
-.topbar .btn-back:hover{background:#f0f1f5}
-.topbar .btn-icon{width:36px;height:36px;border:0;background:var(--bg);color:var(--text);font-size:18px;cursor:pointer;border-radius:50%;display:grid;place-items:center}
-.topbar .btn-icon:hover{background:var(--primary-soft);color:var(--primary)}
+.topbar h1{
+  font-size:18px;font-weight:850;flex:1;min-width:0;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis;letter-spacing:0
+}
+.brand-title{display:flex;align-items:center;gap:9px}
+.brand-mark{
+  width:30px;height:30px;border-radius:10px;display:grid;place-items:center;
+  background:var(--primary);color:#fff;font-size:15px;font-weight:950;
+  box-shadow:0 8px 18px rgba(79,110,247,.22)
+}
+.topbar .btn-back,.topbar .btn-icon{
+  width:36px;height:36px;border:1px solid var(--line);
+  background:rgba(248,249,251,.72);color:var(--text);cursor:pointer;
+  border-radius:50%;display:grid;place-items:center;transition:all .15s;
+  flex-shrink:0
+}
+.topbar .btn-back{font-size:20px}
+.topbar .btn-icon{font-size:13px;font-weight:900}
+.topbar .btn-back:hover,.topbar .btn-icon:hover{background:var(--primary-soft);color:var(--primary);border-color:rgba(79,110,247,.25)}
+.topbar .btn-back:active,.topbar .btn-icon:active{transform:scale(.96)}
 .topbar-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
 .topbar .btn-text{
-  height:34px;border:0;border-radius:99px;padding:0 12px;
+  height:34px;border:1px solid transparent;border-radius:99px;padding:0 12px;
   background:var(--primary-soft);color:var(--primary);
-  font-size:12px;font-weight:800;cursor:pointer
+  font-size:12px;font-weight:800;cursor:pointer;transition:transform .15s,box-shadow .15s,background .15s
 }
+.topbar .btn-text:active{transform:scale(.97)}
 .topbar .btn-save{background:var(--primary);color:#fff}
+.topbar-meta{
+  height:32px;display:inline-flex;align-items:center;justify-content:center;
+  padding:0 10px;border-radius:99px;background:rgba(248,249,251,.72);color:var(--muted);
+  border:1px solid var(--line);font-size:12px;font-weight:850;white-space:nowrap
+}
+body[data-theme="dark"] .topbar .btn-back,
+body[data-theme="dark"] .topbar .btn-icon,
+body[data-theme="dark"] .topbar-meta{background:rgba(18,21,28,.56)}
+body[data-theme="dark"] .topbar,
+body[data-theme="dark"] .bottombar{background:rgba(27,32,43,.92)}
+.quiz-topbar{align-items:flex-start}
+.quiz-topbar .topbar-actions{gap:6px}
+.counter-pill{
+  height:34px;display:inline-flex;align-items:center;justify-content:center;
+  padding:0 10px;border-radius:99px;background:var(--bg);
+  color:var(--muted);border:1px solid var(--line);font-size:12px;font-weight:900;white-space:nowrap
+}
 
 /* Progress bar */
-.progress-wrap{padding:8px 16px;background:var(--card)}
+.progress-wrap{padding:10px 16px 9px;background:var(--card)}
 .progress-bar{
   height:4px;background:var(--line);border-radius:2px;overflow:hidden;
   display:flex;gap:2px;
@@ -78,11 +121,14 @@ body{
 .progress-bar .unanswered{background:var(--line)}
 .progress-bar .review{background:var(--primary)}
 .progress-info{
-  display:grid;grid-template-columns:minmax(0,1fr) auto auto auto;gap:8px;align-items:center;margin-top:6px;
+  display:grid;grid-template-columns:minmax(0,1fr) auto auto auto;gap:6px;align-items:center;margin-top:7px;
   font-size:11px;color:var(--muted)
 }
 .progress-info span{white-space:nowrap}
 .progress-info span:first-child{overflow:hidden;text-overflow:ellipsis}
+.progress-info span:not(:first-child){
+  background:var(--bg);border-radius:99px;padding:3px 7px;font-weight:800
+}
 
 /* Viewport */
 .viewport{flex:1;overflow:hidden;position:relative;touch-action:pan-y}
@@ -100,50 +146,75 @@ body{
 /* Horizontal page mode */
 .page-frame{height:100%;overflow:hidden}
 .page-track{
-  height:100%;display:flex;transition:transform .34s cubic-bezier(.22,.8,.25,1);
+  height:100%;display:flex;transition:transform .24s cubic-bezier(.22,.8,.25,1);
   will-change:transform
 }
 .page-slide{
-  min-width:100%;height:100%;overflow-y:auto;padding:12px;
+  min-width:100%;height:100%;overflow-y:auto;padding:16px 14px 18px;
   display:flex;align-items:flex-start;justify-content:center
 }
 
 /* Card */
 .card{
   background:var(--card);border-radius:var(--radius);
-  box-shadow:var(--shadow);padding:20px 18px;width:100%;max-width:100%;
+  border:1px solid var(--line);
+  box-shadow:var(--shadow-soft);padding:18px 16px 20px;width:100%;max-width:100%;
   transition:box-shadow .2s, transform .2s
 }
 .card.answered.correct{box-shadow:0 8px 28px rgba(34,176,125,.14)}
 .card.answered.wrong{box-shadow:0 8px 28px rgba(242,78,94,.14)}
-.card-header{display:flex;align-items:center;gap:8px;margin-bottom:14px}
-.card-num{font-size:13px;font-weight:700;color:var(--primary)}
+.card-header{
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--line)
+}
+.card-num{
+  min-width:30px;height:26px;border-radius:99px;display:inline-flex;
+  align-items:center;justify-content:center;background:var(--primary-soft);
+  color:var(--primary);font-size:13px;font-weight:900
+}
 .card-type{
-  font-size:11px;padding:3px 8px;border-radius:99px;font-weight:700
+  font-size:11px;padding:5px 9px;border-radius:99px;font-weight:900
 }
 .type-single{background:var(--primary-soft);color:var(--primary)}
 .type-multi{background:var(--warn-soft);color:var(--warn)}
 .type-bool{background:var(--success-soft);color:var(--success)}
-.card-body{font-size:16px;line-height:1.65;margin-bottom:18px}
+.source-chip,.multi-hint{
+  font-size:11px;border-radius:99px;padding:4px 8px;background:var(--bg);
+  color:var(--muted);font-weight:800
+}
+.multi-hint{background:var(--warn-soft);color:var(--warn)}
+.card-body{
+  font-size:16px;line-height:1.72;margin-bottom:16px;
+  background:var(--bg);border:1px solid var(--line);border-radius:var(--radius-sm);
+  padding:14px 14px 15px
+}
 .card-body p{white-space:pre-wrap;word-break:break-word}
 
 /* Options */
-.options{display:flex;flex-direction:column;gap:8px}
+.options{display:flex;flex-direction:column;gap:10px}
 .option{
-  display:flex;align-items:flex-start;gap:10px;padding:12px 14px;
-  border:2px solid var(--line);border-radius:var(--radius-sm);
-  cursor:pointer;transition:all .15s;font-size:15px;line-height:1.4
+  display:grid;grid-template-columns:auto minmax(0,1fr);align-items:flex-start;
+  gap:11px;padding:13px 14px;min-height:54px;
+  border:1px solid var(--line);border-radius:var(--radius-sm);
+  background:linear-gradient(180deg,var(--card),rgba(248,249,251,.62));cursor:pointer;transition:all .15s;
+  font-size:15px;line-height:1.45
 }
 .option:active{transform:scale(.98)}
-.option.selected{border-color:var(--primary);background:var(--primary-soft)}
-.option.correct{border-color:var(--success);background:var(--success-soft);color:#10241b;animation:answerPop .22s ease-out}
-.option.wrong{border-color:var(--danger);background:var(--danger-soft);color:#351116;animation:answerShake .28s ease-out}
+.option.selected{border-color:var(--primary);background:var(--primary-soft);box-shadow:0 0 0 1px var(--primary-soft)}
+.option.correct{border-color:var(--success);background:var(--success-soft);color:#10241b;box-shadow:0 0 0 1px rgba(34,176,125,.12)}
+.option.wrong{border-color:var(--danger);background:var(--danger-soft);color:#351116;box-shadow:0 0 0 1px rgba(242,78,94,.12)}
+.option.correct.animate-answer{animation:answerPop .22s ease-out}
+.option.wrong.animate-answer{animation:answerShake .28s ease-out}
+body[data-theme="dark"] .option{background:linear-gradient(180deg,var(--card),rgba(18,21,28,.72))}
+body[data-theme="dark"] .option.correct{color:#d9f8eb}
+body[data-theme="dark"] .option.wrong{color:#ffd9df}
 .option[disabled],button[disabled]{opacity:.45;cursor:not-allowed}
 .option-letter{
   width:26px;height:26px;border-radius:50%;display:grid;place-items:center;
   font-weight:800;font-size:13px;flex-shrink:0;
   background:var(--bg);color:var(--muted);transition:all .15s
 }
+.option-text{min-width:0;word-break:break-word}
 .option.selected .option-letter{background:var(--primary);color:#fff}
 .option.correct .option-letter{background:var(--success);color:#fff}
 .option.wrong .option-letter{background:var(--danger);color:#fff}
@@ -157,10 +228,12 @@ body{
 }
 .bool-btn:active{transform:scale(.96)}
 .bool-btn.selected{border-color:var(--primary);background:var(--primary-soft);color:var(--primary)}
-.bool-btn.correct{border-color:var(--success);background:var(--success-soft);color:var(--success);animation:answerPop .22s ease-out}
-.bool-btn.wrong{border-color:var(--danger);background:var(--danger-soft);color:var(--danger);animation:answerShake .28s ease-out}
+.bool-btn.correct{border-color:var(--success);background:var(--success-soft);color:var(--success)}
+.bool-btn.wrong{border-color:var(--danger);background:var(--danger-soft);color:var(--danger)}
+.bool-btn.correct.animate-answer{animation:answerPop .22s ease-out}
+.bool-btn.wrong.animate-answer{animation:answerShake .28s ease-out}
 
-.multi-actions{display:flex;justify-content:flex-end;margin-top:12px}
+.multi-actions{display:flex;justify-content:flex-end;margin-top:14px}
 .btn-submit{
   min-width:112px;padding:10px 18px;border:0;border-radius:99px;
   background:var(--primary);color:#fff;font-weight:800;cursor:pointer
@@ -168,25 +241,40 @@ body{
 .btn-submit[disabled]{background:var(--line);color:var(--muted)}
 
 /* Explanation */
-.answer-reveal{display:flex;justify-content:flex-end;margin-top:12px}
+.answer-reveal{display:flex;justify-content:flex-end;margin-top:14px}
 .answer-reveal button{
-  border:1px solid var(--line);border-radius:99px;padding:9px 14px;
-  background:var(--card);color:var(--muted);font-size:13px;font-weight:800;
+  width:100%;min-height:44px;border:1px solid rgba(79,110,247,.22);border-radius:99px;padding:11px 14px;
+  background:linear-gradient(180deg,var(--primary-soft),rgba(238,241,254,.58));
+  color:var(--primary);font-size:13px;font-weight:900;
   cursor:pointer;transition:all .15s
 }
 .answer-reveal button:active{transform:scale(.96)}
 .answer-reveal button.active{border-color:var(--primary);background:var(--primary-soft);color:var(--primary)}
+body[data-theme="dark"] .answer-reveal button{
+  background:linear-gradient(180deg,var(--primary-soft),rgba(38,49,83,.58))
+}
 .explanation{
-  margin-top:14px;padding:12px 14px;border-radius:var(--radius-sm);
-  background:var(--success-soft);font-size:13px;line-height:1.55;display:none;color:#10241b
+  margin-top:16px;border:1px solid var(--line);border-radius:var(--radius-sm);
+  background:var(--card);font-size:13px;line-height:1.62;display:none;color:var(--text);
+  overflow:hidden
 }
 .explanation.show{display:block;animation:feedbackIn .2s ease-out}
-.explanation.wrong{background:var(--danger-soft);color:#351116}
-.explanation.reveal{background:var(--primary-soft);color:var(--text)}
-.explanation .exp-label{font-weight:800;color:var(--success);margin-bottom:4px}
+.exp-head{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:10px 12px;background:var(--success-soft)
+}
+.explanation.wrong .exp-head{background:var(--danger-soft)}
+.explanation.reveal .exp-head{background:var(--primary-soft)}
+.explanation .exp-label{
+  font-weight:900;color:var(--success);letter-spacing:.02em
+}
 .explanation.wrong .exp-label{color:var(--danger)}
 .explanation.reveal .exp-label{color:var(--primary)}
-.feedback-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.exp-body{padding:12px 14px 14px}
+.answer-line{font-weight:900;color:var(--text)}
+.answer-line.subtle{color:var(--muted)}
+.exp-detail{margin-top:8px;color:var(--muted);white-space:pre-wrap;word-break:break-word}
+.feedback-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
 .feedback-actions button{
   border:0;border-radius:99px;padding:8px 12px;font-size:12px;
   font-weight:800;cursor:pointer;background:var(--primary);color:#fff
@@ -196,18 +284,20 @@ body{
 
 /* Bottom bar */
 .bottombar{
-  padding:10px 16px 14px;display:flex;justify-content:space-between;
-  align-items:center;background:var(--card);border-top:1px solid var(--line)
+  padding:10px 16px calc(14px + env(safe-area-inset-bottom));display:flex;justify-content:space-between;
+  gap:10px;align-items:center;background:rgba(255,255,255,.92);border-top:1px solid var(--line);
+  backdrop-filter:blur(10px);
+  box-shadow:0 -8px 24px rgba(0,0,0,.04)
 }
 .bottombar button{
-  padding:10px 18px;border:0;border-radius:99px;font-weight:700;
+  flex:1;min-width:0;padding:11px 12px;border:0;border-radius:99px;font-weight:800;
   font-size:14px;cursor:pointer;transition:all .15s
 }
 .bottombar button:active{transform:scale(.96)}
 .btn-prev{background:var(--bg);color:var(--muted)}
 .btn-next{background:var(--primary);color:#fff}
 .btn-mode{background:var(--primary-soft);color:var(--primary);font-size:12px!important;padding:8px 12px!important}
-.btn-overview{background:var(--primary-soft);color:var(--primary)}
+.btn-overview{background:var(--primary-soft);color:var(--primary);flex:1.15!important}
 
 .question-overview{
   position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:50;
@@ -236,6 +326,7 @@ body{
 
 /* Home page */
 .home{padding:24px 16px;display:flex;flex-direction:column;gap:16px}
+.stats-row{display:flex;gap:10px}
 .subjects-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .subject-card{
   background:var(--card);border-radius:var(--radius);padding:20px 16px;
@@ -286,6 +377,7 @@ body{
 .chapter-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));min-width:210px}
 .chapter-actions button{padding:9px 8px}
 .section-title{font-size:13px;font-weight:800;color:var(--muted);padding:2px}
+.subject-summary{font-size:12px;color:var(--muted);padding:0 2px}
 .wrong-badge{font-size:12px;font-weight:800;color:var(--danger)}
 .analysis-panel{
   background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);
@@ -312,12 +404,17 @@ body{
 }
 .swatch.active{box-shadow:0 0 0 3px var(--primary-soft),0 0 0 1px var(--primary)}
 .settings-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.settings-actions.top{position:sticky;top:8px;z-index:5}
+.settings-actions.top{
+  position:sticky;top:10px;z-index:5;padding:8px;
+  background:rgba(255,255,255,.9);border:1px solid var(--line);
+  border-radius:var(--radius);box-shadow:var(--shadow-soft);backdrop-filter:blur(10px)
+}
 .settings-actions button{
   border:0;border-radius:99px;padding:12px;font-size:13px;font-weight:800;
   background:var(--primary);color:#fff;cursor:pointer
 }
 .settings-actions button.secondary{background:var(--bg);color:var(--muted)}
+body[data-theme="dark"] .settings-actions.top{background:rgba(27,32,43,.88)}
 .settings-notice{
   border:1px solid var(--primary);
   background:var(--primary-soft);
@@ -348,12 +445,264 @@ body{
   .topbar h1{font-size:16px}
   .topbar-actions{gap:6px}
   .topbar .btn-text{height:32px;padding:0 9px}
+  .brand-mark{width:28px;height:28px;border-radius:9px;font-size:14px}
+  .topbar-meta{height:30px;padding:0 9px;font-size:11px}
   #questionCounter{display:none}
+  .quiz-topbar{
+    display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;align-items:center;
+    column-gap:8px;row-gap:7px;padding-top:8px;padding-bottom:9px
+  }
+  .quiz-topbar .btn-back{width:32px;height:32px}
+  .quiz-topbar .topbar-actions{
+    display:contents
+  }
+  .quiz-topbar .btn-text{height:30px;padding:0 11px;font-size:12px}
+  .quiz-topbar .counter-pill{height:30px;padding:0 8px;font-size:12px}
+  .quiz-topbar #questionCounter{display:inline-flex}
+  .quiz-topbar #questionCounter{
+    grid-column:1 / 3;grid-row:2;justify-self:start;
+    min-width:72px;background:transparent;border-color:transparent;padding-left:0
+  }
+  .quiz-topbar .topbar-actions .btn-text:nth-of-type(1){
+    grid-column:3;grid-row:1;min-width:54px
+  }
+  .quiz-topbar .topbar-actions .btn-text:nth-of-type(2){
+    grid-column:3 / 5;grid-row:2;justify-self:end;
+    height:28px;min-width:68px;background:var(--bg);color:var(--muted);border-color:var(--line)
+  }
+  .quiz-topbar .topbar-actions .btn-text:nth-of-type(3){
+    grid-column:4;grid-row:1;min-width:54px
+  }
+  .settings-actions.top{top:8px;padding:7px}
   .progress-info{font-size:10px;gap:6px;grid-template-columns:minmax(0,1fr) auto auto}
   .progress-info span:nth-child(3){display:none}
+  .scroll-container{padding:14px}
+  .page-slide{padding:14px 12px 18px}
+  .card{padding:16px 14px 18px}
+  .card-body{font-size:15px;line-height:1.7;padding:13px}
+  .option{font-size:14px;padding:12px 13px}
+  .bottombar{padding-left:12px;padding-right:12px}
+  .bottombar button{font-size:13px;padding:11px 8px}
   .bank-item{align-items:flex-start;flex-wrap:wrap}
   .chapter-actions{width:100%;min-width:0;grid-template-columns:repeat(3,minmax(0,1fr))}
   .overview-grid{grid-template-columns:repeat(5,1fr)}
+}
+
+@media(min-width:840px) and (orientation:landscape){
+  .app{
+    max-width:min(1180px,100vw);
+    background:
+      linear-gradient(180deg,rgba(79,110,247,.035),transparent 180px),
+      var(--bg)
+  }
+  .home{
+    width:min(1080px,100%);
+    margin:0 auto;
+    padding:28px 26px
+  }
+  .home-dashboard{
+    display:grid;
+    grid-template-columns:minmax(180px,220px) minmax(0,1fr);
+    align-items:stretch;
+    gap:16px
+  }
+  .home-dashboard .stats-row{
+    grid-column:1;
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:12px
+  }
+  .home-dashboard .subject-card{
+    min-height:104px;
+    justify-content:center
+  }
+  .home-dashboard > .action-panel{
+    grid-column:2;
+    min-height:104px;
+    justify-content:center
+  }
+  .home-dashboard > .bank-list,
+  .home-dashboard > details{
+    grid-column:1 / -1
+  }
+  .subjects-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+  .bank-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+  .bank-item{min-height:76px}
+  .settings-page,.lookup-page{max-width:920px}
+  .settings-page .analysis-panel,
+  .lookup-page .analysis-panel{margin-left:auto;margin-right:auto}
+  .subject-page{
+    display:grid;
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:14px;
+    align-items:stretch
+  }
+  .subject-page > .action-panel{
+    max-width:none;
+    margin:0;
+    min-height:132px;
+    justify-content:space-between
+  }
+  .subject-page > .action-panel .action-grid{
+    height:100%
+  }
+  .subject-page > .subject-summary,
+  .subject-page > .bank-list{
+    grid-column:1 / -1
+  }
+  .subject-page > .subject-summary{
+    padding:2px 4px;
+    align-self:end
+  }
+  .subject-page .bank-item{
+    min-height:104px
+  }
+  .subject-page .bank-item .info h4{
+    font-size:14px
+  }
+  .subject-page .chapter-actions{
+    min-width:220px
+  }
+  .quiz-topbar{
+    align-items:center;
+    padding:9px 22px;
+    gap:14px;
+    border-bottom-color:rgba(237,240,244,.82)
+  }
+  .topbar:not(.quiz-topbar){
+    padding:10px 24px;
+    min-height:58px
+  }
+  .quiz-topbar h1{flex:0 1 auto;max-width:42vw}
+  .quiz-topbar .topbar-actions{margin-left:auto;gap:8px}
+  .quiz-topbar .btn-text,
+  .quiz-topbar .counter-pill{
+    height:32px;
+    padding:0 12px
+  }
+  .progress-wrap{
+    padding:9px 22px 10px;
+    border-bottom:1px solid var(--line)
+  }
+  .progress-info{
+    grid-template-columns:minmax(0,1fr) auto auto auto;
+    gap:10px
+  }
+  .page-slide{
+    padding:20px 24px 92px;
+    align-items:flex-start
+  }
+  .viewport.view-scroll .scroll-container{
+    padding:18px 24px 92px;
+    display:flex;
+    flex-direction:column;
+    gap:16px
+  }
+  .viewport.view-scroll .scroll-container .card{margin-bottom:0}
+  .viewport.view-page .card,
+  .viewport.view-scroll .card{
+    width:100%;
+    max-width:1100px;
+    margin-left:auto;
+    margin-right:auto;
+    display:grid;
+    grid-template-columns:minmax(320px,.9fr) minmax(390px,1.1fr);
+    column-gap:24px;
+    row-gap:16px;
+    align-content:start;
+    padding:18px 18px 20px;
+    border-color:rgba(237,240,244,.9);
+    box-shadow:0 18px 42px rgba(23,31,56,.08)
+  }
+  .viewport.view-page .card{
+    min-height:auto;
+    overflow:visible
+  }
+  .viewport.view-page .card-header,
+  .viewport.view-scroll .card-header{
+    grid-column:1 / -1;
+    margin-bottom:0;
+    padding-bottom:12px
+  }
+  .viewport.view-page .card-body,
+  .viewport.view-scroll .card-body{
+    grid-column:1;
+    grid-row:2;
+    align-self:start;
+    margin-bottom:0;
+    font-size:17px;
+    background:
+      linear-gradient(180deg,rgba(255,255,255,.72),rgba(255,255,255,.18)),
+      var(--bg)
+  }
+  .viewport.view-page .card-body{
+    min-height:128px;
+    max-height:none;
+    overflow:visible
+  }
+  .viewport.view-scroll .card-body{min-height:120px}
+  .viewport.view-page .options,
+  .viewport.view-page .bool-row,
+  .viewport.view-page .multi-actions,
+  .viewport.view-page .answer-reveal,
+  .viewport.view-page .explanation,
+  .viewport.view-page .card > .feedback-actions,
+  .viewport.view-scroll .options,
+  .viewport.view-scroll .bool-row,
+  .viewport.view-scroll .multi-actions,
+  .viewport.view-scroll .answer-reveal,
+  .viewport.view-scroll .explanation,
+  .viewport.view-scroll .card > .feedback-actions{
+    grid-column:2
+  }
+  .viewport.view-page .option,
+  .viewport.view-scroll .option{
+    min-height:52px;
+    padding:12px 14px;
+    border-color:rgba(237,240,244,.96);
+    box-shadow:0 1px 0 rgba(23,31,56,.025)
+  }
+  .viewport.view-page .option:hover,
+  .viewport.view-scroll .option:hover{
+    border-color:rgba(79,110,247,.38);
+    background:linear-gradient(180deg,var(--card),var(--primary-soft))
+  }
+  .viewport.view-page .answer-reveal,
+  .viewport.view-scroll .answer-reveal{
+    margin-top:0
+  }
+  .viewport.view-page .explanation,
+  .viewport.view-scroll .explanation{
+    margin-top:0
+  }
+  .bottombar{
+    justify-content:center;
+    padding-left:24px;
+    padding-right:24px;
+    background:rgba(255,255,255,.92);
+    backdrop-filter:blur(10px)
+  }
+  body[data-theme="dark"] .viewport.view-page .card-body,
+  body[data-theme="dark"] .viewport.view-scroll .card-body{
+    background:
+      linear-gradient(180deg,rgba(255,255,255,.035),rgba(255,255,255,.01)),
+      var(--bg)
+  }
+  body[data-theme="dark"] .bottombar{background:rgba(27,32,43,.92)}
+  .bottombar button{flex:0 1 180px}
+  .btn-overview{flex-basis:220px!important}
+  .question-overview{align-items:center}
+  .overview-panel{
+    width:min(720px,calc(100vw - 72px));
+    max-height:80vh;
+    border-radius:18px
+  }
+  .overview-grid{grid-template-columns:repeat(10,1fr)}
+  .answer-list{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    align-items:start
+  }
 }
 
 /* Import section */
@@ -462,6 +811,10 @@ let state = {
   touchStartX: 0,
   touchStartY: 0,
   pageAnimating: false,
+  pageAnimationTimer: null,
+  pageTargetIndex: null,
+  answerFeedbackIndex: null,
+  answerAnimationTimer: null,
   scrollTimer: null,
   wrongBook: {},
   answerLookupContext: null,
@@ -1429,10 +1782,12 @@ function renderHome() {
 
   app.innerHTML = `
     <div class="topbar">
-      <h1>📝 刷题</h1>
-      <button class="btn-icon" onclick="openSettings()" aria-label="设置">⚙</button>
+      <h1 class="brand-title"><span class="brand-mark">题</span><span>刷题</span></h1>
+      <div class="topbar-actions">
+        <button class="btn-text" onclick="openSettings()">设置</button>
+      </div>
     </div>
-    <div class="viewport view-scroll"><div class="home">
+    <div class="viewport view-scroll"><div class="home home-dashboard">
       ${saved ? `
         <div class="analysis-panel">
           <div class="section-title">保存的进度</div>
@@ -1445,7 +1800,7 @@ function renderHome() {
         </div>
       ` : ''}
       ${state.banks.length ? `
-        <div style="display:flex;gap:10px">
+        <div class="stats-row">
           <div class="subject-card"><h3>${subjectGroups.length}</h3><small>科目</small></div>
           <div class="subject-card"><h3>${totalQuestions}</h3><small>题目</small></div>
         </div>
@@ -1488,7 +1843,7 @@ function renderSettings() {
       <button class="btn-back" onclick="goBackRoute()" aria-label="返回">←</button>
       <h1>设置</h1>
     </div>
-    <div class="viewport view-scroll"><div class="home">
+    <div class="viewport view-scroll"><div class="home settings-page">
       <div class="settings-notice">修改主题、颜色和功能自定义后，请点击“保存设置”才会在下次打开时继续生效。</div>
       <div class="settings-actions top">
         <button id="saveSettingsTopBtn" onclick="saveAllSettings()">保存设置</button>
@@ -1626,9 +1981,9 @@ function renderSubject() {
     <div class="topbar">
       <button class="btn-back" onclick="goBackRoute()" aria-label="返回">←</button>
       <h1>${escapeHtml(subject)}</h1>
-      <span style="font-size:13px;color:var(--muted)">${banks.length} 章</span>
+      <span class="topbar-meta">${banks.length} 章</span>
     </div>
-    <div class="viewport view-scroll"><div class="home">
+    <div class="viewport view-scroll"><div class="home subject-page">
       <div class="action-panel">
         <div class="section-title">练习模式</div>
         <div class="action-grid">
@@ -1650,7 +2005,7 @@ function renderSubject() {
           <button class="secondary" onclick="openWrongPractice('${escapeAttr(subject)}','',true)" ${subjectWrongCount ? '' : 'disabled'}>全科错题集 ${subjectWrongCount}</button>
         </div>
       </div>
-      <div style="font-size:12px;color:var(--muted);padding:0 2px">${questionCount} 题 · ${banks.length} 个章节</div>
+      <div class="subject-summary">${questionCount} 题 · ${banks.length} 个章节</div>
       <div class="bank-list">
         ${banks.map(b => {
           const chapter = b.chapter || parseBankName(b.name).chapter;
@@ -1779,9 +2134,9 @@ function renderAnswerLookup() {
     <div class="topbar">
       <button class="btn-back" onclick="goBackRoute()" aria-label="返回">←</button>
       <h1>${escapeHtml(title)}</h1>
-      <span id="answerLookupCount" style="font-size:13px;color:var(--muted)">${questions.length} 题</span>
+      <span id="answerLookupCount" class="topbar-meta">${questions.length} 题</span>
     </div>
-    <div class="viewport view-scroll" id="answerLookupViewport"><div class="home">
+    <div class="viewport view-scroll" id="answerLookupViewport"><div class="home lookup-page">
       <div class="analysis-panel">
         <div class="section-title">答案查询</div>
         <div class="lookup-toolbar">
@@ -1862,6 +2217,10 @@ function renderQuiz() {
   if (!session) return renderHome();
   const total = session.questions.length;
   if (!total) return renderHome();
+  window.clearTimeout(state.pageAnimationTimer);
+  state.pageAnimationTimer = null;
+  state.pageAnimating = false;
+  state.pageTargetIndex = null;
 
   state.currentIndex = Math.max(0, Math.min(state.currentIndex, total - 1));
   const idx = state.currentIndex;
@@ -1880,11 +2239,11 @@ function renderQuiz() {
 
   const app = document.getElementById('app');
   app.innerHTML = `
-    <div class="topbar">
+    <div class="topbar quiz-topbar">
       <button class="btn-back" onclick="backFromQuiz()" aria-label="返回">←</button>
       <h1>${escapeHtml(session.title.slice(0, 24))}</h1>
       <div class="topbar-actions">
-        <span id="questionCounter" style="font-size:13px;color:var(--muted)">${idx + 1}/${total}</span>
+        <span id="questionCounter" class="counter-pill">${idx + 1}/${total}</span>
         <button class="btn-text" onclick="cycleMode()">${state.mode === 'page' ? '竖向' : '横向'}</button>
         ${savablePractice ? `
           <button class="btn-text" onclick="resetCurrentPractice()">重做</button>
@@ -1904,7 +2263,7 @@ function renderQuiz() {
         <span>${escapeHtml(session.subtitle)}</span><span>${state.reviewMode ? '背题' : `正确 ${correctCount}`}</span><span>${state.reviewMode ? '答案可见' : `错误 ${wrongCount}`}</span><span>${state.reviewMode ? `${total} 题` : `未答 ${unansweredCount}`}</span>
       </div>
     </div>
-    <div class="viewport" id="viewport">
+    <div class="viewport ${state.mode === 'scroll' ? 'view-scroll' : 'view-page'}" id="viewport">
       ${state.mode === 'scroll' ? renderScrollMode(session) : renderPageMode(session)}
     </div>
     <div class="bottombar">
@@ -1922,16 +2281,20 @@ function renderQuiz() {
     setupPageTouch();
     updateNavState();
   }
+  scheduleAnswerAnimationCleanup();
+  state.answerFeedbackIndex = null;
 }
 
 function renderPageMode(session) {
   const total = session.questions.length;
-  const indices = [state.currentIndex - 1, state.currentIndex, state.currentIndex + 1]
-    .filter(i => i >= 0 && i < total);
+  const radius = 8;
+  const start = Math.max(0, state.currentIndex - radius);
+  const end = Math.min(total - 1, state.currentIndex + radius);
+  const indices = Array.from({ length: end - start + 1 }, (_, i) => start + i);
   const currentPos = Math.max(0, indices.indexOf(state.currentIndex));
   return `
     <div class="page-frame">
-      <div class="page-track" id="pageTrack" data-current-pos="${currentPos}" style="transform:translateX(${-currentPos * 100}%)">
+      <div class="page-track" id="pageTrack" data-start-index="${start}" data-end-index="${end}" data-current-pos="${currentPos}" style="transform:translateX(${-currentPos * 100}%)">
         ${indices.map(i => `
           <div class="page-slide">
             ${renderCard(session.questions[i], i)}
@@ -1940,6 +2303,15 @@ function renderPageMode(session) {
       </div>
     </div>
   `;
+}
+
+function clearAnswerAnimations() {
+  document.querySelectorAll('.animate-answer').forEach(el => el.classList.remove('animate-answer'));
+}
+
+function scheduleAnswerAnimationCleanup() {
+  window.clearTimeout(state.answerAnimationTimer);
+  state.answerAnimationTimer = window.setTimeout(clearAnswerAnimations, 300);
 }
 
 function renderScrollMode(session) {
@@ -2015,12 +2387,13 @@ function renderCard(q, idx) {
   const revealed = !state.reviewMode && !answered && Boolean(state.revealedAnswers[idx]);
 
   let optHTML = '';
+  const animateFeedback = state.answerFeedbackIndex === idx;
   if (t === 'bool') {
     const clsFor = letter => {
       if (state.reviewMode) return correctAns === letter ? 'correct' : '';
       if (!answered) return userAns === letter ? 'selected' : '';
-      if (correctAns === letter) return 'correct';
-      if (state.answers[idx] === letter) return 'wrong';
+      if (correctAns === letter) return `correct ${animateFeedback ? 'animate-answer' : ''}`;
+      if (state.answers[idx] === letter) return `wrong ${animateFeedback ? 'animate-answer' : ''}`;
       return '';
     };
     optHTML = `
@@ -2039,14 +2412,14 @@ function renderCard(q, idx) {
           if (state.reviewMode) {
             cls = correctAns.includes(letter) ? 'correct' : '';
           } else if (answered) {
-            if (correctAns.includes(letter)) cls = 'correct';
-            else if (selected) cls = 'wrong';
+            if (correctAns.includes(letter)) cls = `correct ${animateFeedback ? 'animate-answer' : ''}`;
+            else if (selected) cls = `wrong ${animateFeedback ? 'animate-answer' : ''}`;
             else cls = '';
           }
           return `
             <div class="option ${cls}" onclick="${state.reviewMode ? '' : (isMulti ? `toggleMulti(${idx},'${letter}')` : `answerSingle(${idx},'${letter}')`)}">
               <span class="option-letter">${letter}</span>
-              <span>${escapeHtml(String(o))}</span>
+              <span class="option-text">${escapeHtml(String(o))}</span>
             </div>`;
         }).join('')}
       </div>
@@ -2063,8 +2436,8 @@ function renderCard(q, idx) {
       <div class="card-header">
         <span class="card-num">${idx + 1}</span>
         <span class="card-type type-${t === 'multi' ? 'multi' : t === 'bool' ? 'bool' : 'single'}">${getTypeLabel(t)}</span>
-        ${showSource ? `<span style="font-size:11px;color:var(--muted)">${escapeHtml(q.sourceChapter)}</span>` : ''}
-        ${isMulti && !answered ? '<span style="font-size:11px;color:var(--warn)">选完后确认</span>' : ''}
+        ${showSource ? `<span class="source-chip">${escapeHtml(q.sourceChapter)}</span>` : ''}
+        ${isMulti && !answered ? '<span class="multi-hint">选完后确认</span>' : ''}
       </div>
       <div class="card-body"><p>${escapeHtml(q.q)}</p></div>
       ${optHTML}
@@ -2075,9 +2448,13 @@ function renderCard(q, idx) {
       ` : ''}
       ${revealed ? `
         <div class="explanation show reveal">
-          <div class="exp-label">答案</div>
-          <div>正确答案：${escapeHtml(getAnswerLabel(q))}</div>
-          ${q.exp ? `<div style="margin-top:4px;color:var(--muted)">${escapeHtml(q.exp)}</div>` : ''}
+          <div class="exp-head">
+            <div class="exp-label">答案</div>
+          </div>
+          <div class="exp-body">
+            <div class="answer-line">正确答案：${escapeHtml(getAnswerLabel(q))}</div>
+            ${q.exp ? `<div class="exp-detail">${escapeHtml(q.exp)}</div>` : ''}
+          </div>
         </div>
       ` : ''}
       ${state.activeSession?.wrongPractice ? `
@@ -2087,16 +2464,21 @@ function renderCard(q, idx) {
       ` : ''}
       ${answered ? `
         <div class="explanation show ${state.reviewMode || correct ? '' : 'wrong'}">
-          <div class="exp-label">${state.reviewMode ? '答案' : (correct ? '正确' : '错误')}</div>
-          ${state.reviewMode || !correct ? `<div>正确答案：${escapeHtml(getAnswerLabel(q))}</div>` : ''}
-          ${q.exp ? `<div style="margin-top:4px;color:var(--muted)">${escapeHtml(q.exp)}</div>` : ''}
-          ${!state.reviewMode && !correct && !state.activeSession?.wrongPractice ? `
-            <div class="feedback-actions">
-              ${inWrongBook
-                ? `<button class="secondary" onclick="removeWrongFromBook(${idx})">从错题集删除</button>`
-                : `<button onclick="addWrongToBook(${idx})">加入错题集</button>`}
+          <div class="exp-head">
+            <div class="exp-label">${state.reviewMode ? '答案' : (correct ? '正确' : '错误')}</div>
+          </div>
+          <div class="exp-body">
+            ${!state.reviewMode && correct ? '<div class="answer-line subtle">你的选择正确</div>' : ''}
+            ${state.reviewMode || !correct ? `<div class="answer-line">正确答案：${escapeHtml(getAnswerLabel(q))}</div>` : ''}
+            ${q.exp ? `<div class="exp-detail">${escapeHtml(q.exp)}</div>` : ''}
+            ${!state.reviewMode && !correct && !state.activeSession?.wrongPractice ? `
+              <div class="feedback-actions">
+                ${inWrongBook
+                  ? `<button class="secondary" onclick="removeWrongFromBook(${idx})">从错题集删除</button>`
+                  : `<button onclick="addWrongToBook(${idx})">加入错题集</button>`}
+              </div>
+            ` : ''}
             </div>
-          ` : ''}
         </div>
       ` : ''}
     </div>
@@ -2112,8 +2494,13 @@ function toggleAnswerReveal(idx) {
 
 function answerSingle(idx, letter) {
   state.currentIndex = idx;
-  if (state.answers[idx] === letter) delete state.answers[idx];
-  else state.answers[idx] = letter;
+  if (state.answers[idx] === letter) {
+    delete state.answers[idx];
+    state.answerFeedbackIndex = null;
+  } else {
+    state.answers[idx] = letter;
+    state.answerFeedbackIndex = idx;
+  }
   delete state.drafts[idx];
   delete state.revealedAnswers[idx];
   renderQuiz();
@@ -2121,8 +2508,13 @@ function answerSingle(idx, letter) {
 
 function answerBool(idx, letter) {
   state.currentIndex = idx;
-  if (state.answers[idx] === letter) delete state.answers[idx];
-  else state.answers[idx] = letter;
+  if (state.answers[idx] === letter) {
+    delete state.answers[idx];
+    state.answerFeedbackIndex = null;
+  } else {
+    state.answers[idx] = letter;
+    state.answerFeedbackIndex = idx;
+  }
   delete state.drafts[idx];
   delete state.revealedAnswers[idx];
   renderQuiz();
@@ -2148,6 +2540,7 @@ function submitMulti(idx) {
   if (!draft) return;
   state.currentIndex = idx;
   state.answers[idx] = draft;
+  state.answerFeedbackIndex = idx;
   delete state.drafts[idx];
   renderQuiz();
 }
@@ -2177,32 +2570,81 @@ function cycleMode() {
 }
 
 function animatePage(delta) {
-  if (state.pageAnimating || !state.activeSession) return;
-  const target = state.currentIndex + delta;
+  if (!state.activeSession) return;
+  const baseIndex = state.pageAnimating && Number.isInteger(state.pageTargetIndex)
+    ? state.pageTargetIndex
+    : state.currentIndex;
+  const target = baseIndex + delta;
+  goToPageIndex(target, true);
+}
+
+function goToPageIndex(target, animate) {
+  if (!state.activeSession) return;
+  clearAnswerAnimations();
+  target = Math.max(0, Math.min(target, state.activeSession.questions.length - 1));
+  if (target === state.currentIndex && !state.pageAnimating) return;
   if (target < 0 || target >= state.activeSession.questions.length) return;
   const track = document.getElementById('pageTrack');
   if (!track) {
     state.currentIndex = target;
+    state.pageAnimating = false;
+    state.pageTargetIndex = null;
     saveReviewPosition();
     renderQuiz();
     return;
   }
-  const currentPos = Number(track.dataset.currentPos || 0);
-  state.pageAnimating = true;
-  track.style.transform = `translateX(${-(currentPos + delta) * 100}%)`;
-  window.setTimeout(() => {
+  const start = Number(track.dataset.startIndex || 0);
+  const end = Number(track.dataset.endIndex || start);
+  if (target < start || target > end) {
     state.currentIndex = target;
     state.pageAnimating = false;
+    state.pageTargetIndex = null;
     saveReviewPosition();
     renderQuiz();
-  }, 340);
+    return;
+  }
+  const pos = target - start;
+  state.currentIndex = target;
+  state.pageTargetIndex = target;
+  state.pageAnimating = Boolean(animate);
+  track.dataset.currentPos = String(pos);
+  saveReviewPosition();
+  updateNavState();
+  if (!animate) track.style.transition = 'none';
+  track.style.transform = `translateX(${-pos * 100}%)`;
+  if (!animate) {
+    track.offsetHeight;
+    track.style.transition = '';
+    state.pageAnimating = false;
+    state.pageTargetIndex = null;
+    return;
+  }
+  window.clearTimeout(state.pageAnimationTimer);
+  state.pageAnimationTimer = window.setTimeout(finalizePageAnimation, 260);
+}
+
+function finalizePageAnimation() {
+  if (!state.activeSession) return;
+  state.pageAnimating = false;
+  state.pageTargetIndex = null;
+  const track = document.getElementById('pageTrack');
+  if (!track) return;
+  const start = Number(track.dataset.startIndex || 0);
+  const end = Number(track.dataset.endIndex || start);
+  const total = state.activeSession.questions.length;
+  const shouldRecenter = (state.currentIndex - start <= 1 && start > 0)
+    || (end - state.currentIndex <= 1 && end < total - 1);
+  if (shouldRecenter) renderQuiz();
 }
 
 function updatePagePosition(animate) {
   const track = document.getElementById('pageTrack');
   if (!track || !state.activeSession) return;
+  const start = Number(track.dataset.startIndex || 0);
+  const pos = state.currentIndex - start;
   if (!animate) track.style.transition = 'none';
-  track.style.transform = `translateX(${-state.currentIndex * 100}%)`;
+  track.style.transform = `translateX(${-pos * 100}%)`;
+  track.dataset.currentPos = String(pos);
   if (!animate) {
     track.offsetHeight;
     track.style.transition = '';
