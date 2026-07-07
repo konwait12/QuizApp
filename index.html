@@ -24,6 +24,8 @@
   --warn-soft: #fef7eb;
   --bar-bg: rgba(255,255,255,.92);
   --option-tint: rgba(248,249,251,.62);
+  --saved-progress-width-phone: 360px;
+  --saved-progress-width-tablet: 520px;
   --shadow: 0 10px 28px rgba(23,31,56,.07);
   --shadow-soft: 0 1px 2px rgba(23,31,56,.04),0 10px 30px rgba(23,31,56,.055);
   --radius: 14px;
@@ -361,6 +363,19 @@ body[data-theme="dark"] .answer-reveal button{
   font-size:13px;color:var(--muted);cursor:pointer
 }
 .announcement-option input{width:auto}
+.update-progress{
+  display:flex;flex-direction:column;gap:8px;border:1px solid var(--line);
+  background:var(--bg);border-radius:var(--radius-sm);padding:10px 12px
+}
+.update-progress[hidden]{display:none}
+.update-progress-track{
+  height:8px;border-radius:99px;background:var(--line);overflow:hidden
+}
+.update-progress-fill{
+  height:100%;width:0;background:var(--primary);border-radius:inherit;
+  transition:width .22s ease
+}
+.update-progress-text{font-size:12px;color:var(--muted);font-weight:800}
 
 /* Home page */
 .home{padding:24px 16px;display:flex;flex-direction:column;gap:16px}
@@ -427,7 +442,7 @@ body[data-theme="dark"] .answer-reveal button{
   grid-template-columns:auto minmax(150px,1fr) auto;
   gap:10px;
   align-items:center;
-  width:min(100%,var(--saved-progress-width,420px));
+  width:min(100%,var(--saved-progress-width-phone,360px));
   padding:10px 11px;
   border:1px solid var(--primary);
   border-radius:18px;
@@ -986,7 +1001,7 @@ body[data-theme="dark"] .settings-actions.top{background:var(--bar-bg)}
   }
   .home-dashboard > .saved-progress-float{
     grid-column:1 / -1;
-    width:min(100%,max(var(--saved-progress-width,420px),460px))
+    width:min(100%,var(--saved-progress-width-tablet,520px))
   }
   .home-dashboard > .analysis-panel{
     grid-column:1 / -1
@@ -1282,7 +1297,7 @@ body[data-theme="dark"] .settings-actions.top{background:var(--bar-bg)}
 <script>
 // ========== State ==========
 const STORAGE_KEY = 'quizapp_banks';
-const APP_VERSION = 'v1.0.12';
+const APP_VERSION = 'v1.0.13';
 const RELEASE_API_URL = 'https://api.github.com/repos/konwait12/QuizApp/releases/latest';
 const RELEASE_PAGE_URL = 'https://github.com/konwait12/QuizApp/releases/latest';
 const WRONG_KEY = 'quizapp_wrong_book';
@@ -1429,7 +1444,9 @@ let state = {
     toolPanelsDefaultExpanded: false,
     showSavedProgressEntry: true,
     showSavedProgressHint: true,
-    savedProgressWidgetWidth: 420,
+    savedProgressWidgetWidthPhone: 360,
+    savedProgressWidgetWidthTablet: 520,
+    savedProgressWidgetWidth: 360,
     iconStyle: 'folder',
     subjectIconStyle: 'library',
     chapterIconStyle: 'book',
@@ -1585,12 +1602,26 @@ function openExternal(url) {
 function downloadApk(url) {
   if (!url) return showNotice('没有找到 APK 下载链接');
   if (window.QuizAppNative && typeof window.QuizAppNative.downloadAndInstallApk === 'function') {
+    updateDownloadProgress(0, '正在连接系统下载器');
     window.QuizAppNative.downloadAndInstallApk(url);
     showToast('已开始下载 APK');
     return;
   }
   openExternal(url);
 }
+
+function updateDownloadProgress(percent, text = '') {
+  const panel = document.getElementById('updateProgress');
+  const fill = document.getElementById('updateProgressFill');
+  const label = document.getElementById('updateProgressText');
+  if (!panel || !fill || !label) return;
+  const nextPercent = Math.max(0, Math.min(100, Number(percent || 0)));
+  panel.hidden = false;
+  fill.style.width = `${nextPercent}%`;
+  label.textContent = text || `下载进度 ${Math.round(nextPercent)}%`;
+}
+
+window.updateDownloadProgress = updateDownloadProgress;
 
 // ========== Persistence ==========
 function saveBanks() {
@@ -2409,7 +2440,12 @@ function normalizeUiConfig() {
   if (!iconKeys.includes(state.uiConfig.iconStyle)) state.uiConfig.iconStyle = 'folder';
   if (!iconKeys.includes(state.uiConfig.subjectIconStyle)) state.uiConfig.subjectIconStyle = 'library';
   if (!iconKeys.includes(state.uiConfig.chapterIconStyle)) state.uiConfig.chapterIconStyle = 'book';
-  state.uiConfig.savedProgressWidgetWidth = Math.max(280, Math.min(560, Number(state.uiConfig.savedProgressWidgetWidth || 420)));
+  const legacyWidth = Number(state.uiConfig.savedProgressWidgetWidth || 0);
+  const phoneSeed = Number(state.uiConfig.savedProgressWidgetWidthPhone || legacyWidth || 360);
+  const tabletSeed = Number(state.uiConfig.savedProgressWidgetWidthTablet || Math.max(legacyWidth, 520) || 520);
+  state.uiConfig.savedProgressWidgetWidthPhone = Math.max(300, Math.min(430, phoneSeed));
+  state.uiConfig.savedProgressWidgetWidthTablet = Math.max(440, Math.min(720, tabletSeed));
+  state.uiConfig.savedProgressWidgetWidth = state.uiConfig.savedProgressWidgetWidthPhone;
   state.uiConfig.persistStudyStats = state.uiConfig.persistStudyStats !== false;
   state.uiConfig.studyChartRange = normalizeStudyChartRange(state.uiConfig.studyChartRange);
   const validTools = ['practice', 'review', 'wrong'];
@@ -2447,7 +2483,8 @@ function applyUiConfig() {
   root.style.setProperty('--option-tint', rgbaFromHex(theme === 'dark' ? surface.bg : surface.line, theme === 'dark' ? .72 : .42));
   root.style.setProperty('--shadow', theme === 'dark' ? '0 2px 18px rgba(0,0,0,.24)' : '0 10px 28px rgba(23,31,56,.07)');
   root.style.setProperty('--shadow-soft', theme === 'dark' ? '0 1px 2px rgba(0,0,0,.3),0 12px 32px rgba(0,0,0,.24)' : '0 1px 2px rgba(23,31,56,.04),0 10px 30px rgba(23,31,56,.055)');
-  root.style.setProperty('--saved-progress-width', `${state.uiConfig.savedProgressWidgetWidth || 420}px`);
+  root.style.setProperty('--saved-progress-width-phone', `${state.uiConfig.savedProgressWidgetWidthPhone || 360}px`);
+  root.style.setProperty('--saved-progress-width-tablet', `${state.uiConfig.savedProgressWidgetWidthTablet || 520}px`);
 }
 
 function getSystemTheme() {
@@ -4072,12 +4109,19 @@ function selectIconStyle(name, key) {
   applyUiConfig();
 }
 
-function previewSavedProgressWidgetWidth(value) {
-  const width = Math.max(280, Math.min(560, Number(value || 420)));
-  state.uiConfig.savedProgressWidgetWidth = width;
-  const label = document.getElementById('savedProgressWidgetWidthValue');
+function previewSavedProgressWidgetWidth(kind, value) {
+  const isTablet = kind === 'tablet';
+  const min = isTablet ? 440 : 300;
+  const max = isTablet ? 720 : 430;
+  const fallback = isTablet ? 520 : 360;
+  const width = Math.max(min, Math.min(max, Number(value || fallback)));
+  const key = isTablet ? 'savedProgressWidgetWidthTablet' : 'savedProgressWidgetWidthPhone';
+  const cssVar = isTablet ? '--saved-progress-width-tablet' : '--saved-progress-width-phone';
+  const label = document.getElementById(isTablet ? 'savedProgressWidgetWidthTabletValue' : 'savedProgressWidgetWidthPhoneValue');
+  state.uiConfig[key] = width;
+  state.uiConfig.savedProgressWidgetWidth = state.uiConfig.savedProgressWidgetWidthPhone;
   if (label) label.textContent = `${width}px`;
-  document.documentElement.style.setProperty('--saved-progress-width', `${width}px`);
+  document.documentElement.style.setProperty(cssVar, `${width}px`);
 }
 
 function renderToolRestoreSettings() {
@@ -4397,21 +4441,44 @@ function openStorageFilePicker() {
   triggerImportForPath(targetPath);
 }
 
-function openDefaultBankDirectory() {
-  if (/Android/i.test(navigator.userAgent) || window.location.href.includes('/android_asset/')) {
-    showNotice(`手机端内置题库打包在 APK 的相对目录 ${DEFAULT_BANK_DIRECTORY} 中，系统文件管理器不能直接打开 APK 内置资源。需要添加题库时，请使用旁边的“导入到主页”按钮。`);
-    return;
-  }
+function isDesktopLocalServer() {
+  return window.location.protocol === 'http:' && /^(127\.0\.0\.1|localhost|\[::1\])$/i.test(window.location.hostname);
+}
+
+function openWebBankDirectoryFallback() {
   const target = new URL(DEFAULT_BANK_DIRECTORY, window.location.href).href;
   try {
     const opened = window.open(target, '_blank');
     if (opened) {
-      showToast(`已打开默认题库位置：${DEFAULT_BANK_DIRECTORY}`);
+      showToast(`已尝试打开默认题库位置：${DEFAULT_BANK_DIRECTORY}`);
       return;
     }
   } catch(e) {}
-  showNotice(`默认题库位置是相对目录 ${DEFAULT_BANK_DIRECTORY}。当前环境不能直接打开文件夹；需要添加题库时，请使用“导入到主页”按钮。`);
+  showNotice(`默认题库位置是相对目录 ${DEFAULT_BANK_DIRECTORY}。当前浏览器限制了直接打开文件夹；请在项目目录下手动打开 data 文件夹，或使用“导入 JSON / 文件选择器”。`);
 }
+
+function openDefaultBankDirectory() {
+  if (window.QuizAppNative && typeof window.QuizAppNative.openBankDirectory === 'function') {
+    window.QuizAppNative.openBankDirectory();
+    return;
+  }
+  if (isDesktopLocalServer()) {
+    fetch('/__quizapp/open-bank-directory', { cache: 'no-store' })
+      .then(async res => {
+        const text = await res.text();
+        if (res.ok) showToast(text || '已打开默认题库文件夹');
+        else showNotice(text || '桌面端无法打开默认题库文件夹');
+      })
+      .catch(() => openWebBankDirectoryFallback());
+    return;
+  }
+  openWebBankDirectoryFallback();
+}
+
+window.onNativeBankDirectoryResult = function onNativeBankDirectoryResult(ok, message) {
+  if (ok) showToast(message || '已打开默认题库文件夹');
+  else showNotice(message || '系统没有允许直接打开默认题库文件夹');
+};
 
 function renderAnnouncementBody() {
   return `
@@ -4586,6 +4653,10 @@ function showUpdateDialog({ release, apkAsset, manual = false }) {
       <input id="updateDontShowThisTag" type="checkbox">
       <span>这个版本不再自动提醒</span>
     </label>
+    <div class="update-progress" id="updateProgress" hidden>
+      <div class="update-progress-track"><div class="update-progress-fill" id="updateProgressFill"></div></div>
+      <div class="update-progress-text" id="updateProgressText">等待下载</div>
+    </div>
     <div class="app-dialog-actions triple">
       <button class="secondary" type="button">稍后</button>
       <button class="secondary" type="button">Release</button>
@@ -4745,9 +4816,16 @@ function renderSettings() {
         </label>
         <div class="settings-row">
           <label>保存进度小组件宽度</label>
+          <small>手机和平板横屏分别限制宽度，移动端会自动避免超出屏幕。</small>
           <div class="range-row">
-            <input id="savedProgressWidgetWidth" type="range" min="280" max="560" step="20" value="${state.uiConfig.savedProgressWidgetWidth || 420}" oninput="previewSavedProgressWidgetWidth(this.value)">
-            <strong id="savedProgressWidgetWidthValue">${state.uiConfig.savedProgressWidgetWidth || 420}px</strong>
+            <span>手机</span>
+            <input id="savedProgressWidgetWidthPhone" type="range" min="300" max="430" step="10" value="${state.uiConfig.savedProgressWidgetWidthPhone || 360}" oninput="previewSavedProgressWidgetWidth('phone', this.value)">
+            <strong id="savedProgressWidgetWidthPhoneValue">${state.uiConfig.savedProgressWidgetWidthPhone || 360}px</strong>
+          </div>
+          <div class="range-row">
+            <span>平板横屏</span>
+            <input id="savedProgressWidgetWidthTablet" type="range" min="440" max="720" step="20" value="${state.uiConfig.savedProgressWidgetWidthTablet || 520}" oninput="previewSavedProgressWidgetWidth('tablet', this.value)">
+            <strong id="savedProgressWidgetWidthTabletValue">${state.uiConfig.savedProgressWidgetWidthTablet || 520}px</strong>
           </div>
           <div class="saved-progress-float settings-widget-preview">
             <div class="icon">续</div>
@@ -4908,8 +4986,11 @@ function readTransientSettings() {
   if (subjectIconStyleEl) state.uiConfig.subjectIconStyle = subjectIconStyleEl.value || state.uiConfig.subjectIconStyle;
   const chapterIconStyleEl = document.querySelector('input[name="chapterIconStyle"]:checked');
   if (chapterIconStyleEl) state.uiConfig.chapterIconStyle = chapterIconStyleEl.value || state.uiConfig.chapterIconStyle;
-  const widgetWidthEl = document.getElementById('savedProgressWidgetWidth');
-  if (widgetWidthEl) state.uiConfig.savedProgressWidgetWidth = Number(widgetWidthEl.value || state.uiConfig.savedProgressWidgetWidth);
+  const widgetWidthPhoneEl = document.getElementById('savedProgressWidgetWidthPhone');
+  if (widgetWidthPhoneEl) state.uiConfig.savedProgressWidgetWidthPhone = Number(widgetWidthPhoneEl.value || state.uiConfig.savedProgressWidgetWidthPhone);
+  const widgetWidthTabletEl = document.getElementById('savedProgressWidgetWidthTablet');
+  if (widgetWidthTabletEl) state.uiConfig.savedProgressWidgetWidthTablet = Number(widgetWidthTabletEl.value || state.uiConfig.savedProgressWidgetWidthTablet);
+  state.uiConfig.savedProgressWidgetWidth = state.uiConfig.savedProgressWidgetWidthPhone;
   const chapterLayoutEl = document.getElementById('chapterActionLayout');
   if (chapterLayoutEl) state.uiConfig.chapterActionLayout = chapterLayoutEl.value || state.uiConfig.chapterActionLayout;
   const chapterDefaultEl = document.getElementById('chapterActionsDefaultExpanded');

@@ -9,15 +9,21 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.res.Configuration;
+import android.content.res.AssetManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
+import android.provider.DocumentsContract;
 import android.view.View;
 import android.webkit.WebSettings;
 import android.webkit.ValueCallback;
 import android.webkit.WebView;
 import android.widget.Toast;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
 
 public class MainActivity extends Activity {
     static final int FILE_CHOOSER_REQUEST = 1001;
@@ -58,10 +64,12 @@ public class MainActivity extends Activity {
             uri = Uri.parse(url);
         } catch (Exception e) {
             Toast.makeText(this, "APK 下载链接无效", Toast.LENGTH_SHORT).show();
+            reportDownloadProgress(0, "APK 下载链接无效");
             return;
         }
         if (!"https".equalsIgnoreCase(uri.getScheme())) {
             Toast.makeText(this, "仅支持 HTTPS APK 下载链接", Toast.LENGTH_SHORT).show();
+            reportDownloadProgress(0, "仅支持 HTTPS APK 下载链接");
             return;
         }
 
@@ -76,8 +84,11 @@ public class MainActivity extends Activity {
             DownloadManager manager = (DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE);
             pendingApkDownloadId = manager.enqueue(request);
             registerReceiver(new DownloadCompleteReceiver(this, pendingApkDownloadId), new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE));
+            reportDownloadProgress(0, "已开始下载更新包");
+            new Thread(new DownloadProgressRunnable(this, pendingApkDownloadId)).start();
             Toast.makeText(this, "开始下载更新包", Toast.LENGTH_SHORT).show();
         } catch (Exception e) {
+            reportDownloadProgress(0, "无法启动下载，请打开 Release 链接重试");
             Toast.makeText(this, "无法启动下载，请打开 Release 链接重试", Toast.LENGTH_LONG).show();
             openExternal(url);
         }
@@ -105,6 +116,142 @@ public class MainActivity extends Activity {
         } catch (Exception e) {
             Toast.makeText(this, "无法打开安装器，请从下载通知安装", Toast.LENGTH_LONG).show();
         }
+    }
+
+    void reportDownloadProgress(int percent, String message) {
+        evaluateJavascript("window.updateDownloadProgress && window.updateDownloadProgress(" + percent + "," + jsString(message) + ");");
+    }
+
+    void reportBankDirectoryResult(boolean ok, String message) {
+        evaluateJavascript("window.onNativeBankDirectoryResult && window.onNativeBankDirectoryResult(" + (ok ? "true" : "false") + "," + jsString(message) + ");");
+    }
+
+    void openBankDirectory() {
+        File directory = getBankDirectory();
+        if (!ensureDirectory(directory)) {
+            reportBankDirectoryResult(false, "无法创建默认题库文件夹");
+            Toast.makeText(this, "无法创建默认题库文件夹", Toast.LENGTH_LONG).show();
+            return;
+        }
+        syncBundledBanks(directory);
+        if (tryOpenDirectory(directory)) {
+            reportBankDirectoryResult(true, "已打开默认题库文件夹");
+            Toast.makeText(this, "已打开默认题库文件夹", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (tryOpenDocumentTree()) {
+            reportBankDirectoryResult(true, "已打开系统文件夹入口，请进入 Android/data/com.quizapp/files/data");
+            Toast.makeText(this, "已创建题库文件夹：Android/data/com.quizapp/files/data", Toast.LENGTH_LONG).show();
+            return;
+        }
+        reportBankDirectoryResult(false, "已创建题库文件夹：Android/data/com.quizapp/files/data；当前系统没有可用的文件管理器。");
+        Toast.makeText(this, "当前系统没有可用的文件管理器", Toast.LENGTH_LONG).show();
+    }
+
+    private File getBankDirectory() {
+        File root = getExternalFilesDir(null);
+        if (root == null) {
+            root = getFilesDir();
+        }
+        return new File(root, "data");
+    }
+
+    private boolean ensureDirectory(File directory) {
+        return directory.exists() || directory.mkdirs();
+    }
+
+    private void syncBundledBanks(File directory) {
+        try {
+            AssetManager assets = getAssets();
+            String[] names = assets.list("data");
+            if (names == null) {
+                return;
+            }
+            for (int i = 0; i < names.length; i++) {
+                String name = names[i];
+                if (name == null || !name.endsWith(".json")) {
+                    continue;
+                }
+                File target = new File(directory, name);
+                if (target.exists()) {
+                    continue;
+                }
+                copyAsset(assets, "data/" + name, target);
+            }
+        } catch (Exception ignored) {
+        }
+    }
+
+    private void copyAsset(AssetManager assets, String assetPath, File target) throws Exception {
+        InputStream input = null;
+        FileOutputStream output = null;
+        try {
+            input = assets.open(assetPath);
+            output = new FileOutputStream(target);
+            byte[] buffer = new byte[8192];
+            int read;
+            while ((read = input.read(buffer)) > 0) {
+                output.write(buffer, 0, read);
+            }
+        } finally {
+            if (input != null) {
+                input.close();
+            }
+            if (output != null) {
+                output.close();
+            }
+        }
+    }
+
+    private boolean tryOpenDirectory(File directory) {
+        Intent folderIntent = new Intent(Intent.ACTION_VIEW);
+        folderIntent.setDataAndType(Uri.fromFile(directory), "resource/folder");
+        folderIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        if (tryStart(folderIntent)) {
+            return true;
+        }
+
+        Intent fileIntent = new Intent(Intent.ACTION_VIEW);
+        fileIntent.setData(Uri.parse(directory.toURI().toString()));
+        fileIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        return tryStart(fileIntent);
+    }
+
+    private boolean tryOpenDocumentTree() {
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            Uri uri = DocumentsContract.buildDocumentUri("com.android.externalstorage.documents", "primary:Android/data/" + getPackageName() + "/files/data");
+            intent.putExtra(DocumentsContract.EXTRA_INITIAL_URI, uri);
+        }
+        return tryStart(intent);
+    }
+
+    private boolean tryStart(Intent intent) {
+        try {
+            startActivity(intent);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private void evaluateJavascript(String script) {
+        if (webView != null) {
+            webView.post(new EvaluateJavascriptRunnable(webView, script));
+        }
+    }
+
+    private String jsString(String value) {
+        if (value == null) {
+            return "''";
+        }
+        String text = value
+            .replace("\\", "\\\\")
+            .replace("'", "\\'")
+            .replace("\n", "\\n")
+            .replace("\r", "");
+        return "'" + text + "'";
     }
 
     void openFileChooser(ValueCallback<Uri[]> callback) {

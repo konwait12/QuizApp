@@ -7,6 +7,8 @@ using System.Text;
 const int DefaultPort = 721;
 
 var port = ReadPort(args);
+var bankDirectory = EnsureBankDirectory();
+ExtractEmbeddedBankFiles(bankDirectory);
 var listener = new TcpListener(IPAddress.Loopback, port);
 listener.Start();
 
@@ -21,7 +23,7 @@ if (!string.Equals(Environment.GetEnvironmentVariable("QUIZAPP_NO_BROWSER"), "1"
 while (true)
 {
     var client = await listener.AcceptTcpClientAsync();
-    _ = Task.Run(() => HandleClientAsync(client));
+    _ = Task.Run(() => HandleClientAsync(client, bankDirectory));
 }
 
 static int ReadPort(string[] args)
@@ -32,7 +34,7 @@ static int ReadPort(string[] args)
     return int.TryParse(raw, out var port) && port is > 0 and < 65536 ? port : DefaultPort;
 }
 
-static async Task HandleClientAsync(TcpClient client)
+static async Task HandleClientAsync(TcpClient client, string bankDirectory)
 {
     try
     {
@@ -60,7 +62,15 @@ static async Task HandleClientAsync(TcpClient client)
         }
 
         var requestPath = NormalizeRequestPath(parts[1]);
-        var body = ReadAsset(requestPath);
+        if (requestPath == "__quizapp/open-bank-directory")
+        {
+            var opened = OpenFolder(bankDirectory);
+            var text = opened ? $"已打开默认题库文件夹：{RelativeBankPath()}" : $"无法打开默认题库文件夹，请手动打开：{RelativeBankPath()}";
+            await WriteResponseAsync(stream, opened ? 200 : 500, "text/plain; charset=utf-8", Encoding.UTF8.GetBytes(text), parts[0] == "HEAD");
+            return;
+        }
+
+        var body = ReadAsset(requestPath, bankDirectory);
         if (body is null)
         {
             await WriteResponseAsync(stream, 404, "text/plain; charset=utf-8", Encoding.UTF8.GetBytes("Not Found"), parts[0] == "HEAD");
@@ -92,11 +102,22 @@ static string NormalizeRequestPath(string raw)
     return path;
 }
 
-static byte[]? ReadAsset(string path)
+static byte[]? ReadAsset(string path, string bankDirectory)
 {
     if (string.IsNullOrWhiteSpace(path))
     {
         return null;
+    }
+
+    if (path.StartsWith("data/", StringComparison.OrdinalIgnoreCase))
+    {
+        var relative = path["data/".Length..].Replace('/', Path.DirectorySeparatorChar);
+        var physicalPath = Path.GetFullPath(Path.Combine(bankDirectory, relative));
+        var bankRoot = Path.GetFullPath(bankDirectory);
+        if (physicalPath.StartsWith(bankRoot, StringComparison.OrdinalIgnoreCase) && File.Exists(physicalPath))
+        {
+            return File.ReadAllBytes(physicalPath);
+        }
     }
 
     var assembly = Assembly.GetExecutingAssembly();
@@ -172,4 +193,57 @@ static void OpenBrowser(string url)
     {
         Console.WriteLine($"Open this URL manually: {url}");
     }
+}
+
+static string EnsureBankDirectory()
+{
+    var directory = Path.Combine(AppContext.BaseDirectory, "data");
+    Directory.CreateDirectory(directory);
+    return directory;
+}
+
+static void ExtractEmbeddedBankFiles(string bankDirectory)
+{
+    var assembly = Assembly.GetExecutingAssembly();
+    foreach (var resourceName in assembly.GetManifestResourceNames())
+    {
+        if (!resourceName.StartsWith("assets/data/", StringComparison.OrdinalIgnoreCase) || !resourceName.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
+        {
+            continue;
+        }
+
+        var fileName = resourceName["assets/data/".Length..];
+        var targetPath = Path.Combine(bankDirectory, fileName);
+        if (File.Exists(targetPath))
+        {
+            continue;
+        }
+
+        using var input = assembly.GetManifestResourceStream(resourceName);
+        if (input is null)
+        {
+            continue;
+        }
+        using var output = File.Create(targetPath);
+        input.CopyTo(output);
+    }
+}
+
+static bool OpenFolder(string directory)
+{
+    try
+    {
+        Directory.CreateDirectory(directory);
+        Process.Start(new ProcessStartInfo(directory) { UseShellExecute = true });
+        return true;
+    }
+    catch
+    {
+        return false;
+    }
+}
+
+static string RelativeBankPath()
+{
+    return ".\\data";
 }

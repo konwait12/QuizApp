@@ -72,6 +72,8 @@
 
 设置页显示的默认题库目录是相对路径 `./data/`，回收站索引目录是 `./data/.quizapp-recycle/`。单文件浏览器运行时，真正可回档的数据保存在本地存储里；APK 内置题库删除时只做本机隐藏，不会物理删除 APK 内置资源。
 
+“打开默认题库位置”会尽量打开真实文件夹：桌面 EXE 会在 exe 同级创建并打开 `data` 文件夹；Android APK 会在应用外部文件区创建 `Android/data/com.quizapp/files/data` 并同步一份内置题库。不同手机文件管理器对 `Android/data` 的定位能力不同，无法直达时会退到系统文件夹入口，但不会再触发 JSON 文件选择器。
+
 ## 打包与导入约定
 
 - 内置题库放在 `./data/`，方便 APK 和 EXE 打包脚本按相对路径收集。
@@ -100,7 +102,7 @@ Windows EXE 打包：
 powershell -ExecutionPolicy Bypass -File scripts/build-exe.ps1
 ```
 
-EXE 默认启动本地服务 `http://127.0.0.1:0721/`，题库资源内置在 EXE 中，不依赖用户电脑上的绝对路径。
+EXE 默认启动本地服务 `http://127.0.0.1:0721/`，题库资源会从内置资源同步到 exe 同级 `data` 文件夹，不依赖用户电脑上的绝对路径。
 
 ## 作者
 

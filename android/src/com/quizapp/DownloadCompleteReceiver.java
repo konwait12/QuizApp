@@ -24,6 +24,7 @@ class DownloadCompleteReceiver extends BroadcastReceiver {
             activity.unregisterReceiver(this);
         } catch (IllegalArgumentException ignored) {
         }
+        activity.reportDownloadProgress(100, "下载完成，正在打开安装器");
         activity.installDownloadedApk(id);
     }
 }
