@@ -425,7 +425,7 @@ body[data-theme="dark"] .settings-actions.top{background:rgba(27,32,43,.88)}
   font-weight:800;
   line-height:1.45
 }
-.lookup-toolbar{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.lookup-toolbar{display:grid;grid-template-columns:1fr;gap:10px}
 .lookup-toolbar input,.lookup-toolbar select{
   width:100%;border:1px solid var(--line);border-radius:var(--radius-sm);
   padding:10px;font-size:13px;background:var(--card);color:var(--text)
@@ -502,9 +502,12 @@ body[data-theme="dark"] .settings-actions.top{background:rgba(27,32,43,.88)}
   }
   .home-dashboard{
     display:grid;
-    grid-template-columns:minmax(180px,220px) minmax(0,1fr);
+    grid-template-columns:minmax(0,.9fr) repeat(3,minmax(0,1fr));
     align-items:stretch;
     gap:16px
+  }
+  .home-dashboard > .analysis-panel{
+    grid-column:1 / -1
   }
   .home-dashboard .stats-row{
     grid-column:1;
@@ -517,9 +520,12 @@ body[data-theme="dark"] .settings-actions.top{background:rgba(27,32,43,.88)}
     justify-content:center
   }
   .home-dashboard > .action-panel{
-    grid-column:2;
     min-height:104px;
-    justify-content:center
+    justify-content:space-between
+  }
+  .home-dashboard > .action-panel .action-grid{
+    height:100%;
+    align-content:stretch
   }
   .home-dashboard > .bank-list,
   .home-dashboard > details{
@@ -531,6 +537,9 @@ body[data-theme="dark"] .settings-actions.top{background:rgba(27,32,43,.88)}
   .settings-page,.lookup-page{max-width:920px}
   .settings-page .analysis-panel,
   .lookup-page .analysis-panel{margin-left:auto;margin-right:auto}
+  .lookup-toolbar{
+    grid-template-columns:minmax(0,1.4fr) minmax(130px,.8fr) minmax(130px,.8fr)
+  }
   .subject-page{
     display:grid;
     grid-template-columns:repeat(3,minmax(0,1fr));
@@ -1805,9 +1814,23 @@ function renderHome() {
           <div class="subject-card"><h3>${totalQuestions}</h3><small>题目</small></div>
         </div>
         <div class="action-panel">
-          <div class="section-title">全局工具</div>
+          <div class="section-title">练习模式</div>
           <div class="action-grid">
+            <button onclick="startAllPractice(false)">全部顺序练习</button>
+            <button class="secondary" onclick="startAllPractice(true)">全部随机练习</button>
+            <button class="muted-mode" onclick="startAllPractice(false,true)">全部重新做</button>
+          </div>
+        </div>
+        <div class="action-panel">
+          <div class="section-title">背题与答案</div>
+          <div class="action-grid">
+            <button class="answer-mode" onclick="startAllReview()">全部背题模式</button>
             <button class="lookup-mode" onclick="openAnswerLookup('', '')">全部答案表</button>
+          </div>
+        </div>
+        <div class="action-panel">
+          <div class="section-title">错题集</div>
+          <div class="action-grid">
             <button class="secondary" onclick="openWrongPractice('', '', true)" ${totalWrongCount ? '' : 'disabled'}>全部错题集 ${totalWrongCount}</button>
           </div>
         </div>
@@ -1968,6 +1991,29 @@ function openSubject(subject) {
   renderSubject();
 }
 
+function startAllPractice(shuffled, forceNew = false) {
+  startPractice({
+    subject: '',
+    banks: state.banks,
+    title: '全部题库',
+    subtitle: shuffled ? '全部随机练习' : '全部顺序练习',
+    shuffled,
+    forceNew,
+  });
+}
+
+function startAllReview(forceNew = false) {
+  startPractice({
+    subject: '',
+    banks: state.banks,
+    title: '全部题库',
+    subtitle: '全部背题模式',
+    shuffled: false,
+    reviewMode: true,
+    forceNew,
+  });
+}
+
 function renderSubject() {
   state.view = 'subjects';
   const subject = state.activeSubject;
@@ -2123,6 +2169,7 @@ function renderAnswerLookup() {
   const context = state.answerLookupContext || { subject: state.activeSubject || '', chapter: '', query: '' };
   state.answerLookupContext = context;
   const subject = context.subject || '';
+  const subjects = getSubjectGroups().map(group => group.subject);
   const banks = subject ? getBanksBySubject(subject) : state.banks;
   const chapters = Array.from(new Set(buildQuestionSet(banks).map(q => q.sourceChapter || '未分类'))).filter(Boolean);
   const questions = getLookupQuestions(subject, context.chapter || '');
@@ -2141,6 +2188,10 @@ function renderAnswerLookup() {
         <div class="section-title">答案查询</div>
         <div class="lookup-toolbar">
           <input id="answerLookupSearch" value="${escapeAttr(context.query || '')}" placeholder="搜索题干 / 选项 / 答案" oninput="state.answerLookupContext.query=this.value;filterAnswerRows()">
+          <select onchange="state.answerLookupContext.subject=this.value;state.answerLookupContext.chapter='';state.answerLookupContext.scrollTop=0;saveAnswerLookupPosition();renderAnswerLookup()">
+            <option value="">全部科目</option>
+            ${subjects.map(item => `<option value="${escapeAttr(item)}" ${subject === item ? 'selected' : ''}>${escapeHtml(item)}</option>`).join('')}
+          </select>
           <select onchange="state.answerLookupContext.chapter=this.value;state.answerLookupContext.scrollTop=0;saveAnswerLookupPosition();renderAnswerLookup()">
             <option value="">全部章节</option>
             ${chapters.map(chapter => `<option value="${escapeAttr(chapter)}" ${context.chapter === chapter ? 'selected' : ''}>${escapeHtml(chapter)}</option>`).join('')}
