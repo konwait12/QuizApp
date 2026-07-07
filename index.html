@@ -7,21 +7,23 @@
 <link rel="icon" href="data:,">
 <style>
 :root {
-  --bg: #f8f9fb;
+  --bg: #f3f7ee;
   --card: #fff;
-  --text: #1a1d28;
-  --muted: #8e94a3;
-  --line: #edf0f4;
-  --primary: #4f6ef7;
-  --primary-soft: #eef1fe;
-  --secondary: #5b6472;
-  --secondary-soft: #f1f3f6;
-  --success: #22b07d;
-  --success-soft: #e8f8f1;
-  --danger: #f24e5e;
+  --text: #18211b;
+  --muted: #74816f;
+  --line: #e2eadb;
+  --primary: #1f8f62;
+  --primary-soft: rgba(31,143,98,.12);
+  --secondary: #5f6f62;
+  --secondary-soft: rgba(95,111,98,.12);
+  --success: #22a06b;
+  --success-soft: rgba(34,160,107,.12);
+  --danger: #d94a5a;
   --danger-soft: #fef0f2;
-  --warn: #f5a623;
+  --warn: #b98320;
   --warn-soft: #fef7eb;
+  --bar-bg: rgba(255,255,255,.92);
+  --option-tint: rgba(248,249,251,.62);
   --shadow: 0 10px 28px rgba(23,31,56,.07);
   --shadow-soft: 0 1px 2px rgba(23,31,56,.04),0 10px 30px rgba(23,31,56,.055);
   --radius: 14px;
@@ -39,6 +41,8 @@ body[data-theme="dark"]{
   --success-soft:#17382d;
   --danger-soft:#3a1f27;
   --warn-soft:#3b301b;
+  --bar-bg:rgba(27,32,43,.92);
+  --option-tint:rgba(18,21,28,.72);
   --shadow:0 2px 18px rgba(0,0,0,.24);
   --shadow-soft:0 1px 2px rgba(0,0,0,.3),0 12px 32px rgba(0,0,0,.24);
 }
@@ -46,9 +50,7 @@ body[data-theme="dark"]{
 html{height:100%;-webkit-tap-highlight-color:transparent}
 body{
   font-family:var(--font);
-  background:
-    radial-gradient(circle at 12% -10%,rgba(79,110,247,.08),transparent 34%),
-    var(--bg);
+  background:var(--bg);
   color:var(--text);
   height:100%;
   overflow:hidden;
@@ -60,7 +62,7 @@ body{
 /* Top bar */
 .topbar{
   min-height:58px;padding:10px 16px;display:flex;align-items:center;gap:10px;
-  background:rgba(255,255,255,.92);border-bottom:1px solid var(--line);z-index:10;
+  background:var(--bar-bg);border-bottom:1px solid var(--line);z-index:10;
   backdrop-filter:blur(10px)
 }
 .topbar h1{
@@ -71,7 +73,7 @@ body{
 .brand-mark{
   width:30px;height:30px;border-radius:10px;display:grid;place-items:center;
   background:var(--primary);color:#fff;font-size:15px;font-weight:950;
-  box-shadow:0 8px 18px rgba(79,110,247,.22)
+  box-shadow:var(--shadow-soft)
 }
 .topbar .btn-back,.topbar .btn-icon{
   width:36px;height:36px;border:1px solid var(--line);
@@ -81,7 +83,7 @@ body{
 }
 .topbar .btn-back{font-size:20px}
 .topbar .btn-icon{font-size:13px;font-weight:900}
-.topbar .btn-back:hover,.topbar .btn-icon:hover{background:var(--primary-soft);color:var(--primary);border-color:rgba(79,110,247,.25)}
+.topbar .btn-back:hover,.topbar .btn-icon:hover{background:var(--primary-soft);color:var(--primary);border-color:var(--primary)}
 .topbar .btn-back:active,.topbar .btn-icon:active{transform:scale(.96)}
 .topbar-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
 .topbar .btn-text{
@@ -100,7 +102,7 @@ body[data-theme="dark"] .topbar .btn-back,
 body[data-theme="dark"] .topbar .btn-icon,
 body[data-theme="dark"] .topbar-meta{background:rgba(18,21,28,.56)}
 body[data-theme="dark"] .topbar,
-body[data-theme="dark"] .bottombar{background:rgba(27,32,43,.92)}
+body[data-theme="dark"] .bottombar{background:var(--bar-bg)}
 .quiz-topbar{align-items:flex-start}
 .quiz-topbar .topbar-actions{gap:6px}
 .counter-pill{
@@ -140,7 +142,7 @@ body[data-theme="dark"] .bottombar{background:rgba(27,32,43,.92)}
 }
 
 /* Vertical scroll mode */
-.scroll-container{height:100%;overflow-y:auto;scroll-behavior:smooth;padding:12px}
+.scroll-container{height:100%;overflow-y:auto;scroll-behavior:auto;padding:12px}
 .scroll-container .card{margin-bottom:14px}
 
 /* Horizontal page mode */
@@ -161,8 +163,8 @@ body[data-theme="dark"] .bottombar{background:rgba(27,32,43,.92)}
   box-shadow:var(--shadow-soft);padding:18px 16px 20px;width:100%;max-width:100%;
   transition:box-shadow .2s, transform .2s
 }
-.card.answered.correct{box-shadow:0 8px 28px rgba(34,176,125,.14)}
-.card.answered.wrong{box-shadow:0 8px 28px rgba(242,78,94,.14)}
+.card.answered.correct{border-color:var(--success);box-shadow:var(--shadow-soft)}
+.card.answered.wrong{border-color:var(--danger);box-shadow:var(--shadow-soft)}
 .card-header{
   display:flex;align-items:center;gap:8px;flex-wrap:wrap;
   margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--line)
@@ -196,16 +198,17 @@ body[data-theme="dark"] .bottombar{background:rgba(27,32,43,.92)}
   display:grid;grid-template-columns:auto minmax(0,1fr);align-items:flex-start;
   gap:11px;padding:13px 14px;min-height:54px;
   border:1px solid var(--line);border-radius:var(--radius-sm);
-  background:linear-gradient(180deg,var(--card),rgba(248,249,251,.62));cursor:pointer;transition:all .15s;
+  background:var(--card);cursor:pointer;transition:all .15s;
   font-size:15px;line-height:1.45
 }
 .option:active{transform:scale(.98)}
-.option.selected{border-color:var(--primary);background:var(--primary-soft);box-shadow:0 0 0 1px var(--primary-soft)}
-.option.correct{border-color:var(--success);background:var(--success-soft);color:#10241b;box-shadow:0 0 0 1px rgba(34,176,125,.12)}
-.option.wrong{border-color:var(--danger);background:var(--danger-soft);color:#351116;box-shadow:0 0 0 1px rgba(242,78,94,.12)}
+.option.selected{border-color:var(--primary);background:var(--primary-soft);box-shadow:none}
+.option.correct{border-color:var(--success);background:var(--success-soft);color:#10241b;box-shadow:none}
+.option.selected.correct{box-shadow:0 0 0 2px var(--success)}
+.option.wrong{border-color:var(--danger);background:var(--danger-soft);color:#351116;box-shadow:none}
 .option.correct.animate-answer{animation:answerPop .22s ease-out}
 .option.wrong.animate-answer{animation:answerShake .28s ease-out}
-body[data-theme="dark"] .option{background:linear-gradient(180deg,var(--card),rgba(18,21,28,.72))}
+body[data-theme="dark"] .option{background:var(--card)}
 body[data-theme="dark"] .option.correct{color:#d9f8eb}
 body[data-theme="dark"] .option.wrong{color:#ffd9df}
 .option[disabled],button[disabled]{opacity:.45;cursor:not-allowed}
@@ -229,6 +232,7 @@ body[data-theme="dark"] .option.wrong{color:#ffd9df}
 .bool-btn:active{transform:scale(.96)}
 .bool-btn.selected{border-color:var(--primary);background:var(--primary-soft);color:var(--primary)}
 .bool-btn.correct{border-color:var(--success);background:var(--success-soft);color:var(--success)}
+.bool-btn.selected.correct{box-shadow:0 0 0 2px var(--success)}
 .bool-btn.wrong{border-color:var(--danger);background:var(--danger-soft);color:var(--danger)}
 .bool-btn.correct.animate-answer{animation:answerPop .22s ease-out}
 .bool-btn.wrong.animate-answer{animation:answerShake .28s ease-out}
@@ -243,15 +247,15 @@ body[data-theme="dark"] .option.wrong{color:#ffd9df}
 /* Explanation */
 .answer-reveal{display:flex;justify-content:flex-end;margin-top:14px}
 .answer-reveal button{
-  width:100%;min-height:44px;border:1px solid rgba(79,110,247,.22);border-radius:99px;padding:11px 14px;
-  background:linear-gradient(180deg,var(--primary-soft),rgba(238,241,254,.58));
+  width:100%;min-height:44px;border:1px solid var(--primary);border-radius:99px;padding:11px 14px;
+  background:var(--primary-soft);
   color:var(--primary);font-size:13px;font-weight:900;
   cursor:pointer;transition:all .15s
 }
 .answer-reveal button:active{transform:scale(.96)}
 .answer-reveal button.active{border-color:var(--primary);background:var(--primary-soft);color:var(--primary)}
 body[data-theme="dark"] .answer-reveal button{
-  background:linear-gradient(180deg,var(--primary-soft),rgba(38,49,83,.58))
+  background:var(--primary-soft)
 }
 .explanation{
   margin-top:16px;border:1px solid var(--line);border-radius:var(--radius-sm);
@@ -285,7 +289,7 @@ body[data-theme="dark"] .answer-reveal button{
 /* Bottom bar */
 .bottombar{
   padding:10px 16px calc(14px + env(safe-area-inset-bottom));display:flex;justify-content:space-between;
-  gap:10px;align-items:center;background:rgba(255,255,255,.92);border-top:1px solid var(--line);
+  gap:10px;align-items:center;background:var(--bar-bg);border-top:1px solid var(--line);
   backdrop-filter:blur(10px);
   box-shadow:0 -8px 24px rgba(0,0,0,.04)
 }
@@ -323,17 +327,163 @@ body[data-theme="dark"] .answer-reveal button{
   z-index:80;background:rgba(20,24,34,.94);color:#fff;border-radius:99px;
   padding:10px 16px;font-size:13px;font-weight:800;box-shadow:0 8px 24px rgba(0,0,0,.22)
 }
+.app-dialog-mask{
+  position:fixed;inset:0;z-index:90;background:rgba(15,18,28,.42);
+  display:grid;place-items:center;padding:20px
+}
+.app-dialog{
+  width:min(420px,100%);background:var(--card);border:1px solid var(--line);
+  border-radius:18px;box-shadow:0 24px 64px rgba(0,0,0,.22);
+  padding:16px;display:flex;flex-direction:column;gap:12px
+}
+.app-dialog h3{font-size:16px;line-height:1.4}
+.app-dialog p{font-size:13px;line-height:1.6;color:var(--muted)}
+.app-dialog input{
+  width:100%;border:1px solid var(--line);border-radius:var(--radius-sm);
+  background:var(--bg);color:var(--text);padding:12px;font-size:14px
+}
+.app-dialog-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.app-dialog-actions button{
+  border:0;border-radius:99px;padding:11px 12px;font-size:13px;font-weight:900;
+  background:var(--primary);color:#fff;cursor:pointer
+}
+.app-dialog-actions button.secondary{background:var(--bg);color:var(--muted)}
 
 /* Home page */
 .home{padding:24px 16px;display:flex;flex-direction:column;gap:16px}
-.stats-row{display:flex;gap:10px}
+.stats-row{display:flex;gap:10px;align-items:stretch}
+.home-overview{
+  display:block
+}
+.home-metrics{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:10px;
+  min-width:0
+}
+.metric-card{
+  background:var(--card);border-radius:var(--radius);padding:16px 14px;
+  box-shadow:var(--shadow);display:flex;flex-direction:column;gap:8px;min-width:0;position:relative
+}
+.metric-card h3{font-size:20px;line-height:1}
+.metric-card small{color:var(--muted);font-size:12px}
+.metric-card .metric-row{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.metric-card .metric-value{font-size:18px;font-weight:900;white-space:nowrap}
+.metric-card.progress-metric,.metric-card.time-metric{grid-column:1 / -1}
+.home-progress-track{
+  height:8px;border-radius:99px;background:var(--bar-bg);overflow:hidden
+}
+.home-progress-fill{
+  height:100%;width:0%;border-radius:inherit;
+  background:var(--primary);
+  transition:width .3s ease
+}
+.home-progress-meta{
+  display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;
+  color:var(--muted);font-size:11px;font-weight:700
+}
+.home-toggle-row{
+  display:flex;align-items:center;justify-content:flex-start;
+  min-height:30px;margin:-4px 0 -2px
+}
+.home-toggle-row .tool-toggle{
+  height:30px;background:var(--card);box-shadow:var(--shadow);
+  border-color:transparent
+}
+.library-manager{font-size:12px;color:var(--muted)}
+.library-manager > summary{list-style:none;cursor:pointer;width:max-content}
+.library-manager > summary::-webkit-details-marker{display:none}
+.library-manager-panel{
+  margin-top:10px;background:var(--card);border:1px solid var(--line);
+  border-radius:var(--radius);box-shadow:var(--shadow-soft);padding:12px;
+  display:flex;flex-direction:column;gap:10px
+}
+.library-manager-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.library-manager-row button{
+  border:0;border-radius:var(--radius-sm);padding:10px 9px;font-size:12px;font-weight:900;
+  background:var(--primary-soft);color:var(--primary);cursor:pointer
+}
+.library-manager-row button.secondary{background:var(--bg);color:var(--muted)}
+.library-manager textarea{
+  width:100%;height:64px;border:1px solid var(--line);border-radius:var(--radius-sm);
+  padding:8px;font-size:11px;resize:none;background:var(--bg);color:var(--text)
+}
+.saved-progress-float{
+  align-self:flex-start;
+  display:grid;
+  grid-template-columns:auto minmax(150px,1fr) auto;
+  gap:10px;
+  align-items:center;
+  width:min(100%,var(--saved-progress-width,420px));
+  padding:10px 11px;
+  border:1px solid var(--primary);
+  border-radius:18px;
+  background:var(--card);
+  box-shadow:var(--shadow-soft);
+  position:relative
+}
+.saved-progress-float.has-hint{margin-bottom:72px}
+.saved-progress-float .icon{
+  width:34px;height:34px;border-radius:50%;
+  display:grid;place-items:center;
+  background:var(--primary-soft);
+  color:var(--primary);
+  font-weight:900
+}
+.saved-progress-float .info{min-width:0}
+.saved-progress-float .info strong{
+  display:block;font-size:13px;line-height:1.25;
+  overflow:hidden;text-overflow:ellipsis;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical
+}
+.saved-progress-float .info small{
+  display:block;margin-top:3px;font-size:11px;color:var(--muted);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis
+}
+.saved-progress-float .actions{display:flex;gap:6px}
+.saved-progress-float .actions,
+.saved-progress-float .actions button{white-space:nowrap}
+.saved-progress-float .actions button{
+  border:0;border-radius:99px;padding:7px 10px;
+  font-size:12px;font-weight:900;cursor:pointer;
+  background:var(--primary);color:#fff
+}
+.saved-progress-float .actions button.secondary{background:var(--bg);color:var(--muted)}
+.settings-widget-preview{margin-top:8px;max-width:100%}
+.saved-progress-hint{
+  position:absolute;left:44px;top:calc(100% + 8px);z-index:30;
+  width:min(260px,calc(100vw - 80px));
+  padding:10px;
+  border:1px solid var(--line);
+  border-radius:14px;
+  background:var(--card);
+  box-shadow:var(--shadow);
+  color:var(--text);
+  font-size:12px;
+  line-height:1.45
+}
+.saved-progress-hint:before{
+  content:"";
+  position:absolute;left:18px;top:-6px;
+  width:10px;height:10px;
+  transform:rotate(45deg);
+  background:var(--card);
+  border-left:1px solid var(--line);
+  border-top:1px solid var(--line)
+}
+.saved-progress-hint button{
+  margin-top:7px;border:0;background:transparent;color:var(--primary);
+  font-weight:900;font-size:12px;padding:0;cursor:pointer
+}
 .subjects-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .subject-card{
   background:var(--card);border-radius:var(--radius);padding:20px 16px;
   box-shadow:var(--shadow);cursor:pointer;transition:all .15s;
-  display:flex;flex-direction:column;gap:6px
+  display:flex;flex-direction:column;gap:8px;position:relative;overflow:hidden
 }
 .subject-card:active{transform:scale(.97)}
+.subject-card.editing{padding-right:42px}
+.subject-card .subject-icon{width:38px;height:38px;display:grid;place-items:center}
 .subject-card h3{font-size:15px;line-height:1.3}
 .subject-card small{color:var(--muted);font-size:12px}
 
@@ -344,11 +494,65 @@ body[data-theme="dark"] .answer-reveal button{
   display:flex;align-items:center;gap:12px
 }
 .bank-item:active{transform:scale(.98)}
-.bank-item .icon{font-size:24px}
+.bank-item .icon{width:34px;height:34px;display:grid;place-items:center;flex-shrink:0}
+.library-icon{
+  width:34px;height:34px;border-radius:12px;display:grid;place-items:center;
+  background:var(--primary-soft);
+  border:1px solid var(--line);
+  color:var(--text);
+  font-size:22px;line-height:1;
+  filter:none
+}
+.library-icon.plain{background:transparent;border-color:transparent;filter:none}
 .bank-item .info{flex:1}
 .bank-item .info h4{font-size:15px;margin-bottom:2px}
 .bank-item .info small{color:var(--muted);font-size:12px}
 .bank-item .count{font-size:13px;font-weight:700;color:var(--primary)}
+.bank-item button.count{
+  border:0;background:transparent;padding:6px 0;cursor:pointer
+}
+.bank-item button.count:active{transform:scale(.96)}
+.bank-item .quick-actions{
+  width:100%;display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap
+}
+.bank-item .quick-actions button{
+  border:0;border-radius:99px;padding:6px 9px;font-size:11px;font-weight:900;
+  background:var(--bg);color:var(--muted);cursor:pointer
+}
+.bank-item .quick-actions button.primary{background:var(--primary-soft);color:var(--primary)}
+.bank-item.editing{
+  align-items:flex-start;
+  flex-wrap:wrap;
+  gap:10px 12px;
+  position:relative
+}
+.bank-item.editing.dragging,.subject-card.editing.dragging,.metric-card.editing.dragging,.action-panel.editing.dragging{
+  opacity:.94;box-shadow:0 18px 48px rgba(0,0,0,.18)
+}
+.drag-placeholder{border:1px dashed var(--primary);border-radius:var(--radius);background:var(--primary-soft);min-height:64px}
+.edit-remove{
+  position:absolute;right:8px;top:8px;width:24px;height:24px;border:0;border-radius:50%;
+  background:var(--danger-soft);color:var(--danger);font-weight:950;cursor:pointer;
+  display:grid;place-items:center;z-index:2
+}
+.edit-handle{
+  font-size:11px;color:var(--muted);font-weight:800
+}
+.bank-item.editing .info{
+  min-width:0
+}
+.bank-item.editing .count{
+  padding:4px 8px;
+  margin-right:24px;
+  border-radius:99px;
+  background:var(--primary-soft);
+  font-size:12px;
+  line-height:1.2
+}
+.bank-item.editing .quick-actions{
+  margin-left:46px;
+  justify-content:flex-start
+}
 .chapter-actions,.practice-actions{display:flex;gap:8px;flex-wrap:wrap}
 .chapter-actions button,.practice-actions button{
   border:0;border-radius:99px;padding:9px 13px;font-size:13px;font-weight:800;
@@ -359,11 +563,57 @@ body[data-theme="dark"] .answer-reveal button{
 .practice-actions button.secondary{background:var(--secondary-soft);color:var(--secondary)}
 .practice-actions button.answer-mode{background:var(--success-soft);color:var(--success)}
 .practice-actions button.lookup-mode,.chapter-actions button.lookup-mode{background:var(--warn-soft);color:var(--warn)}
+.practice-actions button.wrong-mode,.chapter-actions button.wrong-mode{background:var(--danger-soft);color:var(--danger)}
 .practice-actions button.muted-mode,.chapter-actions button.muted-mode{background:var(--bg);color:var(--muted)}
 .action-panel{
   background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);
-  padding:14px;display:flex;flex-direction:column;gap:10px
+  padding:14px;display:flex;flex-direction:column;gap:10px;position:relative
 }
+.tool-toggle{
+  height:26px;
+  border:1px solid var(--line);
+  border-radius:99px;
+  padding:0 7px;
+  background:var(--bg);
+  color:var(--primary);
+  font-size:11px;
+  font-weight:900;
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+  cursor:pointer;
+  box-shadow:none;
+  transition:transform .15s, background .18s, border-color .18s
+}
+.tool-toggle:active{transform:scale(.97)}
+.tool-toggle .icon{
+  width:16px;
+  height:16px;
+  border-radius:50%;
+  display:grid;
+  place-items:center;
+  background:var(--primary-soft);
+  color:var(--primary);
+  font-size:10px;
+  line-height:1
+}
+.subject-card.with-tool{
+  position:relative;
+  padding-right:82px
+}
+.subject-card.with-tool .tool-toggle{
+  position:absolute;
+  right:12px;
+  top:50%;
+  transform:translateY(-50%)
+}
+.subject-card.with-tool .tool-toggle:active{
+  transform:translateY(-50%) scale(.97)
+}
+.tool-group{
+  display:contents
+}
+.tool-group + .bank-list{margin-top:-8px}
 .action-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .action-grid button{
   border:0;border-radius:var(--radius-sm);padding:13px 10px;font-size:13px;font-weight:800;
@@ -372,12 +622,32 @@ body[data-theme="dark"] .answer-reveal button{
 .action-grid button.secondary{background:var(--secondary-soft);color:var(--secondary)}
 .action-grid button.answer-mode{background:var(--success-soft);color:var(--success)}
 .action-grid button.lookup-mode{background:var(--warn-soft);color:var(--warn)}
+.action-grid button.wrong-mode{background:var(--danger-soft);color:var(--danger)}
 .action-grid button.muted-mode{background:var(--bg);color:var(--muted)}
 .action-grid button:last-child:nth-child(odd){grid-column:1 / -1}
-.chapter-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));min-width:210px}
-.chapter-actions button{padding:9px 8px}
+.chapter-action-wrap{
+  min-width:210px;
+  display:flex;
+  align-items:center;
+  gap:8px
+}
+.chapter-expand-icon{
+  width:32px;height:32px;border:1px solid var(--line);border-radius:50%;
+  background:var(--bg);color:var(--primary);font-size:13px;font-weight:900;
+  cursor:pointer;display:grid;place-items:center;flex-shrink:0;
+  transition:transform .16s, background .18s, border-color .18s
+}
+.chapter-expand-icon:active{transform:scale(.94)}
+.chapter-action-wrap.expanded .chapter-expand-icon{background:var(--primary-soft);border-color:var(--primary);transform:rotate(45deg)}
+.chapter-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));min-width:210px;gap:8px}
+.chapter-actions button{padding:9px 8px;min-width:0}
+.chapter-action-wrap.expanded .chapter-actions button{animation:chapterActionIn .16s ease-out both}
+.chapter-action-wrap.collapsed .chapter-actions{display:none}
 .section-title{font-size:13px;font-weight:800;color:var(--muted);padding:2px}
-.subject-summary{font-size:12px;color:var(--muted);padding:0 2px}
+.subject-summary{
+  font-size:12px;color:var(--muted);padding:0 2px;
+  display:flex;align-items:center;justify-content:space-between;gap:10px
+}
 .wrong-badge{font-size:12px;font-weight:800;color:var(--danger)}
 .analysis-panel{
   background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);
@@ -404,9 +674,10 @@ body[data-theme="dark"] .answer-reveal button{
 }
 .swatch.active{box-shadow:0 0 0 3px var(--primary-soft),0 0 0 1px var(--primary)}
 .settings-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.settings-actions.storage-actions button:first-child{grid-column:1 / -1}
 .settings-actions.top{
-  position:sticky;top:10px;z-index:5;padding:8px;
-  background:rgba(255,255,255,.9);border:1px solid var(--line);
+  position:sticky;top:10px;z-index:5;padding:8px;margin-bottom:2px;
+  background:var(--bar-bg);border:1px solid var(--line);
   border-radius:var(--radius);box-shadow:var(--shadow-soft);backdrop-filter:blur(10px)
 }
 .settings-actions button{
@@ -414,7 +685,7 @@ body[data-theme="dark"] .answer-reveal button{
   background:var(--primary);color:#fff;cursor:pointer
 }
 .settings-actions button.secondary{background:var(--bg);color:var(--muted)}
-body[data-theme="dark"] .settings-actions.top{background:rgba(27,32,43,.88)}
+body[data-theme="dark"] .settings-actions.top{background:var(--bar-bg)}
 .settings-notice{
   border:1px solid var(--primary);
   background:var(--primary-soft);
@@ -425,6 +696,201 @@ body[data-theme="dark"] .settings-actions.top{background:rgba(27,32,43,.88)}
   font-weight:800;
   line-height:1.45
 }
+.palette-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.palette-card{
+  border:1px solid var(--line);border-radius:var(--radius-sm);padding:10px;
+  background:var(--bg);cursor:pointer;text-align:left;color:var(--text);
+  display:flex;flex-direction:column;gap:8px
+}
+.palette-card.active{border-color:var(--primary);box-shadow:0 0 0 2px var(--primary-soft);background:var(--card)}
+.palette-card strong{font-size:13px}
+.palette-dots{display:flex;gap:5px}
+.palette-dots span{width:18px;height:18px;border-radius:50%;border:1px solid rgba(0,0,0,.08)}
+.button-choice-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.button-choice{
+  display:flex;align-items:center;justify-content:center;gap:6px;
+  min-height:36px;border:1px solid var(--line);border-radius:99px;
+  background:var(--bg);font-size:12px;font-weight:900;color:var(--text);
+  cursor:pointer
+}
+.button-choice input{width:14px;height:14px;accent-color:var(--primary)}
+.button-choice.icon-choice{min-height:44px;font-size:22px;padding:0}
+.button-choice.icon-choice input{position:absolute;opacity:0;pointer-events:none}
+.button-choice.icon-choice.active{
+  border-color:var(--primary);background:var(--primary-soft);box-shadow:0 0 0 2px var(--primary-soft)
+}
+.settings-subtitle{font-size:12px;line-height:1.55;color:var(--muted)}
+.help-details{
+  border:1px solid var(--line);border-radius:var(--radius);
+  background:var(--card);box-shadow:var(--shadow-soft);overflow:hidden
+}
+.help-details summary{
+  list-style:none;cursor:pointer;padding:12px 14px;
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  font-size:13px;font-weight:900;color:var(--text)
+}
+.help-details summary::-webkit-details-marker{display:none}
+.help-details summary span{color:var(--primary);font-size:12px}
+.help-details[open] summary{border-bottom:1px solid var(--line)}
+.help-body{padding:12px 14px;font-size:13px;line-height:1.75;color:var(--text)}
+.help-body h4{font-size:13px;margin:10px 0 4px}
+.help-body p{color:var(--muted);margin:0 0 6px}
+.choice-select{position:relative;width:100%;min-width:0}
+.choice-select input[type="hidden"]{display:none}
+.choice-trigger{
+  width:100%;min-height:42px;border:1px solid var(--line);border-radius:var(--radius-sm);
+  background:var(--card);color:var(--text);padding:0 12px;
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  font-size:13px;font-weight:800;cursor:pointer;text-align:left
+}
+.choice-trigger .chevron{font-size:13px;color:var(--muted);transition:transform .16s}
+.choice-select.open .choice-trigger{border-color:var(--primary);box-shadow:0 0 0 2px var(--primary-soft)}
+.choice-select.open .choice-trigger .chevron{transform:rotate(180deg)}
+.choice-menu{
+  display:none;position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:70;
+  border:1px solid var(--line);border-radius:var(--radius-sm);
+  background:var(--card);box-shadow:var(--shadow);padding:5px;max-height:238px;overflow-y:auto
+}
+.choice-select.open .choice-menu{display:grid;gap:4px}
+.choice-option{
+  border:0;border-radius:9px;background:transparent;color:var(--text);
+  padding:10px 11px;text-align:left;font-size:13px;font-weight:800;cursor:pointer
+}
+.choice-option:hover,.choice-option.active{background:var(--primary-soft);color:var(--primary)}
+.range-row{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center}
+.range-row input{width:100%}
+.study-chart-panel{display:flex;flex-direction:column;gap:12px}
+.study-stats-controls,.study-stats-chart{display:flex;flex-direction:column;gap:12px;min-width:0}
+.study-chart-tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.study-chart-tabs button{
+  border:1px solid var(--line);border-radius:99px;padding:8px 6px;
+  background:var(--bg);color:var(--muted);font-size:12px;font-weight:900;cursor:pointer
+}
+.study-chart-tabs button.active{border-color:var(--primary);background:var(--primary-soft);color:var(--primary)}
+.study-chart-summary{
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px
+}
+.study-chart-summary div{
+  border:1px solid var(--line);border-radius:var(--radius-sm);
+  background:var(--bg);padding:9px 8px;min-width:0
+}
+.study-chart-summary strong{display:block;font-size:14px;line-height:1.2}
+.study-chart-summary span{display:block;margin-top:4px;color:var(--muted);font-size:11px;font-weight:800}
+.study-chart-svg{
+  width:100%;height:auto;border:1px solid var(--line);border-radius:var(--radius-sm);
+  background:var(--bg);display:block
+}
+.study-chart-grid{stroke:var(--line);stroke-width:1}
+.study-chart-line{fill:none;stroke:var(--primary);stroke-width:3;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
+.study-chart-svg.chart-enter .study-chart-line{
+  stroke-dasharray:420;
+  stroke-dashoffset:420;
+  animation:studyLineDraw .9s ease-out forwards
+}
+.study-chart-dot{fill:var(--card);stroke:var(--primary);stroke-width:2}
+.study-chart-dot.active{fill:var(--primary)}
+.study-chart-svg.chart-enter .study-chart-dot{
+  opacity:0;
+  transform-box:fill-box;
+  transform-origin:center;
+  animation:studyDotIn .42s ease-out forwards
+}
+.study-chart-dot.selected{fill:var(--primary);stroke:var(--card);stroke-width:2.2px}
+.study-chart-hit{fill:transparent;cursor:pointer}
+.study-chart-marker{stroke:var(--primary);stroke-width:1.2;stroke-dasharray:3 3;opacity:.55;pointer-events:none}
+.study-chart-tooltip{animation:studyTipIn .18s ease-out both;pointer-events:none}
+.study-chart-tooltip rect{fill:var(--card);stroke:var(--line);stroke-width:1}
+.study-chart-tooltip text{fill:var(--text);font-size:10px;font-weight:900}
+.study-chart-tooltip text:last-child{fill:var(--primary);font-size:11px}
+.study-chart-labels{display:flex;justify-content:space-between;gap:8px;color:var(--muted);font-size:11px;font-weight:800}
+.study-chart-labels button{
+  border:0;background:transparent;color:inherit;font:inherit;padding:0;cursor:pointer
+}
+.study-chart-labels button.active{color:var(--primary)}
+@keyframes studyLineDraw{to{stroke-dashoffset:0}}
+@keyframes studyDotIn{
+  from{opacity:0;transform:scale(.76)}
+  to{opacity:1;transform:scale(1)}
+}
+@keyframes studyTipIn{
+  from{opacity:0;transform:translateY(3px)}
+  to{opacity:1;transform:translateY(0)}
+}
+.metric-card.time-metric:not(.editing){
+  cursor:pointer;border:1px solid transparent;
+  transition:transform .16s ease,border-color .16s ease,box-shadow .16s ease
+}
+.metric-card.time-metric:not(.editing):hover{border-color:var(--primary);box-shadow:var(--shadow)}
+.metric-card.time-metric:not(.editing):focus-visible{outline:2px solid var(--primary);outline-offset:3px}
+.metric-card.time-metric:not(.editing):active{transform:scale(.99)}
+.study-entry-meta{align-items:center}
+.study-entry-meta > span:first-child{min-width:0}
+.metric-click-hint{
+  display:inline-flex;align-items:center;justify-content:center;
+  min-height:22px;padding:0 8px;border-radius:99px;
+  background:var(--primary-soft);color:var(--primary);
+  font-size:11px;font-weight:900;white-space:nowrap
+}
+.recycle-list,.component-list{display:flex;flex-direction:column;gap:8px}
+.component-item{
+  border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--bg);
+  padding:10px;display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center
+}
+.component-item strong{font-size:13px}
+.component-item small{display:block;color:var(--muted);font-size:11px;margin-top:3px}
+.storage-path-card{
+  border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--bg);
+  padding:10px;display:flex;flex-direction:column;gap:7px
+}
+.storage-path-card code{
+  width:max-content;max-width:100%;border-radius:8px;padding:5px 7px;
+  background:var(--card);color:var(--primary);font-size:12px;
+  overflow:hidden;text-overflow:ellipsis
+}
+.storage-path-card small{color:var(--muted);font-size:11px;line-height:1.5}
+.recycle-box{
+  border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--bg);
+  padding:0;overflow:hidden
+}
+.recycle-box > summary{
+  list-style:none;cursor:pointer;padding:10px 11px;
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  font-size:13px;font-weight:900
+}
+.recycle-box > summary::-webkit-details-marker{display:none}
+.recycle-box > summary span{color:var(--muted);font-size:11px;font-weight:800}
+.recycle-item{
+  border-top:1px solid var(--line);background:var(--card);padding:10px;
+  display:flex;flex-direction:column;gap:9px
+}
+.recycle-item > summary{
+  list-style:none;cursor:pointer;display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center
+}
+.recycle-item > summary::-webkit-details-marker{display:none}
+.recycle-item strong{font-size:13px}
+.recycle-item small{display:block;color:var(--muted);font-size:11px;margin-top:3px}
+.recycle-detail{
+  border-top:1px dashed var(--line);padding-top:9px;
+  display:flex;flex-direction:column;gap:8px
+}
+.recycle-detail code{
+  display:inline-block;max-width:100%;border-radius:8px;padding:4px 6px;
+  background:var(--bg);color:var(--primary);font-size:11px;
+  overflow:hidden;text-overflow:ellipsis
+}
+.recycle-file-list{display:flex;flex-direction:column;gap:5px}
+.recycle-file-list div{
+  display:flex;justify-content:space-between;gap:8px;
+  border:1px solid var(--line);border-radius:9px;background:var(--bg);padding:7px 8px;
+  font-size:12px
+}
+.recycle-file-list span:last-child{color:var(--muted);font-size:11px;white-space:nowrap}
+.recycle-actions,.component-actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.recycle-actions button,.component-actions button{
+  border:0;border-radius:99px;padding:7px 9px;font-size:11px;font-weight:900;
+  background:var(--primary-soft);color:var(--primary);cursor:pointer
+}
+.recycle-actions button.danger{background:var(--danger-soft);color:var(--danger)}
 .lookup-toolbar{display:grid;grid-template-columns:1fr;gap:10px}
 .lookup-toolbar input,.lookup-toolbar select{
   width:100%;border:1px solid var(--line);border-radius:var(--radius-sm);
@@ -484,6 +950,7 @@ body[data-theme="dark"] .settings-actions.top{background:rgba(27,32,43,.88)}
   .bottombar{padding-left:12px;padding-right:12px}
   .bottombar button{font-size:13px;padding:11px 8px}
   .bank-item{align-items:flex-start;flex-wrap:wrap}
+  .chapter-action-wrap{width:100%;min-width:0}
   .chapter-actions{width:100%;min-width:0;grid-template-columns:repeat(3,minmax(0,1fr))}
   .overview-grid{grid-template-columns:repeat(5,1fr)}
 }
@@ -491,9 +958,7 @@ body[data-theme="dark"] .settings-actions.top{background:rgba(27,32,43,.88)}
 @media(min-width:840px) and (orientation:landscape){
   .app{
     max-width:min(1180px,100vw);
-    background:
-      linear-gradient(180deg,rgba(79,110,247,.035),transparent 180px),
-      var(--bg)
+    background:var(--bg)
   }
   .home{
     width:min(1080px,100%);
@@ -503,8 +968,12 @@ body[data-theme="dark"] .settings-actions.top{background:rgba(27,32,43,.88)}
   .home-dashboard{
     display:grid;
     grid-template-columns:minmax(0,.9fr) repeat(3,minmax(0,1fr));
-    align-items:stretch;
+    align-items:start;
     gap:16px
+  }
+  .home-dashboard > .saved-progress-float{
+    grid-column:1 / -1;
+    width:min(100%,max(var(--saved-progress-width,420px),460px))
   }
   .home-dashboard > .analysis-panel{
     grid-column:1 / -1
@@ -515,19 +984,34 @@ body[data-theme="dark"] .settings-actions.top{background:rgba(27,32,43,.88)}
     grid-template-columns:1fr 1fr;
     gap:12px
   }
+  .home-dashboard .home-overview{
+    grid-column:1 / -1
+  }
+  .home-dashboard .home-metrics{
+    grid-template-columns:repeat(4,minmax(0,1fr))
+  }
+  .home-dashboard .metric-card.progress-metric,
+  .home-dashboard .metric-card.time-metric{
+    grid-column:auto
+  }
+  .home-dashboard .home-toggle-row,
+  .home-dashboard .library-manager{
+    grid-column:1 / -1
+  }
   .home-dashboard .subject-card{
     min-height:104px;
     justify-content:center
   }
-  .home-dashboard > .action-panel{
+  .home-dashboard .action-panel{
     min-height:104px;
     justify-content:space-between
   }
-  .home-dashboard > .action-panel .action-grid{
+  .home-dashboard .action-panel .action-grid{
     height:100%;
     align-content:stretch
   }
   .home-dashboard > .bank-list,
+  .home-dashboard > .subjects-grid,
   .home-dashboard > details{
     grid-column:1 / -1
   }
@@ -535,7 +1019,37 @@ body[data-theme="dark"] .settings-actions.top{background:rgba(27,32,43,.88)}
   .bank-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
   .bank-item{min-height:76px}
   .settings-page,.lookup-page{max-width:920px}
-  .settings-page .analysis-panel,
+  .settings-page{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:14px;
+    align-items:start
+  }
+  .settings-page .settings-notice,
+  .settings-page .help-details,
+  .settings-page .settings-actions.top{
+    grid-column:1 / -1
+  }
+  .settings-page .analysis-panel{
+    min-height:100%
+  }
+  .study-stats-page{
+    max-width:1080px;
+    grid-template-columns:1fr
+  }
+  .study-stats-page .analysis-panel{
+    grid-column:1 / -1;
+    min-height:auto
+  }
+  .study-stats-page .study-chart-panel{
+    display:grid;
+    grid-template-columns:minmax(240px,.72fr) minmax(0,1.28fr);
+    gap:16px;
+    align-items:start
+  }
+  .study-stats-page .study-chart-svg{
+    min-height:220px
+  }
   .lookup-page .analysis-panel{margin-left:auto;margin-right:auto}
   .lookup-toolbar{
     grid-template-columns:minmax(0,1.4fr) minmax(130px,.8fr) minmax(130px,.8fr)
@@ -544,15 +1058,15 @@ body[data-theme="dark"] .settings-actions.top{background:rgba(27,32,43,.88)}
     display:grid;
     grid-template-columns:repeat(3,minmax(0,1fr));
     gap:14px;
-    align-items:stretch
+    align-items:start
   }
-  .subject-page > .action-panel{
+  .subject-page .action-panel{
     max-width:none;
     margin:0;
     min-height:132px;
     justify-content:space-between
   }
-  .subject-page > .action-panel .action-grid{
+  .subject-page .action-panel .action-grid{
     height:100%
   }
   .subject-page > .subject-summary,
@@ -570,6 +1084,10 @@ body[data-theme="dark"] .settings-actions.top{background:rgba(27,32,43,.88)}
     font-size:14px
   }
   .subject-page .chapter-actions{
+    min-width:0;
+    grid-template-columns:repeat(3,minmax(64px,1fr))
+  }
+  .subject-page .chapter-action-wrap{
     min-width:220px
   }
   .quiz-topbar{
@@ -620,8 +1138,8 @@ body[data-theme="dark"] .settings-actions.top{background:rgba(27,32,43,.88)}
     row-gap:16px;
     align-content:start;
     padding:18px 18px 20px;
-    border-color:rgba(237,240,244,.9);
-    box-shadow:0 18px 42px rgba(23,31,56,.08)
+    border-color:var(--line);
+    box-shadow:var(--shadow-soft)
   }
   .viewport.view-page .card{
     min-height:auto;
@@ -640,9 +1158,7 @@ body[data-theme="dark"] .settings-actions.top{background:rgba(27,32,43,.88)}
     align-self:start;
     margin-bottom:0;
     font-size:17px;
-    background:
-      linear-gradient(180deg,rgba(255,255,255,.72),rgba(255,255,255,.18)),
-      var(--bg)
+    background:var(--bg)
   }
   .viewport.view-page .card-body{
     min-height:128px;
@@ -668,13 +1184,30 @@ body[data-theme="dark"] .settings-actions.top{background:rgba(27,32,43,.88)}
   .viewport.view-scroll .option{
     min-height:52px;
     padding:12px 14px;
-    border-color:rgba(237,240,244,.96);
-    box-shadow:0 1px 0 rgba(23,31,56,.025)
+    border-color:var(--line);
+    box-shadow:none
+  }
+  .viewport.view-page .option.correct,
+  .viewport.view-scroll .option.correct{
+    border-color:var(--success)
+  }
+  .viewport.view-page .option.selected.correct,
+  .viewport.view-scroll .option.selected.correct{
+    box-shadow:0 0 0 2px var(--success)
+  }
+  .viewport.view-page .bool-btn.selected.correct,
+  .viewport.view-scroll .bool-btn.selected.correct{
+    box-shadow:0 0 0 2px var(--success)
   }
   .viewport.view-page .option:hover,
   .viewport.view-scroll .option:hover{
-    border-color:rgba(79,110,247,.38);
-    background:linear-gradient(180deg,var(--card),var(--primary-soft))
+    border-color:var(--primary);
+    background:var(--primary-soft)
+  }
+  .viewport.view-page .option.selected.correct:hover,
+  .viewport.view-scroll .option.selected.correct:hover{
+    border-color:var(--success);
+    background:var(--success-soft)
   }
   .viewport.view-page .answer-reveal,
   .viewport.view-scroll .answer-reveal{
@@ -688,16 +1221,14 @@ body[data-theme="dark"] .settings-actions.top{background:rgba(27,32,43,.88)}
     justify-content:center;
     padding-left:24px;
     padding-right:24px;
-    background:rgba(255,255,255,.92);
+    background:var(--bar-bg);
     backdrop-filter:blur(10px)
   }
   body[data-theme="dark"] .viewport.view-page .card-body,
   body[data-theme="dark"] .viewport.view-scroll .card-body{
-    background:
-      linear-gradient(180deg,rgba(255,255,255,.035),rgba(255,255,255,.01)),
-      var(--bg)
+    background:var(--bg)
   }
-  body[data-theme="dark"] .bottombar{background:rgba(27,32,43,.92)}
+  body[data-theme="dark"] .bottombar{background:var(--bar-bg)}
   .bottombar button{flex:0 1 180px}
   .btn-overview{flex-basis:220px!important}
   .question-overview{align-items:center}
@@ -727,6 +1258,7 @@ body[data-theme="dark"] .settings-actions.top{background:rgba(27,32,43,.88)}
 @keyframes answerPop{0%{transform:scale(.98)}70%{transform:scale(1.018)}100%{transform:scale(1)}}
 @keyframes answerShake{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}60%{transform:translateX(3px)}}
 @keyframes feedbackIn{0%{opacity:0;transform:translateY(-4px)}100%{opacity:1;transform:translateY(0)}}
+@keyframes chapterActionIn{0%{opacity:0;transform:translateX(6px) scale(.98)}100%{opacity:1;transform:translateX(0) scale(1)}}
 
 @media(min-width:760px){.app{border-left:1px solid var(--line);border-right:1px solid var(--line)}}
 </style>
@@ -742,6 +1274,15 @@ const UI_CONFIG_KEY = 'quizapp_ui_config';
 const SAVED_SESSION_KEY = 'quizapp_saved_session';
 const SAVED_PROGRESS_KEY = 'quizapp_saved_progress';
 const VIEW_PROGRESS_KEY = 'quizapp_view_progress';
+const ANSWER_STATE_KEY = 'quizapp_answer_state';
+const STUDY_STATS_KEY = 'quizapp_study_stats';
+const LIBRARY_NODES_KEY = 'quizapp_library_nodes';
+const BANK_META_KEY = 'quizapp_bank_meta';
+const RECYCLE_BIN_KEY = 'quizapp_recycle_bin';
+const STUDY_STATS_META_KEY = '__meta';
+const STUDY_STATS_RETENTION_DAYS = 92;
+const DEFAULT_BANK_DIRECTORY = './data/';
+const RECYCLE_STORAGE_DIRECTORY = './data/.quizapp-recycle/';
 const DEFAULT_BANK_FILES = [
   '毛概-导论.json',
   '毛概-第一章.json',
@@ -802,10 +1343,21 @@ const DEFAULT_BANK_FILES_RUNTIME = [
 ];
 window.__QUIZAPP_EMBEDDED_BANKS__ = null;
 
+const PALETTE_PRESETS = {
+  classic: { name: '清爽蓝', primary: '#4f6ef7', secondary: '#5b6472', success: '#22b07d', danger: '#f24e5e', warn: '#f5a623', light: { bg: '#f8f9fb', card: '#ffffff', text: '#1a1d28', muted: '#8e94a3', line: '#edf0f4' }, dark: { bg: '#12151c', card: '#1b202b', text: '#f4f6fb', muted: '#9aa3b5', line: '#2b3240' } },
+  forest: { name: '森林绿', primary: '#1f8f62', secondary: '#5f6f62', success: '#22a06b', danger: '#d94a5a', warn: '#b98320', light: { bg: '#f3f7ee', card: '#ffffff', text: '#18211b', muted: '#74816f', line: '#e2eadb' }, dark: { bg: '#07120c', card: '#102119', text: '#eff9f1', muted: '#9bb09d', line: '#223d2c' } },
+  ink: { name: '墨黑灰', primary: '#222831', secondary: '#6b7280', success: '#4b8f76', danger: '#c7515d', warn: '#9a741f', light: { bg: '#f4f4f2', card: '#ffffff', text: '#151719', muted: '#717780', line: '#dedfdb' }, dark: { bg: '#090a0c', card: '#17191d', text: '#f1f2f4', muted: '#9da3ad', line: '#2b2f35' } },
+  sunset: { name: '日落橙', primary: '#d8662d', secondary: '#6b625d', success: '#2c9c72', danger: '#d94b54', warn: '#d49424', light: { bg: '#faf7f2', card: '#ffffff', text: '#241a14', muted: '#8a7d72', line: '#eee6dd' }, dark: { bg: '#19120f', card: '#241b17', text: '#fff4ed', muted: '#b4a299', line: '#3a2b24' } },
+  berry: { name: '莓果红', primary: '#c23b68', secondary: '#665c68', success: '#259d7a', danger: '#de4052', warn: '#d59620', light: { bg: '#fbf7fa', card: '#ffffff', text: '#241923', muted: '#897a88', line: '#efe5ee' }, dark: { bg: '#181018', card: '#251824', text: '#fff1fb', muted: '#b49aac', line: '#3b2a38' } },
+  cyan: { name: '湖青色', primary: '#0f8b8d', secondary: '#5b6870', success: '#1fa878', danger: '#d84d5c', warn: '#c98d20', light: { bg: '#f3f9f9', card: '#ffffff', text: '#142021', muted: '#728485', line: '#e0eeee' }, dark: { bg: '#0d1718', card: '#172426', text: '#eefafa', muted: '#94aaad', line: '#263a3d' } },
+};
+
 let state = {
   banks: [],
   activeSession: null,
   activeSubject: '',
+  activePath: [],
+  editMode: false,
   navStack: [],
   suppressNavPush: false,
   currentIndex: 0,
@@ -826,14 +1378,45 @@ let state = {
   answerAnimationTimer: null,
   scrollTimer: null,
   wrongBook: {},
+  answerState: { sequence: {}, random: {} },
+  studyStats: {},
+  studyChartSelectedKey: '',
+  studyChartAnimate: true,
+  studyTimer: null,
+  libraryNodes: [],
+  bankMeta: {},
+  recycleBin: [],
+  pendingImportPath: [],
   answerLookupContext: null,
+  panelExpanded: {},
+  chapterActionsExpanded: {},
   uiConfig: {
-    theme: 'system',
-    primary: '#4f6ef7',
-    autoSaveOnExit: false,
+    theme: 'light',
+    palette: 'forest',
+    primary: '#1f8f62',
+    autoSaveOnExit: true,
+    progressScopePolicy: 'separate',
     randomReshuffleOnReset: true,
     rememberReviewPosition: true,
     rememberAnswerLookupPosition: true,
+    persistStudyStats: true,
+    studyChartRange: 'week',
+    toolPanelsDefaultExpanded: true,
+    showSavedProgressEntry: true,
+    showSavedProgressHint: true,
+    savedProgressWidgetWidth: 420,
+    iconStyle: 'folder',
+    subjectIconStyle: 'library',
+    chapterIconStyle: 'book',
+    chapterActionLayout: 'flat',
+    chapterActionsDefaultExpanded: false,
+    chapterActionButtons: ['sequence', 'random', 'reset', 'review', 'answer', 'wrong'],
+    toolCardOrder: ['practice', 'review', 'wrong'],
+    hiddenToolCards: [],
+    homeMetricOrder: ['subjects', 'questions', 'progress', 'time'],
+    hiddenHomeMetrics: [],
+    subjectOrder: [],
+    libraryOrder: {},
   },
 };
 
@@ -842,6 +1425,7 @@ function getRouteSnapshot() {
   return {
     view: state.view,
     activeSubject: state.activeSubject,
+    activePath: normalizePath(state.activePath),
     answerLookupContext: state.answerLookupContext ? { ...state.answerLookupContext } : null,
     currentIndex: state.currentIndex,
     mode: state.mode,
@@ -862,6 +1446,7 @@ function goHome() {
   saveCurrentViewPosition();
   state.navStack = [];
   state.answerLookupContext = null;
+  state.activePath = [];
   renderHome();
 }
 
@@ -883,7 +1468,14 @@ function goBackRoute() {
       restoreRoute(route);
       return true;
     }
-    if (state.view === 'settings' || state.view === 'subjects') {
+    if (state.view === 'subjects' && normalizePath(state.activePath).length > 1) {
+      state.activePath = parentPath(state.activePath);
+      state.activeSubject = state.activePath[0] || '';
+      renderSubject();
+      return true;
+    }
+    if (state.view === 'settings' || state.view === 'studyStats' || state.view === 'subjects') {
+      state.activePath = [];
       renderHome();
       return true;
     }
@@ -904,10 +1496,13 @@ window.handleNativeBack = function handleNativeBack() {
 
 function backFromQuiz() {
   const subject = state.activeSession?.subject || state.activeSubject || '';
+  const path = normalizePath(state.activeSession?.path || state.activePath || (subject ? [subject] : []));
+  const returnPath = getPracticeReturnPath(state.activeSession, path);
   saveReviewPosition();
   const autoSaved = Boolean(isSavablePracticeSession() && state.uiConfig.autoSaveOnExit);
   if (autoSaved) saveCurrentSession({ silent: true });
   state.activeSubject = subject;
+  state.activePath = returnPath;
   state.activeSession = null;
   state.navStack = state.navStack.filter(route => route.view !== 'quiz');
   const last = state.navStack[state.navStack.length - 1];
@@ -918,7 +1513,10 @@ function backFromQuiz() {
   state.drafts = {};
   state.currentIndex = 0;
   state.reviewMode = false;
-  if (subject && getBanksBySubject(subject).length) {
+  if (returnPath.length && getDescendantBanks(returnPath).length) {
+    renderSubject();
+  } else if (subject && getBanksBySubject(subject).length) {
+    state.activePath = [subject];
     renderSubject();
   } else {
     renderHome();
@@ -927,13 +1525,24 @@ function backFromQuiz() {
   return true;
 }
 
+function getPracticeReturnPath(session, fallbackPath = []) {
+  const path = normalizePath(fallbackPath);
+  if (session && Object.prototype.hasOwnProperty.call(session, 'returnPath')) {
+    return normalizePath(session.returnPath);
+  }
+  if (session?.bankIds?.length === 1 && path.length > 1) return parentPath(path);
+  return path;
+}
+
 function restoreRoute(route) {
   state.activeSubject = route.activeSubject || '';
+  state.activePath = normalizePath(route.activePath || (state.activeSubject ? [state.activeSubject] : []));
   state.answerLookupContext = route.answerLookupContext || null;
   state.currentIndex = route.currentIndex || 0;
   state.mode = route.mode || state.mode;
   if (route.view === 'subjects') return renderSubject();
   if (route.view === 'settings') return renderSettings();
+  if (route.view === 'studyStats') return renderStudyStatsPage();
   if (route.view === 'answerLookup') return renderAnswerLookup();
   if (route.view === 'quiz' && state.activeSession) return renderQuiz();
   return renderHome();
@@ -954,15 +1563,87 @@ function saveBanks() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(imported));
 }
 
+function saveLibraryNodes() {
+  localStorage.setItem(LIBRARY_NODES_KEY, JSON.stringify(state.libraryNodes));
+}
+
+function loadLibraryNodes() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(LIBRARY_NODES_KEY));
+    state.libraryNodes = Array.isArray(saved) ? saved.map(node => ({
+      id: node.id || `node:${Date.now()}:${Math.random().toString(36).slice(2)}`,
+      path: normalizePath(node.path),
+      createdAt: node.createdAt || Date.now(),
+    })).filter(node => node.path.length) : [];
+  } catch(e) {
+    state.libraryNodes = [];
+  }
+}
+
+function saveBankMeta() {
+  localStorage.setItem(BANK_META_KEY, JSON.stringify(state.bankMeta || {}));
+}
+
+function loadBankMeta() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(BANK_META_KEY));
+    state.bankMeta = saved && typeof saved === 'object' ? saved : {};
+  } catch(e) {
+    state.bankMeta = {};
+  }
+}
+
+function saveRecycleBin() {
+  localStorage.setItem(RECYCLE_BIN_KEY, JSON.stringify(state.recycleBin || []));
+}
+
+function loadRecycleBin() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(RECYCLE_BIN_KEY));
+    state.recycleBin = Array.isArray(saved) ? saved : [];
+  } catch(e) {
+    state.recycleBin = [];
+  }
+}
+
+function applyBankMeta() {
+  for (const bank of state.banks) {
+    const meta = state.bankMeta?.[bank.id];
+    if (!meta) continue;
+    if (meta.name) bank.name = String(meta.name);
+    if (Array.isArray(meta.path)) setBankPath(bank, meta.path);
+  }
+}
+
+function rememberBankMeta(bank) {
+  if (!bank) return;
+  state.bankMeta[bank.id] = {
+    name: bank.name,
+    path: getBankPath(bank),
+    hidden: Boolean(state.bankMeta?.[bank.id]?.hidden),
+    updatedAt: Date.now(),
+  };
+  saveBankMeta();
+}
+
 function loadBanks() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
     if (Array.isArray(saved)) {
       state.banks = saved.map((b, i) => normalizeBank(b, `import-${i}`, false));
+      applyBankMeta();
     }
   } catch(e) {
     state.banks = [];
   }
+}
+
+function isBankHidden(bank) {
+  return Boolean(bank && state.bankMeta?.[bank.id]?.hidden);
+}
+
+function getVisibleBanks() {
+  return state.banks.filter(bank => !isBankHidden(bank));
 }
 
 function saveWrongBook() {
@@ -979,7 +1660,12 @@ function loadWrongBook() {
 }
 
 function isSavablePracticeSession(session = state.activeSession) {
-  return Boolean(session && !state.reviewMode && !session.wrongPractice);
+  const review = session && Object.prototype.hasOwnProperty.call(session, 'reviewMode') ? session.reviewMode : state.reviewMode;
+  return Boolean(session && !review && !session.wrongPractice);
+}
+
+function shouldAutoPersistAnswers(session = state.activeSession) {
+  return Boolean(isSavablePracticeSession(session) && state.uiConfig.autoSaveOnExit);
 }
 
 function saveCurrentSession(options = {}) {
@@ -989,7 +1675,8 @@ function saveCurrentSession(options = {}) {
     if (!options.silent) showToast('当前模式不需要保存进度');
     return;
   }
-  const scopeKey = session.scopeKey || makeQuestionScopeKey(session.subject, session.questions, state.reviewMode, session.title);
+  syncCurrentAnswersToGlobal({ force: true });
+  const scopeKey = session.scopeKey || makeQuestionScopeKey(session.subject, session.questions, state.reviewMode, session.title, session.shuffled);
   const currentQuestion = session.questions[state.currentIndex];
   const payload = {
     ...session,
@@ -1036,7 +1723,7 @@ function isValidSavedSession(saved) {
 function getSavedProgress() {
   try {
     const saved = JSON.parse(localStorage.getItem(SAVED_PROGRESS_KEY));
-    return saved && typeof saved === 'object' ? saved : {};
+    return migrateSavedProgressStore(saved && typeof saved === 'object' ? saved : {});
   } catch(e) {
     return {};
   }
@@ -1057,6 +1744,334 @@ function getViewProgress() {
 
 function saveViewProgress(store) {
   localStorage.setItem(VIEW_PROGRESS_KEY, JSON.stringify(store));
+}
+
+function loadAnswerState() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(ANSWER_STATE_KEY));
+    state.answerState = {
+      sequence: saved && typeof saved.sequence === 'object' ? saved.sequence : {},
+      random: saved && typeof saved.random === 'object' ? saved.random : {},
+    };
+  } catch(e) {
+    state.answerState = { sequence: {}, random: {} };
+  }
+  hydrateAnswerStateFromSavedProgress();
+}
+
+function saveAnswerState() {
+  localStorage.setItem(ANSWER_STATE_KEY, JSON.stringify(state.answerState));
+}
+
+function hydrateAnswerStateFromSavedProgress() {
+  const candidates = Object.values(getSavedProgress()).filter(isValidSavedSession);
+  try {
+    const saved = JSON.parse(localStorage.getItem(SAVED_SESSION_KEY));
+    if (isValidSavedSession(saved)) candidates.push(saved);
+  } catch(e) {}
+  let changed = false;
+  candidates.forEach(saved => {
+    if (!saved || saved.reviewMode) return;
+    const modeKey = saved.shuffled ? 'random' : 'sequence';
+    if (!state.answerState[modeKey]) state.answerState[modeKey] = {};
+    const answersByKey = getSavedValueMap(saved, 'answersByKey', 'answers');
+    Object.entries(answersByKey || {}).forEach(([key, value]) => {
+      if (!key || !value || state.answerState[modeKey][key]) return;
+      state.answerState[modeKey][key] = value;
+      changed = true;
+    });
+  });
+  if (changed) saveAnswerState();
+}
+
+function getAnswerModeKeyFromSession(session = state.activeSession, reviewMode = state.reviewMode) {
+  if (!session || reviewMode || session.wrongPractice) return '';
+  return session.shuffled ? 'random' : 'sequence';
+}
+
+function getAnswerModeKey(shuffled, reviewMode = false, wrongPractice = false) {
+  if (reviewMode || wrongPractice) return '';
+  return shuffled ? 'random' : 'sequence';
+}
+
+function getGlobalAnswersForQuestions(questions, modeKey) {
+  const store = state.answerState?.[modeKey] || {};
+  const result = {};
+  for (const question of questions || []) {
+    const key = questionKey(question);
+    if (store[key]) result[key] = store[key];
+  }
+  return result;
+}
+
+function mergeAnswerMapsForMode(questions, modeKey, base = {}) {
+  return {
+    ...(base || {}),
+    ...getGlobalAnswersForQuestions(questions, modeKey),
+  };
+}
+
+function syncSavedScopesForQuestion(modeKey, key, value) {
+  if (!modeKey || !key) return;
+  const store = getSavedProgress();
+  let changed = false;
+  Object.entries(store).forEach(([scopeKey, saved]) => {
+    if (!saved || saved.reviewMode || !isValidSavedSession(saved)) return;
+    if ((modeKey === 'random') !== Boolean(saved.shuffled)) return;
+    const keys = saved.questionOrderKeys || (saved.questions || []).map(questionKey);
+    if (!keys.includes(key)) return;
+    const answersByKey = getSavedValueMap(saved, 'answersByKey', 'answers');
+    if (value) answersByKey[key] = value;
+    else delete answersByKey[key];
+    saved.answersByKey = answersByKey;
+    saved.answers = mapQuestionKeysToIndices(saved.questions || [], answersByKey);
+    saved.savedAt = Date.now();
+    store[scopeKey] = saved;
+    changed = true;
+  });
+  if (changed) saveProgressStore(store);
+  try {
+    const saved = JSON.parse(localStorage.getItem(SAVED_SESSION_KEY));
+    if (saved && !saved.reviewMode && isValidSavedSession(saved) && ((modeKey === 'random') === Boolean(saved.shuffled))) {
+      const keys = saved.questionOrderKeys || (saved.questions || []).map(questionKey);
+      if (keys.includes(key)) {
+        const answersByKey = getSavedValueMap(saved, 'answersByKey', 'answers');
+        if (value) answersByKey[key] = value;
+        else delete answersByKey[key];
+        saved.answersByKey = answersByKey;
+        saved.answers = mapQuestionKeysToIndices(saved.questions || [], answersByKey);
+        saved.savedAt = Date.now();
+        localStorage.setItem(SAVED_SESSION_KEY, JSON.stringify(saved));
+      }
+    }
+  } catch(e) {}
+}
+
+function setGlobalAnswerForQuestion(question, value, modeKey = getAnswerModeKeyFromSession(), options = {}) {
+  if (!modeKey || !question) return;
+  if (!options.force && !shouldAutoPersistAnswers()) return;
+  if (!state.answerState[modeKey]) state.answerState[modeKey] = {};
+  const key = questionKey(question);
+  if (value) state.answerState[modeKey][key] = value;
+  else delete state.answerState[modeKey][key];
+  saveAnswerState();
+  syncSavedScopesForQuestion(modeKey, key, value);
+}
+
+function syncCurrentAnswerToGlobal(idx, value, options = {}) {
+  const question = state.activeSession?.questions?.[idx];
+  setGlobalAnswerForQuestion(question, value, getAnswerModeKeyFromSession(), options);
+}
+
+function syncCurrentAnswersToGlobal(options = {}) {
+  const session = state.activeSession;
+  const modeKey = getAnswerModeKeyFromSession(session);
+  if (!session || !modeKey) return;
+  Object.entries(state.answers || {}).forEach(([idx, value]) => {
+    const question = session.questions[Number(idx)];
+    if (question && value) setGlobalAnswerForQuestion(question, value, modeKey, options);
+  });
+}
+
+function clearGlobalAnswersForQuestions(questions, modeKey) {
+  if (!modeKey || !state.answerState[modeKey]) return;
+  for (const question of questions || []) {
+    const key = questionKey(question);
+    delete state.answerState[modeKey][key];
+    syncSavedScopesForQuestion(modeKey, key, '');
+  }
+  saveAnswerState();
+}
+
+function getTodayKey(date = new Date()) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+function isDateKey(key) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(String(key || ''));
+}
+
+function dateFromKey(key) {
+  const parts = String(key || '').split('-').map(Number);
+  if (parts.length !== 3 || parts.some(Number.isNaN)) return null;
+  return new Date(parts[0], parts[1] - 1, parts[2]);
+}
+
+function addDays(date, amount) {
+  const next = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  next.setDate(next.getDate() + amount);
+  return next;
+}
+
+function normalizeStudyStatsStore(saved) {
+  const source = saved && typeof saved === 'object' ? saved : {};
+  const normalized = {};
+  Object.entries(source).forEach(([key, value]) => {
+    if (key === STUDY_STATS_META_KEY) return;
+    if (!isDateKey(key)) return;
+    const seconds = Math.max(0, Math.floor(Number(value?.seconds || value || 0)));
+    normalized[key] = {
+      seconds,
+      updatedAt: Number(value?.updatedAt || 0) || Date.now(),
+    };
+  });
+  normalized[STUDY_STATS_META_KEY] = {
+    startedAt: Number(source[STUDY_STATS_META_KEY]?.startedAt || 0) || Date.now(),
+  };
+  return pruneStudyStats(normalized);
+}
+
+function pruneStudyStats(store = state.studyStats) {
+  const target = store && typeof store === 'object' ? store : {};
+  const today = dateFromKey(getTodayKey());
+  const cutoff = addDays(today, -(STUDY_STATS_RETENTION_DAYS - 1));
+  Object.keys(target).forEach(key => {
+    if (!isDateKey(key)) return;
+    const date = dateFromKey(key);
+    if (!date || date < cutoff || date > today) delete target[key];
+  });
+  if (!target[STUDY_STATS_META_KEY]) target[STUDY_STATS_META_KEY] = { startedAt: Date.now() };
+  return target;
+}
+
+function loadStudyStats() {
+  if (state.uiConfig.persistStudyStats === false) {
+    state.studyStats = normalizeStudyStatsStore({});
+    return;
+  }
+  try {
+    const saved = JSON.parse(localStorage.getItem(STUDY_STATS_KEY));
+    state.studyStats = normalizeStudyStatsStore(saved);
+    saveStudyStats();
+  } catch(e) {
+    state.studyStats = normalizeStudyStatsStore({});
+  }
+}
+
+function saveStudyStats() {
+  pruneStudyStats();
+  if (state.uiConfig.persistStudyStats === false) return;
+  localStorage.setItem(STUDY_STATS_KEY, JSON.stringify(state.studyStats));
+}
+
+function getTodayStudySeconds() {
+  const item = state.studyStats[getTodayKey()];
+  return Number(item?.seconds || 0);
+}
+
+function formatStudyDuration(seconds) {
+  const total = Math.max(0, Number(seconds || 0));
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  if (h > 0) return `${h}小时${String(m).padStart(2, '0')}分`;
+  if (m > 0) return `${m}分${String(s).padStart(2, '0')}秒`;
+  return `${s}秒`;
+}
+
+function normalizeStudyChartRange(range) {
+  return ['week', 'month', 'thisMonth', 'lastMonth'].includes(range) ? range : 'week';
+}
+
+function getStudyChartRange(range = state.uiConfig.studyChartRange) {
+  const today = dateFromKey(getTodayKey());
+  const key = normalizeStudyChartRange(range);
+  if (key === 'month') return { key, title: '近 30 天', start: addDays(today, -29), end: today };
+  if (key === 'thisMonth') return { key, title: '本月', start: new Date(today.getFullYear(), today.getMonth(), 1), end: today };
+  if (key === 'lastMonth') {
+    const start = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+    const end = new Date(today.getFullYear(), today.getMonth(), 0);
+    return { key, title: '上月', start, end };
+  }
+  return { key: 'week', title: '近 7 天', start: addDays(today, -6), end: today };
+}
+
+function getStudyChartData(range = state.uiConfig.studyChartRange) {
+  const meta = getStudyChartRange(range);
+  const rows = [];
+  for (let date = new Date(meta.start); date <= meta.end; date = addDays(date, 1)) {
+    const key = getTodayKey(date);
+    rows.push({
+      key,
+      day: date.getDate(),
+      month: date.getMonth() + 1,
+      label: `${date.getMonth() + 1}/${date.getDate()}`,
+      seconds: Number(state.studyStats[key]?.seconds || 0),
+    });
+  }
+  return { ...meta, rows };
+}
+
+function getStudyChartRangeLabel(chart) {
+  const startLabel = `${chart.start.getMonth() + 1}月${chart.start.getDate()}号`;
+  const endLabel = `${chart.end.getMonth() + 1}月${chart.end.getDate()}号`;
+  return `${startLabel} - ${endLabel}`;
+}
+
+function buildSmoothPath(points) {
+  if (!points.length) return '';
+  if (points.length === 1) return `M ${points[0].x} ${points[0].y}`;
+  const minY = Math.min(...points.map(point => point.y));
+  const maxY = Math.max(...points.map(point => point.y));
+  const clampY = value => Math.max(minY, Math.min(maxY, value));
+  let d = `M ${points[0].x} ${points[0].y}`;
+  for (let i = 0; i < points.length - 1; i++) {
+    const p0 = points[i - 1] || points[i];
+    const p1 = points[i];
+    const p2 = points[i + 1];
+    const p3 = points[i + 2] || p2;
+    const cp1x = p1.x + (p2.x - p0.x) / 6;
+    const cp1y = clampY(p1.y + (p2.y - p0.y) / 6);
+    const cp2x = p2.x - (p3.x - p1.x) / 6;
+    const cp2y = clampY(p2.y - (p3.y - p1.y) / 6);
+    d += ` C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)}, ${cp2x.toFixed(1)} ${cp2y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
+  }
+  return d;
+}
+
+function isStudySurfaceActive() {
+  return !document.hidden && (state.view === 'quiz' || state.view === 'answerLookup');
+}
+
+function startStudyTimer() {
+  if (state.studyTimer) return;
+  state.studyTimer = window.setInterval(() => {
+    if (!isStudySurfaceActive()) {
+      updateHomeStudyStatsDisplay();
+      return;
+    }
+    const key = getTodayKey();
+    const item = state.studyStats[key] || { seconds: 0 };
+    item.seconds = Number(item.seconds || 0) + 1;
+    item.updatedAt = Date.now();
+    state.studyStats[key] = item;
+    saveStudyStats();
+    updateHomeStudyStatsDisplay();
+  }, 1000);
+}
+
+function getPracticeProgressSummary() {
+  const keys = new Set(buildQuestionSet(getVisibleBanks()).map(questionKey));
+  const sequenceKeys = Object.keys(state.answerState.sequence || {}).filter(key => keys.has(key));
+  const randomKeys = Object.keys(state.answerState.random || {}).filter(key => keys.has(key));
+  const completed = new Set([...sequenceKeys, ...randomKeys]);
+  const total = keys.size;
+  const percent = total ? Math.round((completed.size / total) * 100) : 0;
+  return {
+    total,
+    completed: completed.size,
+    percent,
+    sequence: sequenceKeys.length,
+    random: randomKeys.length,
+  };
+}
+
+function updateHomeStudyStatsDisplay() {
+  const timeEl = document.getElementById('todayStudyTime');
+  if (timeEl) timeEl.textContent = formatStudyDuration(getTodayStudySeconds());
 }
 
 function setViewProgress(key, payload) {
@@ -1113,14 +2128,40 @@ function mapQuestionKeysToIndices(questions, keyedValues) {
   return result;
 }
 
-function makeQuestionScopeKey(subject, questions, reviewMode, title = '') {
-  const keys = (questions || []).map(questionKey).sort().join('|');
-  return `${reviewMode ? 'review' : 'practice'}:${subject || title || 'all'}:${hashString(keys)}`;
+function getProgressModeSegment(shuffled, reviewMode) {
+  if (reviewMode || state.uiConfig.progressScopePolicy === 'merged') return '';
+  return shuffled ? 'random' : 'sequence';
 }
 
-function makeBankScopeKey(subject, banks, reviewMode) {
+function makeQuestionScopeKey(subject, questions, reviewMode, title = '', shuffled = false) {
+  const keys = (questions || []).map(questionKey).sort().join('|');
+  const mode = getProgressModeSegment(shuffled, reviewMode);
+  return `${reviewMode ? 'review' : 'practice'}:${mode ? `${mode}:` : ''}${subject || title || 'all'}:${hashString(keys)}`;
+}
+
+function makeBankScopeKey(subject, banks, reviewMode, shuffled = false) {
   const ids = (banks || []).map(b => b.id || b.name).sort().join('|');
-  return `${reviewMode ? 'review' : 'practice'}:${subject || 'all'}:${hashString(ids)}`;
+  const mode = getProgressModeSegment(shuffled, reviewMode);
+  return `${reviewMode ? 'review' : 'practice'}:${mode ? `${mode}:` : ''}${subject || 'all'}:${hashString(ids)}`;
+}
+
+function migrateSavedProgressStore(store) {
+  if (!store || typeof store !== 'object') return {};
+  let changed = false;
+  const next = { ...store };
+  Object.entries(store).forEach(([key, saved]) => {
+    if (!saved || saved.reviewMode || key.startsWith('review:')) return;
+    const parts = key.split(':');
+    if (parts[0] !== 'practice' || ['sequence', 'random'].includes(parts[1])) return;
+    const mode = saved.shuffled ? 'random' : 'sequence';
+    const migratedKey = `practice:${mode}:${parts.slice(1).join(':')}`;
+    if (!next[migratedKey]) {
+      next[migratedKey] = { ...saved, scopeKey: migratedKey };
+      changed = true;
+    }
+  });
+  if (changed) saveProgressStore(next);
+  return next;
 }
 
 function hashString(value) {
@@ -1164,12 +2205,14 @@ function orderQuestionsByKeys(questions, orderedKeys) {
 }
 
 function restoreSavedSession(saved, options = {}) {
-  if (!saved) return alert('没有可恢复的进度');
+  if (!saved) return showNotice('没有可恢复的进度');
   const questions = options.questions || getQuestionsFromSavedSession(saved);
-  if (!questions.length) return alert('保存的题库已不存在');
+  if (!questions.length) return showNotice('保存的题库已不存在');
   const currentQuestionKey = saved.currentQuestionKey || questionKey(saved.questions?.[saved.currentIndex || 0] || {});
   const answersByKey = getSavedValueMap(saved, 'answersByKey', 'answers');
   const draftsByKey = getSavedValueMap(saved, 'draftsByKey', 'drafts');
+  const answerModeKey = getAnswerModeKey(options.shuffled ?? Boolean(saved.shuffled), options.reviewMode ?? Boolean(saved.reviewMode), Boolean(saved.wrongPractice));
+  const mergedAnswersByKey = mergeAnswerMapsForMode(questions, answerModeKey, answersByKey);
   const savedIndex = Math.max(0, questions.findIndex(q => questionKey(q) === currentQuestionKey));
   const currentIndex = options.startAtFirst ? 0 : savedIndex;
   state.activeSubject = options.subject || saved.subject || '';
@@ -1177,19 +2220,24 @@ function restoreSavedSession(saved, options = {}) {
     title: options.title || saved.title || '保存的练习',
     subtitle: options.subtitle || saved.subtitle || '保存进度',
     subject: options.subject || saved.subject || '',
+    path: normalizePath(options.path || saved.path || (options.subject || saved.subject ? [options.subject || saved.subject] : [])),
+    returnPath: options.returnPath === null ? getPracticeReturnPath(saved, options.path || saved.path || []) : normalizePath(options.returnPath || saved.returnPath || getPracticeReturnPath(saved, options.path || saved.path || [])),
     shuffled: options.shuffled ?? Boolean(saved.shuffled),
+    reviewMode: options.reviewMode ?? Boolean(saved.reviewMode),
+    wrongPractice: Boolean(saved.wrongPractice),
     questions,
-    scopeKey: options.scopeKey || saved.scopeKey || makeQuestionScopeKey(saved.subject, questions, Boolean(saved.reviewMode), saved.title),
+    scopeKey: options.scopeKey || saved.scopeKey || makeQuestionScopeKey(saved.subject, questions, Boolean(saved.reviewMode), saved.title, Boolean(saved.shuffled)),
     bankIds: options.bankIds || saved.bankIds || [],
   };
   state.currentIndex = currentIndex;
-  state.answers = mapQuestionKeysToIndices(questions, answersByKey);
+  state.answers = mapQuestionKeysToIndices(questions, mergedAnswersByKey);
   state.drafts = mapQuestionKeysToIndices(questions, draftsByKey);
   state.revealedAnswers = {};
   state.mode = saved.mode === 'scroll' ? 'scroll' : 'page';
   state.reviewMode = options.reviewMode ?? Boolean(saved.reviewMode);
   state.navStack = [];
   state.view = 'quiz';
+  syncCurrentAnswersToGlobal();
   renderQuiz();
 }
 
@@ -1214,6 +2262,7 @@ function resetCurrentPractice() {
   const scopeKey = state.activeSession.scopeKey || '';
   if (scopeKey) removeScopedProgress(scopeKey);
   const reshuffled = Boolean(state.activeSession.shuffled && state.uiConfig.randomReshuffleOnReset);
+  clearGlobalAnswersForQuestions(state.activeSession.questions, getAnswerModeKeyFromSession());
   if (reshuffled) {
     state.activeSession.questions = shuffleQuestions(state.activeSession.questions);
   }
@@ -1241,6 +2290,63 @@ function clearToast() {
   if (old) old.remove();
 }
 
+function closeAppDialog() {
+  document.querySelector('.app-dialog-mask')?.remove();
+}
+
+function showAppDialog({ title, message = '', defaultValue = '', input = false, confirmText = '确定', cancelText = '取消', onConfirm }) {
+  closeAppDialog();
+  const mask = document.createElement('div');
+  mask.className = 'app-dialog-mask';
+  const dialog = document.createElement('div');
+  dialog.className = 'app-dialog';
+  dialog.innerHTML = `
+    <h3>${escapeHtml(title)}</h3>
+    ${message ? `<p>${escapeHtml(message)}</p>` : ''}
+    ${input ? `<input type="text" value="${escapeAttr(defaultValue)}">` : ''}
+    <div class="app-dialog-actions">
+      <button class="secondary" type="button">${escapeHtml(cancelText)}</button>
+      <button type="button">${escapeHtml(confirmText)}</button>
+    </div>
+  `;
+  mask.appendChild(dialog);
+  document.body.appendChild(mask);
+  const inputEl = dialog.querySelector('input');
+  const [cancelBtn, okBtn] = dialog.querySelectorAll('button');
+  const finish = () => {
+    const value = inputEl ? inputEl.value.trim() : true;
+    closeAppDialog();
+    if (onConfirm) onConfirm(value);
+  };
+  cancelBtn.onclick = closeAppDialog;
+  okBtn.onclick = finish;
+  mask.onclick = e => { if (e.target === mask) closeAppDialog(); };
+  if (inputEl) {
+    inputEl.focus();
+    inputEl.select();
+    inputEl.onkeydown = e => {
+      if (e.key === 'Enter') finish();
+      if (e.key === 'Escape') closeAppDialog();
+    };
+  } else {
+    okBtn.focus();
+  }
+}
+
+function askText(title, defaultValue, onConfirm) {
+  showAppDialog({ title, defaultValue, input: true, onConfirm: value => {
+    if (value) onConfirm(value);
+  } });
+}
+
+function askConfirm(message, onConfirm) {
+  showAppDialog({ title: '确认操作', message, confirmText: '确认', onConfirm });
+}
+
+function showNotice(message) {
+  showAppDialog({ title: message, confirmText: '知道了', cancelText: '关闭' });
+}
+
 function saveUiConfig() {
   localStorage.setItem(UI_CONFIG_KEY, JSON.stringify(state.uiConfig));
 }
@@ -1252,14 +2358,56 @@ function loadUiConfig() {
       state.uiConfig = { ...state.uiConfig, ...saved };
     }
   } catch(e) {}
+  if (!PALETTE_PRESETS[state.uiConfig.palette]) state.uiConfig.palette = 'classic';
+  normalizeUiConfig();
   applyUiConfig();
+}
+
+function normalizeUiConfig() {
+  if (state.uiConfig.progressScopePolicy !== 'merged') state.uiConfig.progressScopePolicy = 'separate';
+  const iconKeys = getIconOptions().map(item => item.key);
+  if (!iconKeys.includes(state.uiConfig.iconStyle)) state.uiConfig.iconStyle = 'folder';
+  if (!iconKeys.includes(state.uiConfig.subjectIconStyle)) state.uiConfig.subjectIconStyle = 'library';
+  if (!iconKeys.includes(state.uiConfig.chapterIconStyle)) state.uiConfig.chapterIconStyle = 'book';
+  state.uiConfig.savedProgressWidgetWidth = Math.max(280, Math.min(560, Number(state.uiConfig.savedProgressWidgetWidth || 420)));
+  state.uiConfig.persistStudyStats = state.uiConfig.persistStudyStats !== false;
+  state.uiConfig.studyChartRange = normalizeStudyChartRange(state.uiConfig.studyChartRange);
+  const validTools = ['practice', 'review', 'wrong'];
+  state.uiConfig.toolCardOrder = Array.isArray(state.uiConfig.toolCardOrder) ? state.uiConfig.toolCardOrder.filter(key => validTools.includes(key)) : validTools;
+  state.uiConfig.hiddenToolCards = Array.isArray(state.uiConfig.hiddenToolCards) ? state.uiConfig.hiddenToolCards.filter(key => validTools.includes(key)) : [];
+  const validMetrics = ['subjects', 'questions', 'progress', 'time'];
+  state.uiConfig.homeMetricOrder = Array.isArray(state.uiConfig.homeMetricOrder) ? state.uiConfig.homeMetricOrder.filter(key => validMetrics.includes(key)) : validMetrics;
+  state.uiConfig.hiddenHomeMetrics = Array.isArray(state.uiConfig.hiddenHomeMetrics) ? state.uiConfig.hiddenHomeMetrics.filter(key => validMetrics.includes(key)) : [];
+  state.uiConfig.subjectOrder = Array.isArray(state.uiConfig.subjectOrder) ? state.uiConfig.subjectOrder : [];
+  state.uiConfig.libraryOrder = state.uiConfig.libraryOrder && typeof state.uiConfig.libraryOrder === 'object' ? state.uiConfig.libraryOrder : {};
 }
 
 function applyUiConfig() {
   const theme = state.uiConfig.theme === 'system' ? getSystemTheme() : state.uiConfig.theme;
   document.body.dataset.theme = theme;
-  document.documentElement.style.setProperty('--primary', state.uiConfig.primary);
-  document.documentElement.style.setProperty('--primary-soft', hexToSoft(state.uiConfig.primary));
+  const palette = PALETTE_PRESETS[state.uiConfig.palette] || PALETTE_PRESETS.classic;
+  const surface = palette[theme] || palette.light;
+  const root = document.documentElement;
+  root.style.setProperty('--bg', surface.bg);
+  root.style.setProperty('--card', surface.card);
+  root.style.setProperty('--text', surface.text);
+  root.style.setProperty('--muted', surface.muted);
+  root.style.setProperty('--line', surface.line);
+  root.style.setProperty('--primary', state.uiConfig.primary || palette.primary);
+  root.style.setProperty('--primary-soft', hexToSoft(state.uiConfig.primary || palette.primary));
+  root.style.setProperty('--secondary', palette.secondary);
+  root.style.setProperty('--secondary-soft', hexToSoft(palette.secondary));
+  root.style.setProperty('--success', palette.success);
+  root.style.setProperty('--success-soft', hexToSoft(palette.success));
+  root.style.setProperty('--danger', palette.danger);
+  root.style.setProperty('--danger-soft', hexToSoft(palette.danger));
+  root.style.setProperty('--warn', palette.warn);
+  root.style.setProperty('--warn-soft', hexToSoft(palette.warn));
+  root.style.setProperty('--bar-bg', rgbaFromHex(surface.card, theme === 'dark' ? .90 : .92));
+  root.style.setProperty('--option-tint', rgbaFromHex(theme === 'dark' ? surface.bg : surface.line, theme === 'dark' ? .72 : .42));
+  root.style.setProperty('--shadow', theme === 'dark' ? '0 2px 18px rgba(0,0,0,.24)' : '0 10px 28px rgba(23,31,56,.07)');
+  root.style.setProperty('--shadow-soft', theme === 'dark' ? '0 1px 2px rgba(0,0,0,.3),0 12px 32px rgba(0,0,0,.24)' : '0 1px 2px rgba(23,31,56,.04),0 10px 30px rgba(23,31,56,.055)');
+  root.style.setProperty('--saved-progress-width', `${state.uiConfig.savedProgressWidgetWidth || 420}px`);
 }
 
 function getSystemTheme() {
@@ -1270,18 +2418,30 @@ function getSystemTheme() {
 window.applyNativeTheme = function applyNativeTheme(isDark) {
   window.__nativeDarkMode = Boolean(isDark);
   if (state.uiConfig.theme === 'system') {
-    document.body.dataset.theme = isDark ? 'dark' : 'light';
+    applyUiConfig();
   }
 };
 
 function hexToSoft(hex) {
-  const clean = String(hex || '#4f6ef7').replace('#', '');
+  const rgb = hexToRgb(hex);
+  if (!rgb) return 'rgba(31,143,98,.12)';
+  return `rgba(${rgb.r},${rgb.g},${rgb.b},.12)`;
+}
+
+function rgbaFromHex(hex, alpha) {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return `rgba(31,143,98,${alpha})`;
+  return `rgba(${rgb.r},${rgb.g},${rgb.b},${alpha})`;
+}
+
+function hexToRgb(hex) {
+  const clean = String(hex || '#1f8f62').replace('#', '');
   const full = clean.length === 3 ? clean.split('').map(c => c + c).join('') : clean;
   const r = parseInt(full.slice(0, 2), 16);
   const g = parseInt(full.slice(2, 4), 16);
   const b = parseInt(full.slice(4, 6), 16);
-  if ([r, g, b].some(Number.isNaN)) return '#eef1fe';
-  return `rgba(${r},${g},${b},.12)`;
+  if ([r, g, b].some(Number.isNaN)) return null;
+  return { r, g, b };
 }
 
 async function loadBundledBanks() {
@@ -1298,6 +2458,7 @@ async function loadBundledBanks() {
       ...embeddedBanks.map((data, i) => normalizeBank(data, `embedded:${i}`, true)),
       ...imported,
     ];
+    applyBankMeta();
     state.loadingDefaults = false;
     renderHome();
     return;
@@ -1314,6 +2475,7 @@ async function loadBundledBanks() {
   }
 
   state.banks = [...loaded, ...imported];
+  applyBankMeta();
   state.loadingDefaults = false;
   renderHome();
 }
@@ -1463,11 +2625,13 @@ function normalizeBank(data, fallbackId, bundled) {
   const parsed = parseBankName(String(name));
   const subject = data.subject || data['科目'] || parsed.subject;
   const chapter = getDisplayChapter(subject, data.chapter || data['章节'] || parsed.chapter);
+  const path = normalizePath(data.path || data['路径'] || [subject, chapter]);
   return {
     id: data.id || fallbackId || `${Date.now()}`,
     name: String(name),
     subject,
     chapter,
+    path,
     questions,
     bundled: Boolean(bundled),
   };
@@ -1501,23 +2665,163 @@ function parseBankName(name) {
   return { subject: clean || '未分类', chapter: '综合练习' };
 }
 
+function normalizePath(path) {
+  if (Array.isArray(path)) return path.map(item => String(item || '').trim()).filter(Boolean);
+  return String(path || '').split(/[/>｜|]/).map(item => item.trim()).filter(Boolean);
+}
+
+function pathKey(path) {
+  return normalizePath(path).join('\u001f');
+}
+
+function samePath(a, b) {
+  return pathKey(a) === pathKey(b);
+}
+
+function isPathPrefix(parent, child) {
+  const p = normalizePath(parent);
+  const c = normalizePath(child);
+  return p.length <= c.length && p.every((item, index) => c[index] === item);
+}
+
+function parentPath(path) {
+  return normalizePath(path).slice(0, -1);
+}
+
+function pathTitle(path) {
+  const p = normalizePath(path);
+  return p.length ? p[p.length - 1] : '全部题库';
+}
+
+function pathCrumbs(path) {
+  const p = normalizePath(path);
+  return ['首页', ...p].join(' / ');
+}
+
+function getBankPath(bank) {
+  const path = normalizePath(bank?.path);
+  if (path.length) return path;
+  const parsed = parseBankName(bank?.name || '');
+  const subject = bank?.subject || parsed.subject;
+  const chapter = bank?.chapter || parsed.chapter;
+  return normalizePath([subject, chapter]);
+}
+
+function setBankPath(bank, path) {
+  const normalized = normalizePath(path);
+  if (!bank || !normalized.length) return;
+  bank.path = normalized;
+  bank.subject = normalized[0] || bank.subject || '未分类';
+  bank.chapter = normalized[normalized.length - 1] || bank.chapter || '综合练习';
+}
+
+function ensureLibraryPath(path) {
+  const normalized = normalizePath(path);
+  let changed = false;
+  for (let i = 1; i <= normalized.length; i++) {
+    const partial = normalized.slice(0, i);
+    if (!state.libraryNodes.some(node => samePath(node.path, partial))) {
+      state.libraryNodes.push({
+        id: `node:${Date.now()}:${Math.random().toString(36).slice(2)}`,
+        path: partial,
+        createdAt: Date.now(),
+      });
+      changed = true;
+    }
+  }
+  if (changed) saveLibraryNodes();
+}
+
+function getBanksAtPath(path) {
+  const key = pathKey(path);
+  return getVisibleBanks().filter(bank => pathKey(getBankPath(bank)) === key);
+}
+
+function getDescendantBanks(path) {
+  const p = normalizePath(path);
+  return getVisibleBanks().filter(bank => isPathPrefix(p, getBankPath(bank)));
+}
+
+function getLibraryChildren(path = []) {
+  const p = normalizePath(path);
+  const seen = new Map();
+  const add = childPath => {
+    const normalized = normalizePath(childPath);
+    if (normalized.length !== p.length + 1) return;
+    if (!isPathPrefix(p, normalized)) return;
+    const key = pathKey(normalized);
+    if (!seen.has(key)) seen.set(key, { path: normalized, title: pathTitle(normalized), banks: getDescendantBanks(normalized) });
+  };
+  state.libraryNodes.forEach(node => add(node.path));
+  getVisibleBanks().forEach(bank => {
+    const bankPath = getBankPath(bank);
+    if (bankPath.length > p.length) add(bankPath.slice(0, p.length + 1));
+  });
+  return Array.from(seen.values()).sort((a, b) => {
+    if (p.length === 0) {
+      const order = Array.isArray(state.uiConfig.subjectOrder) ? state.uiConfig.subjectOrder : [];
+      const ai = order.indexOf(a.title);
+      const bi = order.indexOf(b.title);
+      if (ai !== -1 || bi !== -1) return (ai === -1 ? 9999 : ai) - (bi === -1 ? 9999 : bi);
+    }
+    if (p.length >= 1) {
+      const av = chapterSortValue(a.title);
+      const bv = chapterSortValue(b.title);
+      if (av !== bv) return av - bv;
+    }
+    return a.title.localeCompare(b.title, 'zh-Hans-CN');
+  });
+}
+
+function applyStoredOrder(items, orderKey, getKey) {
+  const order = state.uiConfig.libraryOrder?.[orderKey] || [];
+  return items.slice().sort((a, b) => {
+    const ak = getKey(a);
+    const bk = getKey(b);
+    const ai = order.indexOf(ak);
+    const bi = order.indexOf(bk);
+    if (ai !== -1 || bi !== -1) return (ai === -1 ? 9999 : ai) - (bi === -1 ? 9999 : bi);
+    return 0;
+  });
+}
+
+function getLibraryDisplayItems(path = []) {
+  const p = normalizePath(path);
+  const orderKey = `library:${pathKey(p) || 'root'}`;
+  const items = [
+    ...getLibraryChildren(p).map(child => ({ type: 'child', key: `path:${pathKey(child.path)}`, data: child })),
+    ...getBanksAtPath(p).map(bank => ({ type: 'bank', key: `bank:${bank.id}`, data: bank })),
+  ];
+  return applyStoredOrder(items, orderKey, item => item.key);
+}
+
+function renderLibraryDisplayItem(item) {
+  return item.type === 'child' ? renderLibraryChildItem(item.data) : renderDirectBankItem(item.data);
+}
+
 function getSubjectGroups() {
   const groups = new Map();
-  for (const bank of state.banks) {
-    const subject = bank.subject || parseBankName(bank.name).subject;
+  for (const bank of getVisibleBanks()) {
+    const subject = getBankPath(bank)[0] || bank.subject || parseBankName(bank.name).subject;
     if (!groups.has(subject)) groups.set(subject, []);
     groups.get(subject).push(bank);
   }
+  const order = Array.isArray(state.uiConfig.subjectOrder) ? state.uiConfig.subjectOrder : [];
   return Array.from(groups, ([subject, banks]) => ({
     subject,
     banks,
     questionCount: banks.reduce((sum, bank) => sum + bank.questions.length, 0),
-  }));
+  })).sort((a, b) => {
+    const ai = order.indexOf(a.subject);
+    const bi = order.indexOf(b.subject);
+    if (ai !== -1 || bi !== -1) return (ai === -1 ? 9999 : ai) - (bi === -1 ? 9999 : bi);
+    return a.subject.localeCompare(b.subject, 'zh-Hans-CN');
+  });
 }
 
 function getBanksBySubject(subject) {
-  return state.banks
-    .filter(b => (b.subject || parseBankName(b.name).subject) === subject)
+  return getVisibleBanks()
+    .filter(b => getBankPath(b)[0] === subject)
     .sort((a, b) => chapterSortValue(a.chapter) - chapterSortValue(b.chapter));
 }
 
@@ -1538,8 +2842,9 @@ function buildQuestionSet(banks) {
   return banks.flatMap(bank => bank.questions.map((q, i) => ({
     ...q,
     sourceBankId: bank.id,
-    sourceSubject: bank.subject || parseBankName(bank.name).subject,
-    sourceChapter: bank.chapter || parseBankName(bank.name).chapter,
+    sourcePath: getBankPath(bank),
+    sourceSubject: getBankPath(bank)[0] || bank.subject || parseBankName(bank.name).subject,
+    sourceChapter: getBankPath(bank).slice(-1)[0] || bank.chapter || parseBankName(bank.name).chapter,
     sourceIndex: i,
   })));
 }
@@ -1616,6 +2921,7 @@ function saveCurrentViewPosition() {
 
 function getWrongRecords(filter = {}) {
   return Object.values(state.wrongBook).filter(record => {
+    if (filter.path && filter.path.length && !isPathPrefix(filter.path, record.question.sourcePath || [record.question.sourceSubject, record.question.sourceChapter])) return false;
     if (filter.subject && record.question.sourceSubject !== filter.subject) return false;
     if (filter.chapter && record.question.sourceChapter !== filter.chapter) return false;
     return true;
@@ -1671,6 +2977,343 @@ function removeWrongFromBook(idx) {
   removeWrongFromBookByKey(questionKey(q));
 }
 
+function isToolGroupExpanded(key) {
+  if (Object.prototype.hasOwnProperty.call(state.panelExpanded, key)) return state.panelExpanded[key];
+  return Boolean(state.uiConfig.toolPanelsDefaultExpanded);
+}
+
+function toggleToolGroup(key) {
+  state.panelExpanded[key] = !isToolGroupExpanded(key);
+  if (state.view === 'subjects') renderSubject();
+  else if (state.view === 'home') renderHome();
+}
+
+function renderToolToggle(key) {
+  const expanded = isToolGroupExpanded(key);
+  return `
+    <button class="tool-toggle" onclick="toggleToolGroup('${escapeAttr(key)}')" aria-expanded="${expanded}">
+      <span class="icon">${expanded ? '▴' : '▾'}</span>
+      <span>${expanded ? '收起' : '工具'}</span>
+    </button>
+  `;
+}
+
+function renderActionPanel(title, buttonsHtml, options = {}) {
+  const editAttrs = state.editMode && options.key
+    ? ` editing editable-card" data-drag-kind="tool" data-drag-key="${escapeAttr(options.key)}`
+    : '';
+  return `
+    <div class="action-panel${editAttrs}">
+      ${state.editMode && options.key ? renderEditableRemove('tool', options.key, title) : ''}
+      <div class="section-title">${escapeHtml(title)}</div>
+      <div class="action-grid">${buttonsHtml}</div>
+      ${state.editMode && options.key ? '<small class="edit-handle">长按拖动排序</small>' : ''}
+    </div>
+  `;
+}
+
+function getToolCardMeta(key) {
+  const map = {
+    practice: { label: '练习模式' },
+    review: { label: '背题与答案' },
+    wrong: { label: '错题集' },
+  };
+  return map[key] || { label: key };
+}
+
+function getHomeMetricMeta(key) {
+  const map = {
+    subjects: { label: '科目' },
+    questions: { label: '题目' },
+    progress: { label: '做题进度' },
+    time: { label: '今日学习时长' },
+  };
+  return map[key] || { label: key };
+}
+
+function getEnabledHomeMetrics() {
+  const defaults = ['subjects', 'questions', 'progress', 'time'];
+  const order = Array.isArray(state.uiConfig.homeMetricOrder) ? state.uiConfig.homeMetricOrder.filter(key => defaults.includes(key)) : defaults;
+  const hidden = new Set(Array.isArray(state.uiConfig.hiddenHomeMetrics) ? state.uiConfig.hiddenHomeMetrics : []);
+  const fullOrder = [...order, ...defaults.filter(key => !order.includes(key))];
+  return fullOrder.filter(key => !hidden.has(key));
+}
+
+function renderEditableRemove(kind, key, label) {
+  if (!state.editMode) return '';
+  return `<button class="edit-remove" onclick="event.stopPropagation();hideEditableComponent('${escapeAttr(kind)}','${escapeAttr(key)}')" aria-label="移除${escapeAttr(label)}">×</button>`;
+}
+
+function renderHomeMetrics(subjectGroups, totalQuestions, progressSummary, todayStudyTime) {
+  const cards = {
+    subjects: () => `
+      <div class="metric-card ${state.editMode ? 'editing editable-card' : ''}" ${state.editMode ? 'data-drag-kind="metric" data-drag-key="subjects"' : ''}>
+        ${renderEditableRemove('metric', 'subjects', '科目')}
+        <h3>${subjectGroups.length}</h3><small>科目</small>
+        ${state.editMode ? '<small class="edit-handle">长按拖动排序</small>' : ''}
+      </div>
+    `,
+    questions: () => `
+      <div class="metric-card ${state.editMode ? 'editing editable-card' : ''}" ${state.editMode ? 'data-drag-kind="metric" data-drag-key="questions"' : ''}>
+        ${renderEditableRemove('metric', 'questions', '题目')}
+        <h3>${totalQuestions}</h3><small>题目</small>
+        ${state.editMode ? '<small class="edit-handle">长按拖动排序</small>' : ''}
+      </div>
+    `,
+    progress: () => `
+      <div class="metric-card progress-metric ${state.editMode ? 'editing editable-card' : ''}" ${state.editMode ? 'data-drag-kind="metric" data-drag-key="progress"' : ''}>
+        ${renderEditableRemove('metric', 'progress', '做题进度')}
+        <div class="metric-row"><small>做题进度</small><span class="metric-value">${progressSummary.percent}%</span></div>
+        <div class="home-progress-track"><div class="home-progress-fill" style="width:${progressSummary.percent}%"></div></div>
+        <div class="home-progress-meta">
+          <span>${progressSummary.completed}/${progressSummary.total} 已练</span>
+          <span>顺序 ${progressSummary.sequence} · 随机 ${progressSummary.random}</span>
+        </div>
+        ${state.editMode ? '<small class="edit-handle">长按拖动排序</small>' : ''}
+      </div>
+    `,
+      time: () => `
+      <div class="metric-card time-metric ${state.editMode ? 'editing editable-card' : ''}" ${state.editMode ? 'data-drag-kind="metric" data-drag-key="time"' : 'role="button" tabindex="0" aria-label="打开学习统计" onclick="openStudyStats()" onkeydown="handleStudyStatsCardKeydown(event)"'}>
+        ${renderEditableRemove('metric', 'time', '今日学习时长')}
+        <div class="metric-row"><small>今日学习时长</small><span class="metric-value" id="todayStudyTime">${todayStudyTime}</span></div>
+        <div class="home-progress-meta study-entry-meta"><span>统计顺序、随机、背题、答案表、错题集界面</span><span class="${state.editMode ? '' : 'metric-click-hint'}">${state.editMode ? '可拖动排序' : '点击查看统计'}</span></div>
+        ${state.editMode ? '<small class="edit-handle">长按拖动排序</small>' : ''}
+      </div>
+    `,
+  };
+  return getEnabledHomeMetrics().map(key => cards[key]?.() || '').join('');
+}
+
+function getEnabledToolCards() {
+  const defaults = ['practice', 'review', 'wrong'];
+  const order = Array.isArray(state.uiConfig.toolCardOrder) ? state.uiConfig.toolCardOrder.filter(key => defaults.includes(key)) : defaults;
+  const hidden = new Set(Array.isArray(state.uiConfig.hiddenToolCards) ? state.uiConfig.hiddenToolCards : []);
+  const fullOrder = [...order, ...defaults.filter(key => !order.includes(key))];
+  return fullOrder.filter(key => !hidden.has(key));
+}
+
+function renderToolPanels(scope, context = {}) {
+  const cards = {
+    home: {
+      practice: () => renderActionPanel('练习模式', `
+        <button onclick="startAllPractice(false)">全部顺序练习</button>
+        <button class="secondary" onclick="startAllPractice(true)">全部随机练习</button>
+        <button class="muted-mode" onclick="startAllPractice(false,true)">全部重新做</button>
+      `, { key: 'practice' }),
+      review: () => renderActionPanel('背题与答案', `
+        <button class="answer-mode" onclick="startAllReview()">全部背题模式</button>
+        <button class="lookup-mode" onclick="openAnswerLookup('', '')">全部答案表</button>
+      `, { key: 'review' }),
+      wrong: () => renderActionPanel('错题集', `
+        <button class="wrong-mode" onclick="openWrongPractice('', '', true)" ${context.totalWrongCount ? '' : 'disabled'}>全部错题集 ${context.totalWrongCount || 0}</button>
+      `, { key: 'wrong' }),
+    },
+    subject: {
+      practice: () => renderActionPanel('练习模式', `
+        <button onclick="startPathPractice(false)">本层顺序练习</button>
+        <button class="secondary" onclick="startPathPractice(true)">本层随机练习</button>
+        <button class="muted-mode" onclick="startPathPractice(false,true)">本层重新做</button>
+      `, { key: 'practice' }),
+      review: () => renderActionPanel('背题与答案', `
+        <button class="answer-mode" onclick="startPathReview()">本层背题模式</button>
+        <button class="lookup-mode" onclick="openAnswerLookup('${escapeAttr(context.subject || '')}', '')">本层答案表</button>
+      `, { key: 'review' }),
+      wrong: () => renderActionPanel('错题集', `
+        <button class="wrong-mode" onclick="openPathWrongPractice(true)" ${context.wrongCount ? '' : 'disabled'}>本层错题集 ${context.wrongCount || 0}</button>
+      `, { key: 'wrong' }),
+    },
+  };
+  const group = cards[scope] || cards.home;
+  return getEnabledToolCards().map(key => group[key]?.() || '').join('');
+}
+
+function dismissSavedProgressHint() {
+  state.uiConfig.showSavedProgressHint = false;
+  saveUiConfig();
+  renderHome();
+}
+
+function toggleEditMode() {
+  state.editMode = !state.editMode;
+  if (state.view === 'subjects') renderSubject();
+  else renderHome();
+}
+
+function setupEditableInteractions() {
+  if (!state.editMode) return;
+  const cards = Array.from(document.querySelectorAll('.editable-card[data-drag-kind][data-drag-key]'));
+  cards.forEach(card => {
+    let timer = null;
+    let dragging = false;
+    let pointerOffsetX = 0;
+    let pointerOffsetY = 0;
+    let placeholder = null;
+    let startRect = null;
+    const clear = () => {
+      window.clearTimeout(timer);
+      timer = null;
+      card.classList.remove('dragging');
+      card.style.position = '';
+      card.style.left = '';
+      card.style.top = '';
+      card.style.width = '';
+      card.style.height = '';
+      card.style.zIndex = '';
+      card.style.pointerEvents = '';
+      card.style.transition = '';
+      if (placeholder) {
+        placeholder.remove();
+        placeholder = null;
+      }
+      dragging = false;
+    };
+    const moveTo = e => {
+      card.style.left = `${e.clientX - pointerOffsetX}px`;
+      card.style.top = `${e.clientY - pointerOffsetY}px`;
+    };
+    card.addEventListener('pointerdown', e => {
+      if (e.target.closest('button')) return;
+      startRect = card.getBoundingClientRect();
+      pointerOffsetX = e.clientX - startRect.left;
+      pointerOffsetY = e.clientY - startRect.top;
+      timer = window.setTimeout(() => {
+        dragging = true;
+        placeholder = document.createElement('div');
+        placeholder.className = 'drag-placeholder';
+        placeholder.style.width = `${startRect.width}px`;
+        placeholder.style.height = `${startRect.height}px`;
+        card.parentNode.insertBefore(placeholder, card);
+        card.classList.add('dragging');
+        card.style.position = 'fixed';
+        card.style.left = `${startRect.left}px`;
+        card.style.top = `${startRect.top}px`;
+        card.style.width = `${startRect.width}px`;
+        card.style.height = `${startRect.height}px`;
+        card.style.zIndex = '120';
+        card.style.pointerEvents = 'none';
+        card.style.transition = 'none';
+        try { card.setPointerCapture(e.pointerId); } catch(err) {}
+      }, 260);
+    });
+    card.addEventListener('pointermove', e => {
+      if (!dragging) return;
+      e.preventDefault();
+      moveTo(e);
+    });
+    card.addEventListener('pointerup', e => {
+      window.clearTimeout(timer);
+      if (!dragging) return clear();
+      const target = document.elementFromPoint(e.clientX, e.clientY)?.closest('.editable-card[data-drag-kind][data-drag-key]');
+      const kind = card.dataset.dragKind;
+      const from = card.dataset.dragKey;
+      const to = target?.dataset.dragKind === kind ? target.dataset.dragKey : '';
+      clear();
+      if (to && to !== from) reorderEditableItem(kind, from, to);
+    });
+    card.addEventListener('pointercancel', clear);
+    card.addEventListener('pointerleave', () => window.clearTimeout(timer));
+  });
+}
+
+function moveKeyInList(list, from, to) {
+  const arr = list.slice();
+  const fromIndex = arr.indexOf(from);
+  const toIndex = arr.indexOf(to);
+  if (fromIndex < 0 || toIndex < 0) return arr;
+  const [item] = arr.splice(fromIndex, 1);
+  arr.splice(toIndex, 0, item);
+  return arr;
+}
+
+function reorderEditableItem(kind, from, to) {
+  if (kind === 'tool') {
+    const current = getEnabledToolCards();
+    state.uiConfig.toolCardOrder = moveKeyInList(current, from, to);
+  } else if (kind === 'metric') {
+    const current = getEnabledHomeMetrics();
+    state.uiConfig.homeMetricOrder = moveKeyInList(current, from, to);
+  } else if (kind === 'subject') {
+    const current = getLibraryChildren([]).map(child => child.title);
+    state.uiConfig.subjectOrder = moveKeyInList(current, from, to);
+  } else if (kind === 'library') {
+    const parent = state.view === 'subjects' ? normalizePath(state.activePath) : [];
+    const orderKey = `library:${pathKey(parent) || 'root'}`;
+    const current = getLibraryDisplayItems(parent).map(item => item.key);
+    state.uiConfig.libraryOrder = state.uiConfig.libraryOrder || {};
+    state.uiConfig.libraryOrder[orderKey] = moveKeyInList(current, from, to);
+  }
+  saveUiConfig();
+  showToast('顺序已更新');
+  if (state.view === 'subjects') renderSubject();
+  else renderHome();
+}
+
+function isChapterActionsExpanded(bankId) {
+  if (Object.prototype.hasOwnProperty.call(state.chapterActionsExpanded, bankId)) return state.chapterActionsExpanded[bankId];
+  return Boolean(state.uiConfig.chapterActionsDefaultExpanded);
+}
+
+function toggleChapterActions(bankId) {
+  const anchor = getSubjectScrollAnchor(bankId);
+  state.chapterActionsExpanded[bankId] = !isChapterActionsExpanded(bankId);
+  renderSubject({ preserveScroll: true, scrollAnchor: anchor });
+}
+
+function expandChapterActions(bankId) {
+  if (state.uiConfig.chapterActionLayout !== 'compact') return;
+  if (isChapterActionsExpanded(bankId)) return;
+  const anchor = getSubjectScrollAnchor(bankId);
+  state.chapterActionsExpanded[bankId] = true;
+  renderSubject({ preserveScroll: true, scrollAnchor: anchor });
+}
+
+function findBankCardElement(bankId) {
+  return Array.from(document.querySelectorAll('.bank-item[data-bank-id]'))
+    .find(item => item.dataset.bankId === String(bankId));
+}
+
+function getSubjectScrollAnchor(bankId) {
+  const scroller = document.querySelector('.viewport.view-scroll');
+  const card = findBankCardElement(bankId);
+  return {
+    bankId,
+    scrollTop: scroller ? scroller.scrollTop : 0,
+    cardTop: card ? card.getBoundingClientRect().top : null,
+  };
+}
+
+function getEnabledChapterActionButtons() {
+  const defaults = ['sequence', 'random', 'reset', 'review', 'answer', 'wrong'];
+  const saved = Array.isArray(state.uiConfig.chapterActionButtons) ? state.uiConfig.chapterActionButtons : defaults;
+  const valid = saved.filter(item => defaults.includes(item));
+  return valid.length ? valid : defaults;
+}
+
+function renderChapterActions(bank, subject, chapter, wrongCount) {
+  const bankId = bank.id;
+  const allButtons = {
+    sequence: `<button onclick="startChapterPractice('${escapeAttr(bankId)}',false)">顺序</button>`,
+    random: `<button onclick="startChapterPractice('${escapeAttr(bankId)}',true)">随机</button>`,
+    reset: `<button class="muted-mode" onclick="startChapterPractice('${escapeAttr(bankId)}',false,true)">重做</button>`,
+    review: `<button onclick="startChapterReview('${escapeAttr(bankId)}')">背题</button>`,
+    answer: `<button class="lookup-mode" onclick="openAnswerLookup('${escapeAttr(subject)}','${escapeAttr(chapter)}')">答案</button>`,
+    wrong: `<button class="wrong-mode" onclick="openWrongPractice('${escapeAttr(subject)}','${escapeAttr(chapter)}',true)" ${wrongCount ? '' : 'disabled'}>错题集</button>`,
+  };
+  const buttons = getEnabledChapterActionButtons().map(key => allButtons[key]).join('');
+  if (state.uiConfig.chapterActionLayout !== 'compact') {
+    return `<div class="chapter-actions" onclick="event.stopPropagation()">${buttons}</div>`;
+  }
+  const expanded = isChapterActionsExpanded(bankId);
+  return `
+    <div class="chapter-action-wrap ${expanded ? 'expanded' : 'collapsed'}" onclick="event.stopPropagation()">
+      <button class="chapter-expand-icon" onclick="event.stopPropagation();toggleChapterActions('${escapeAttr(bankId)}')" aria-expanded="${expanded}" aria-label="${expanded ? '收起模式' : '展开模式'}">
+        ＋
+      </button>
+      <div class="chapter-actions">${buttons}</div>
+    </div>
+  `;
+}
+
 function shuffleQuestions(questions) {
   const arr = questions.slice();
   for (let i = arr.length - 1; i > 0; i--) {
@@ -1680,42 +3323,50 @@ function shuffleQuestions(questions) {
   return arr;
 }
 
-function startPractice({ subject, banks, title, subtitle, shuffled, reviewMode = false, forceNew = false }) {
+function startPractice({ subject, banks, title, subtitle, shuffled, reviewMode = false, forceNew = false, path = [], returnPath = null }) {
   const source = Array.isArray(banks) ? banks : [];
   const questions = buildQuestionSet(source);
-  const scopeKey = makeBankScopeKey(subject, source, reviewMode);
+  const scopeKey = makeBankScopeKey(subject, source, reviewMode, shuffled);
   const bankIds = source.map(bank => bank.id);
   if (!forceNew) {
     const saved = getSavedSession(scopeKey);
     if (saved) {
       const ordered = shuffled ? shuffleQuestions(questions) : questions;
-      restoreSavedSession(saved, { subject, title, subtitle, questions: ordered, shuffled, reviewMode, scopeKey, bankIds, startAtFirst: Boolean(shuffled) });
+      restoreSavedSession(saved, { subject, title, subtitle, questions: ordered, shuffled, reviewMode, scopeKey, bankIds, startAtFirst: Boolean(shuffled), path, returnPath });
       return;
     }
   }
-  startQuestionPractice({ subject, title, subtitle, questions, shuffled, reviewMode, scopeKey, bankIds, forceNew });
+  startQuestionPractice({ subject, title, subtitle, questions, shuffled, reviewMode, scopeKey, bankIds, forceNew, path, returnPath });
 }
 
-function startQuestionPractice({ subject, title, subtitle, questions, shuffled, reviewMode = false, scopeKey = '', bankIds = [], wrongPractice = false, forceNew = false }) {
+function startQuestionPractice({ subject, title, subtitle, questions, shuffled, reviewMode = false, scopeKey = '', bankIds = [], wrongPractice = false, forceNew = false, path = [], returnPath = null }) {
   if (!questions.length) return;
   clearToast();
   const finalQuestions = shuffled ? shuffleQuestions(questions) : questions;
-  const finalScopeKey = scopeKey || makeQuestionScopeKey(subject, questions, reviewMode, title);
+  const finalScopeKey = scopeKey || makeQuestionScopeKey(subject, questions, reviewMode, title, shuffled);
+  const answerModeKey = getAnswerModeKey(shuffled, reviewMode, wrongPractice);
   if (forceNew) removeScopedProgress(finalScopeKey);
+  if (forceNew) clearGlobalAnswersForQuestions(questions, answerModeKey);
   pushRoute();
   state.activeSubject = subject;
+  state.activePath = normalizePath(path || (subject ? [subject] : []));
   state.activeSession = {
     title,
     subtitle,
     subject,
+    path: state.activePath,
+    returnPath: returnPath === null ? state.activePath : normalizePath(returnPath),
     shuffled,
+    reviewMode,
     questions: finalQuestions,
     scopeKey: finalScopeKey,
     bankIds,
     wrongPractice,
   };
   state.currentIndex = 0;
-  state.answers = {};
+  state.answers = shouldAutoPersistAnswers({ shuffled, reviewMode, wrongPractice, questions: finalQuestions })
+    ? mapQuestionKeysToIndices(finalQuestions, getGlobalAnswersForQuestions(finalQuestions, answerModeKey))
+    : {};
   state.drafts = {};
   state.revealedAnswers = {};
   state.reviewMode = Boolean(reviewMode);
@@ -1752,19 +3403,526 @@ function checkAnswer(q, userAns) {
 }
 
 // ========== Import ==========
-function importJSON(jsonStr) {
+function importJSON(jsonStr, targetPath = null) {
   try {
     const data = JSON.parse(jsonStr);
     const bank = normalizeBank(data, `import:${Date.now()}`, false);
-    if (!bank.questions.length) return alert('未找到有效题目');
+    if (!bank.questions.length) {
+      showNotice('未找到有效题目');
+      return false;
+    }
+    let importPath = normalizePath(targetPath ?? state.pendingImportPath ?? state.activePath ?? []);
+    if (!importPath.length) {
+      askText('请输入主页题库标题', bank.name || '新题库', title => importJSON(jsonStr, [title]));
+      return false;
+    }
+    setBankPath(bank, importPath);
+    bank.name = pathTitle(importPath);
+    ensureLibraryPath(importPath);
     state.banks.push(bank);
     saveBanks();
-    renderHome();
+    saveBankMeta();
+    state.activePath = importPath;
+    state.activeSubject = importPath[0] || '';
+    importPath.length ? renderSubject() : renderHome();
     return true;
   } catch(e) {
-    alert('JSON 解析失败：' + e.message);
+    showNotice('JSON 解析失败：' + e.message);
     return false;
   }
+}
+
+function openLibraryPath(path) {
+  pushRoute();
+  state.view = 'subjects';
+  state.activePath = normalizePath(path);
+  state.activeSubject = state.activePath[0] || '';
+  renderSubject();
+}
+
+function createLibraryNode(parent = []) {
+  const base = normalizePath(parent);
+  askText('请输入新层级名称', '', name => {
+    const path = [...base, String(name).trim()].filter(Boolean);
+    if (!path.length) return;
+    ensureLibraryPath(path);
+    state.activePath = base;
+    showToast('已创建层级');
+    if (base.length) renderSubject();
+    else renderHome();
+  });
+}
+
+function renameLibraryPath(path) {
+  const oldPath = normalizePath(path);
+  if (!oldPath.length) return;
+  askText('请输入新的名称', pathTitle(oldPath), nextName => {
+    const newPath = [...parentPath(oldPath), String(nextName).trim()].filter(Boolean);
+    if (!newPath.length || samePath(oldPath, newPath)) return;
+    state.libraryNodes.forEach(node => {
+      if (isPathPrefix(oldPath, node.path)) node.path = [...newPath, ...normalizePath(node.path).slice(oldPath.length)];
+    });
+    state.banks.forEach(bank => {
+      const bankPath = getBankPath(bank);
+      if (!isPathPrefix(oldPath, bankPath)) return;
+      setBankPath(bank, [...newPath, ...bankPath.slice(oldPath.length)]);
+      rememberBankMeta(bank);
+    });
+    ensureLibraryPath(newPath);
+    saveLibraryNodes();
+    saveBanks();
+    showToast('名称已更新');
+    state.activePath = samePath(state.activePath, oldPath) ? newPath : state.activePath;
+    if (state.activePath.length) renderSubject();
+    else renderHome();
+  });
+}
+
+function cloneData(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+function makeRecycleStoragePath(id) {
+  const safeId = String(id || `recycle-${Date.now()}`).replace(/[^a-zA-Z0-9_-]/g, '_');
+  return `${RECYCLE_STORAGE_DIRECTORY}${safeId}.json`;
+}
+
+function addRecycleItem(item) {
+  const id = `recycle:${Date.now()}:${Math.random().toString(36).slice(2)}`;
+  const deletedAt = Date.now();
+  state.recycleBin.unshift({
+    id,
+    deletedAt,
+    storagePath: item.storagePath || makeRecycleStoragePath(id),
+    ...item,
+  });
+  saveRecycleBin();
+}
+
+function markBankHidden(bankId, hidden = true) {
+  if (!bankId) return;
+  const current = state.bankMeta[bankId] || {};
+  state.bankMeta[bankId] = { ...current, hidden, updatedAt: Date.now() };
+}
+
+function deleteLibraryPath(path) {
+  const target = normalizePath(path);
+  if (!target.length) return;
+  const banks = getDescendantBanks(target);
+  const bundledCount = banks.filter(bank => bank.bundled).length;
+  const message = bundledCount
+    ? `删除“${pathTitle(target)}”？其中 ${bundledCount} 个内置题库会先在本机隐藏，并进入回收站。`
+    : `删除“${pathTitle(target)}”及其下 ${banks.length} 个导入题库？删除后会先进入回收站。`;
+  askConfirm(message, () => {
+    const descendantNodes = state.libraryNodes.filter(node => isPathPrefix(target, node.path));
+    const importedBanks = banks.filter(bank => !bank.bundled);
+    const bundledBankIds = banks.filter(bank => bank.bundled).map(bank => bank.id);
+    addRecycleItem({
+      type: 'path',
+      title: pathTitle(target),
+      path: target,
+      libraryNodes: cloneData(descendantNodes),
+      importedBanks: cloneData(importedBanks),
+      bundledBankIds,
+      bankMeta: cloneData(Object.fromEntries(banks.map(bank => [bank.id, state.bankMeta[bank.id] || null]))),
+    });
+    state.libraryNodes = state.libraryNodes.filter(node => !isPathPrefix(target, node.path));
+    state.banks = state.banks.filter(bank => {
+      if (!isPathPrefix(target, getBankPath(bank))) return true;
+      if (!bank.bundled) return false;
+      markBankHidden(bank.id, true);
+      return true;
+    });
+    saveLibraryNodes();
+    saveBankMeta();
+    saveBanks();
+    state.activePath = parentPath(target);
+    showToast('已移入回收站');
+    state.activePath.length ? renderSubject() : renderHome();
+  });
+}
+
+function renameBank(bankId) {
+  const bank = state.banks.find(item => item.id === bankId);
+  if (!bank) return;
+  askText('请输入题库显示名称', bank.name || pathTitle(getBankPath(bank)), name => {
+    bank.name = String(name).trim();
+    rememberBankMeta(bank);
+    saveBanks();
+    state.activePath.length ? renderSubject() : renderHome();
+  });
+}
+
+function moveBank(bankId) {
+  const bank = state.banks.find(item => item.id === bankId);
+  if (!bank) return;
+  const current = getBankPath(bank).join(' / ');
+  askText('请输入新的层级路径，用 / 分隔', current, text => {
+    const path = normalizePath(text);
+    if (!path.length) return;
+    setBankPath(bank, path);
+    ensureLibraryPath(path);
+    rememberBankMeta(bank);
+    saveBanks();
+    showToast('题库路径已更新');
+    state.activePath.length ? renderSubject() : renderHome();
+  });
+}
+
+function deleteBank(bankId) {
+  const bank = state.banks.find(item => item.id === bankId);
+  if (!bank) return;
+  if (bank.bundled) {
+    askConfirm('内置题库会在本机隐藏并进入回收站，APK 内置资源不会被物理删除。继续？', () => {
+      addRecycleItem({
+        type: 'bank',
+        title: bank.name || pathTitle(getBankPath(bank)),
+        path: getBankPath(bank),
+        bundledBankIds: [bank.id],
+        importedBanks: [],
+        libraryNodes: [],
+        bankMeta: cloneData({ [bank.id]: state.bankMeta[bank.id] || null }),
+      });
+      markBankHidden(bank.id, true);
+      saveBankMeta();
+      state.activePath.length ? renderSubject() : renderHome();
+    });
+    return;
+  }
+  askConfirm(`删除题库“${bank.name}”？删除后会先进入回收站。`, () => {
+    addRecycleItem({
+      type: 'bank',
+      title: bank.name || pathTitle(getBankPath(bank)),
+      path: getBankPath(bank),
+      importedBanks: cloneData([bank]),
+      bundledBankIds: [],
+      libraryNodes: [],
+      bankMeta: cloneData({ [bank.id]: state.bankMeta[bank.id] || null }),
+    });
+    state.banks = state.banks.filter(item => item.id !== bankId);
+    delete state.bankMeta[bank.id];
+    saveBankMeta();
+    saveBanks();
+    state.activePath.length ? renderSubject() : renderHome();
+  });
+}
+
+function restoreRecycleItem(id) {
+  const item = state.recycleBin.find(entry => entry.id === id);
+  if (!item) return;
+  (item.libraryNodes || []).forEach(node => {
+    if (node?.path?.length && !state.libraryNodes.some(existing => samePath(existing.path, node.path))) {
+      state.libraryNodes.push(node);
+    }
+  });
+  (item.importedBanks || []).forEach(bank => {
+    if (bank?.id && !state.banks.some(existing => existing.id === bank.id)) {
+      state.banks.push(normalizeBank(bank, bank.id, false));
+    }
+  });
+  Object.entries(item.bankMeta || {}).forEach(([bankId, meta]) => {
+    if (meta) state.bankMeta[bankId] = { ...meta, hidden: false, updatedAt: Date.now() };
+    else if (state.bankMeta[bankId]) state.bankMeta[bankId].hidden = false;
+    else state.bankMeta[bankId] = { hidden: false, updatedAt: Date.now() };
+  });
+  (item.bundledBankIds || []).forEach(bankId => markBankHidden(bankId, false));
+  if (item.path?.length) ensureLibraryPath(item.path);
+  state.recycleBin = state.recycleBin.filter(entry => entry.id !== id);
+  saveRecycleBin();
+  saveLibraryNodes();
+  saveBankMeta();
+  saveBanks();
+  showToast('已从回收站恢复');
+  renderSettings();
+}
+
+function purgeRecycleItem(id) {
+  const item = state.recycleBin.find(entry => entry.id === id);
+  if (!item) return;
+  askConfirm(`永久删除回收站中的“${item.title || '项目'}”？此操作不能撤回。`, () => {
+    state.recycleBin = state.recycleBin.filter(entry => entry.id !== id);
+    saveRecycleBin();
+    showToast('已永久删除');
+    renderSettings();
+  });
+}
+
+function restoreToolCard(key) {
+  const hidden = new Set(state.uiConfig.hiddenToolCards || []);
+  hidden.delete(key);
+  state.uiConfig.hiddenToolCards = Array.from(hidden);
+  if (!state.uiConfig.toolCardOrder.includes(key)) state.uiConfig.toolCardOrder.push(key);
+  saveUiConfig();
+  renderSettings();
+}
+
+function restoreHomeMetric(key) {
+  const hidden = new Set(state.uiConfig.hiddenHomeMetrics || []);
+  hidden.delete(key);
+  state.uiConfig.hiddenHomeMetrics = Array.from(hidden);
+  if (!state.uiConfig.homeMetricOrder.includes(key)) state.uiConfig.homeMetricOrder.push(key);
+  saveUiConfig();
+  renderSettings();
+}
+
+function hideHomeMetric(key) {
+  const meta = getHomeMetricMeta(key);
+  askConfirm(`从首页隐藏“${meta.label}”？之后可以在设置里加回来。`, () => {
+    const hidden = new Set(state.uiConfig.hiddenHomeMetrics || []);
+    hidden.add(key);
+    state.uiConfig.hiddenHomeMetrics = Array.from(hidden);
+    saveUiConfig();
+    renderHome();
+  });
+}
+
+function hideToolCard(key) {
+  const meta = getToolCardMeta(key);
+  askConfirm(`从工具组件中移除“${meta.label}”？之后可以在设置里加回来。`, () => {
+    const hidden = new Set(state.uiConfig.hiddenToolCards || []);
+    hidden.add(key);
+    state.uiConfig.hiddenToolCards = Array.from(hidden);
+    saveUiConfig();
+    state.editMode ? (state.view === 'subjects' ? renderSubject() : renderHome()) : renderSettings();
+  });
+}
+
+function hideEditableComponent(kind, key) {
+  if (kind === 'tool') return hideToolCard(key);
+  if (kind === 'metric') return hideHomeMetric(key);
+}
+
+function triggerImportForPath(path) {
+  state.pendingImportPath = normalizePath(path);
+  let input = document.getElementById('fileInput');
+  if (!input) {
+    input = document.createElement('input');
+    input.type = 'file';
+    input.id = 'fileInput';
+    input.accept = '.json,application/json,text/json,text/plain,*/*';
+    input.hidden = true;
+    input.onchange = () => handleFile(input);
+    document.body.appendChild(input);
+  }
+  input.click();
+}
+
+function getIconOptions() {
+  return [
+    { key: 'folder', label: '文件夹', icon: '📁' },
+    { key: 'library', label: '书库', icon: '📚' },
+    { key: 'book', label: '题册', icon: '📖' },
+    { key: 'notebook', label: '笔记', icon: '📒' },
+    { key: 'memo', label: '练习', icon: '📝' },
+    { key: 'target', label: '目标', icon: '🎯' },
+    { key: 'star', label: '重点', icon: '⭐' },
+    { key: 'bookmark', label: '书签', icon: '🔖' },
+  ];
+}
+
+function getIconStyle(kind = 'folder') {
+  const iconKeys = getIconOptions().map(item => item.key);
+  if (kind === 'subject') return iconKeys.includes(state.uiConfig.subjectIconStyle) ? state.uiConfig.subjectIconStyle : 'library';
+  if (kind === 'bank' || kind === 'chapter') return iconKeys.includes(state.uiConfig.chapterIconStyle) ? state.uiConfig.chapterIconStyle : 'book';
+  const style = state.uiConfig.iconStyle || 'folder';
+  return iconKeys.includes(style) ? style : 'folder';
+}
+
+function renderLibraryIcon(kind = 'folder') {
+  const style = getIconStyle(kind);
+  const item = getIconOptions().find(option => option.key === style) || getIconOptions()[0];
+  return `<span class="library-icon ${escapeAttr(style)}" aria-label="${escapeAttr(item.label)}">${escapeHtml(item.icon)}</span>`;
+}
+
+function jsPathArg(path) {
+  return JSON.stringify(normalizePath(path)).replace(/"/g, '&quot;');
+}
+
+function jsStringArg(value) {
+  return JSON.stringify(String(value ?? '')).replace(/"/g, '&quot;');
+}
+
+function renderChoiceSelect(id, value, options, action = '') {
+  const normalizedOptions = Array.isArray(options) ? options : [];
+  const current = normalizedOptions.find(item => String(item.value) === String(value)) || normalizedOptions[0] || { value: '', label: '' };
+  return `
+    <div class="choice-select" data-choice-id="${escapeAttr(id)}">
+      <input type="hidden" id="${escapeAttr(id)}" value="${escapeAttr(current.value)}">
+      <button type="button" class="choice-trigger" onclick="toggleChoiceSelect(event, ${jsStringArg(id)})">
+        <span id="${escapeAttr(id)}Label">${escapeHtml(current.label)}</span>
+        <span class="chevron">⌄</span>
+      </button>
+      <div class="choice-menu" id="${escapeAttr(id)}Menu">
+        ${normalizedOptions.map(item => `
+          <button type="button" class="choice-option ${String(item.value) === String(current.value) ? 'active' : ''}" data-choice-value="${escapeAttr(item.value)}" onclick="selectChoiceValue(event, ${jsStringArg(id)}, ${jsStringArg(item.value)}, ${jsStringArg(action)})">${escapeHtml(item.label)}</button>
+        `).join('')}
+      </div>
+    </div>
+  `;
+}
+
+function toggleChoiceSelect(event, id) {
+  event?.stopPropagation();
+  const root = Array.from(document.querySelectorAll('.choice-select')).find(item => item.dataset.choiceId === String(id));
+  const willOpen = root && !root.classList.contains('open');
+  closeChoiceSelects();
+  if (root && willOpen) root.classList.add('open');
+}
+
+function closeChoiceSelects() {
+  document.querySelectorAll('.choice-select.open').forEach(item => item.classList.remove('open'));
+}
+
+function selectChoiceValue(event, id, value, action = '') {
+  event?.stopPropagation();
+  const root = Array.from(document.querySelectorAll('.choice-select')).find(item => item.dataset.choiceId === String(id));
+  const input = document.getElementById(id);
+  if (input) input.value = value;
+  const selected = Array.from(root?.querySelectorAll('.choice-option') || [])
+    .find(btn => String(btn.dataset.choiceValue || '') === String(value));
+  const label = selected?.textContent?.trim() || value;
+  const labelEl = document.getElementById(`${id}Label`);
+  if (labelEl) labelEl.textContent = label;
+  root?.querySelectorAll('.choice-option').forEach(btn => btn.classList.toggle('active', String(btn.dataset.choiceValue || '') === String(value)));
+  closeChoiceSelects();
+  if (action === 'theme') {
+    state.uiConfig.theme = value || state.uiConfig.theme;
+    applyUiConfig();
+  } else if (action === 'chapterLayout') {
+    state.uiConfig.chapterActionLayout = value || state.uiConfig.chapterActionLayout;
+  } else if (action === 'answerSubject') {
+    state.answerLookupContext.subject = value;
+    state.answerLookupContext.chapter = '';
+    state.answerLookupContext.scrollTop = 0;
+    saveAnswerLookupPosition();
+    renderAnswerLookup();
+  } else if (action === 'answerChapter') {
+    state.answerLookupContext.chapter = value;
+    state.answerLookupContext.scrollTop = 0;
+    saveAnswerLookupPosition();
+    renderAnswerLookup();
+  }
+}
+
+function renderLibraryManager(path = [], options = {}) {
+  const normalized = normalizePath(path);
+  const arg = jsPathArg(normalized);
+  const pasteId = `pasteArea-${hashString(pathKey(normalized) || 'root')}`;
+  const canEdit = Boolean(options.canEdit && normalized.length);
+  return `
+    <details class="library-manager">
+      <summary>
+        <span class="tool-toggle">
+          <span class="icon">▾</span>
+          <span>题库管理</span>
+        </span>
+      </summary>
+      <div class="library-manager-panel">
+        <div class="library-manager-row">
+          <button onclick="createLibraryNode(${arg})">新建层级</button>
+          <button onclick="triggerImportForPath(${arg})">导入 JSON</button>
+          ${canEdit ? `<button class="secondary" onclick="renameLibraryPath(${arg})">改名当前层</button>` : '<button class="secondary" disabled>改名当前层</button>'}
+          ${canEdit ? `<button class="secondary" onclick="deleteLibraryPath(${arg})">删除当前层</button>` : '<button class="secondary" disabled>删除当前层</button>'}
+        </div>
+        <textarea id="${pasteId}" placeholder="或粘贴 JSON 文本到当前层级..."></textarea>
+        <button class="option" style="justify-content:center;font-weight:800;font-size:12px;padding:8px" onclick="const t=document.getElementById('${pasteId}');if(t.value.trim()){importJSON(t.value,${arg});t.value=''}">导入粘贴的题库</button>
+      </div>
+    </details>
+  `;
+}
+
+function startBankPractice(bankId, shuffled = false, forceNew = false) {
+  const bank = state.banks.find(item => item.id === bankId);
+  if (!bank) return;
+  const path = getBankPath(bank);
+  startPractice({
+    subject: path[0] || '',
+    banks: [bank],
+    title: bank.name || pathTitle(path),
+    subtitle: shuffled ? '题库随机练习' : '题库顺序练习',
+    shuffled,
+    forceNew,
+    path,
+    returnPath: parentPath(path),
+  });
+}
+
+function renderLibraryChildItem(child) {
+  const directBanks = getBanksAtPath(child.path);
+  const directCount = directBanks.reduce((sum, bank) => sum + bank.questions.length, 0);
+  const totalCount = child.banks.reduce((sum, bank) => sum + bank.questions.length, 0);
+  const childCount = getLibraryChildren(child.path).length;
+  const childArg = JSON.stringify(child.path).replace(/"/g, '&quot;');
+  if (!state.editMode && directBanks.length && childCount === 0) {
+    return directBanks.map(bank => renderDirectBankItem(bank)).join('');
+  }
+  return `
+    <div class="bank-item ${state.editMode ? 'editing editable-card' : ''}" ${state.editMode ? `data-drag-kind="library" data-drag-key="path:${escapeAttr(pathKey(child.path))}"` : ''} onclick="openLibraryPath(${childArg})">
+      ${state.editMode ? `<button class="edit-remove" onclick="event.stopPropagation();deleteLibraryPath(${childArg})" aria-label="删除">×</button>` : ''}
+      <div class="icon">${renderLibraryIcon('folder')}</div>
+      <div class="info">
+        <h4>${escapeHtml(child.title)}</h4>
+        <small>${childCount} 个下级 · ${child.banks.length} 个题库 · ${totalCount} 题${directCount ? ` · 本层 ${directCount} 题` : ''}</small>
+        ${state.editMode ? '<small class="edit-handle">长按拖动排序</small>' : ''}
+      </div>
+      <div class="count">${state.editMode ? '层级' : '进入'}</div>
+    </div>
+  `;
+}
+
+function renderDirectBankItem(bank) {
+  const path = getBankPath(bank);
+  const subject = path[0] || bank.subject || parseBankName(bank.name).subject;
+  const chapter = path[path.length - 1] || bank.chapter || parseBankName(bank.name).chapter || bank.name;
+  const wrongCount = getWrongRecords({ subject, chapter }).length;
+  return `
+    <div class="bank-item ${state.editMode ? 'editing editable-card' : ''}" data-bank-id="${escapeAttr(bank.id)}" ${state.editMode ? `data-drag-kind="library" data-drag-key="bank:${escapeAttr(bank.id)}"` : ''} onclick="expandChapterActions('${escapeAttr(bank.id)}')">
+      ${state.editMode ? `<button class="edit-remove" onclick="event.stopPropagation();deleteBank('${escapeAttr(bank.id)}')" aria-label="删除">×</button>` : ''}
+      <div class="icon">${renderLibraryIcon('bank')}</div>
+      <div class="info">
+        <h4>${escapeHtml(chapter)} ${wrongCount ? `<span class="wrong-badge">错题集 ${wrongCount}</span>` : ''}</h4>
+        <small>${bank.questions.length} 题 · ${bank.bundled ? '内置题库' : '导入题库'}</small>
+        ${state.editMode ? '<small class="edit-handle">长按拖动排序</small>' : ''}
+      </div>
+      ${renderChapterActions(bank, subject, chapter, wrongCount)}
+    </div>
+  `;
+}
+
+function renderHomeSubjectItem(group) {
+  return `
+    <div class="subject-card" onclick="openSubject('${escapeAttr(group.subject)}')">
+      <div class="subject-icon">${renderLibraryIcon('subject')}</div>
+      <h3>${escapeHtml(group.subject)}</h3>
+      <small>${group.banks.length} 章 · ${group.questionCount} 题</small>
+    </div>
+  `;
+}
+
+function renderHomeSubjectEditItem(group) {
+  return `
+    <div class="subject-card editing editable-card" data-drag-kind="subject" data-drag-key="${escapeAttr(group.subject)}" onclick="openSubject('${escapeAttr(group.subject)}')">
+      <button class="edit-remove" onclick="event.stopPropagation();deleteLibraryPath(${jsPathArg([group.subject])})" aria-label="删除">×</button>
+      <div class="subject-icon">${renderLibraryIcon('subject')}</div>
+      <h3>${escapeHtml(group.subject)}</h3>
+      <small>${group.banks.length} 章 · ${group.questionCount} 题</small>
+      <small class="edit-handle">长按拖动排序</small>
+    </div>
+  `;
+}
+
+function renderHomeSubjectEditNode(child) {
+  const subject = child.title;
+  const count = child.banks.reduce((sum, bank) => sum + bank.questions.length, 0);
+  return `
+    <div class="subject-card editing editable-card" data-drag-kind="subject" data-drag-key="${escapeAttr(subject)}" onclick="openLibraryPath(${jsPathArg(child.path)})">
+      <button class="edit-remove" onclick="event.stopPropagation();deleteLibraryPath(${jsPathArg(child.path)})" aria-label="删除">×</button>
+      <div class="subject-icon">${renderLibraryIcon('subject')}</div>
+      <h3>${escapeHtml(subject)}</h3>
+      <small>${child.banks.length} 库 · ${count} 题</small>
+      <small class="edit-handle">长按拖动排序</small>
+    </div>
+  `;
 }
 
 // ========== Render ==========
@@ -1774,130 +3932,536 @@ function renderHome() {
   state.answerLookupContext = null;
   const app = document.getElementById('app');
   const importedCount = state.banks.filter(b => !b.bundled).length;
-  const totalQuestions = state.banks.reduce((sum, b) => sum + b.questions.length, 0);
+  const visibleBanks = getVisibleBanks();
+  const totalQuestions = visibleBanks.reduce((sum, b) => sum + b.questions.length, 0);
   const totalWrongCount = getWrongRecords().length;
   const subjectGroups = getSubjectGroups();
   const saved = getSavedSession();
-  const subjectList = subjectGroups.map(group => `
-    <div class="bank-item" onclick="openSubject('${escapeAttr(group.subject)}')">
-      <div class="icon">📚</div>
-      <div class="info">
-        <h4>${escapeHtml(group.subject)}</h4>
-        <small>${group.banks.length} 章 · ${group.questionCount} 题</small>
-      </div>
-      <div class="count">进入</div>
-    </div>
-  `).join('');
+  const homeToolsExpanded = isToolGroupExpanded('home-tools');
+  const progressSummary = getPracticeProgressSummary();
+  const todayStudyTime = formatStudyDuration(getTodayStudySeconds());
+  const rootChildren = getLibraryChildren([]);
+  const rootBanks = getBanksAtPath([]);
+  const libraryList = [
+    ...rootChildren.map(renderLibraryChildItem),
+    ...rootBanks.map(renderDirectBankItem),
+  ].join('');
+  const subjectCards = subjectGroups.map(renderHomeSubjectItem).join('');
+  const subjectEditCards = rootChildren.map(renderHomeSubjectEditNode).join('');
 
   app.innerHTML = `
     <div class="topbar">
       <h1 class="brand-title"><span class="brand-mark">题</span><span>刷题</span></h1>
       <div class="topbar-actions">
+        <button class="btn-text" onclick="toggleEditMode()">${state.editMode ? '完成' : '编辑'}</button>
         <button class="btn-text" onclick="openSettings()">设置</button>
       </div>
     </div>
     <div class="viewport view-scroll"><div class="home home-dashboard">
-      ${saved ? `
-        <div class="analysis-panel">
-          <div class="section-title">保存的进度</div>
-          <div style="font-size:14px;font-weight:800">${escapeHtml(saved.title || '保存的练习')}</div>
-          <div style="font-size:12px;color:var(--muted)">${saved.currentIndex + 1}/${saved.questions.length} · ${escapeHtml(saved.reviewMode ? '背题模式' : (saved.subtitle || '练习'))}</div>
-          <div class="settings-actions">
+      ${saved && state.uiConfig.showSavedProgressEntry ? `
+        <div class="saved-progress-float ${state.uiConfig.showSavedProgressHint ? 'has-hint' : ''}">
+          <div class="icon">续</div>
+          <div class="info">
+            <strong>${escapeHtml(saved.title || '保存的练习')}</strong>
+            <small>${saved.currentIndex + 1}/${saved.questions.length} · ${escapeHtml(saved.reviewMode ? '背题模式' : (saved.subtitle || '练习'))}</small>
+          </div>
+          <div class="actions">
             <button onclick="resumeSavedSession()">继续</button>
             <button class="secondary" onclick="clearSavedSession()">清除</button>
           </div>
+          ${state.uiConfig.showSavedProgressHint ? `
+            <div class="saved-progress-hint">
+              这里可以直接进入上一次做题进度。
+              <button onclick="dismissSavedProgressHint()">不再提醒</button>
+            </div>
+          ` : ''}
         </div>
       ` : ''}
       ${state.banks.length ? `
-        <div class="stats-row">
-          <div class="subject-card"><h3>${subjectGroups.length}</h3><small>科目</small></div>
-          <div class="subject-card"><h3>${totalQuestions}</h3><small>题目</small></div>
-        </div>
-        <div class="action-panel">
-          <div class="section-title">练习模式</div>
-          <div class="action-grid">
-            <button onclick="startAllPractice(false)">全部顺序练习</button>
-            <button class="secondary" onclick="startAllPractice(true)">全部随机练习</button>
-            <button class="muted-mode" onclick="startAllPractice(false,true)">全部重新做</button>
+        <div class="home-overview">
+          <div class="home-metrics">
+            ${renderHomeMetrics(subjectGroups, totalQuestions, progressSummary, todayStudyTime)}
           </div>
         </div>
-        <div class="action-panel">
-          <div class="section-title">背题与答案</div>
-          <div class="action-grid">
-            <button class="answer-mode" onclick="startAllReview()">全部背题模式</button>
-            <button class="lookup-mode" onclick="openAnswerLookup('', '')">全部答案表</button>
+        ${state.editMode ? renderLibraryManager([], { canEdit: false }) : ''}
+        <div class="home-toggle-row">${renderToolToggle('home-tools')}</div>
+        ${homeToolsExpanded ? `
+          <div class="tool-group">
+            ${renderToolPanels('home', { totalWrongCount })}
           </div>
-        </div>
-        <div class="action-panel">
-          <div class="section-title">错题集</div>
-          <div class="action-grid">
-            <button class="secondary" onclick="openWrongPractice('', '', true)" ${totalWrongCount ? '' : 'disabled'}>全部错题集 ${totalWrongCount}</button>
-          </div>
-        </div>
-        <div class="bank-list">${subjectList}</div>
+        ` : ''}
+        ${state.editMode
+          ? `<div class="subjects-grid">${subjectEditCards}</div><div class="bank-list">${rootBanks.map(renderDirectBankItem).join('')}</div>`
+          : `<div class="subjects-grid">${subjectCards}${rootBanks.map(renderDirectBankItem).join('')}</div>`}
       ` : `
         <div style="text-align:center;padding:40px 20px;color:var(--muted)">
-          <div style="font-size:48px;margin-bottom:12px">📚</div>
+          <div class="icon" style="margin:0 auto 12px;width:48px;height:48px">${renderLibraryIcon('folder')}</div>
           <p style="font-size:16px;margin-bottom:8px">${state.loadingDefaults ? '正在加载题库' : '还没有题库'}</p>
           <p style="font-size:13px">${state.defaultLoadError || '拖拽 JSON 文件或粘贴 JSON 文本来导入题库'}</p>
         </div>
       `}
-      <details style="margin-top:10px;font-size:12px;color:var(--muted)">
-        <summary style="cursor:pointer;padding:4px 0">导入题库</summary>
-        <div class="import-zone" id="importZone" onclick="document.getElementById('fileInput').click()" style="margin-top:6px">
-          <p style="font-size:12px">打开手机文件管理器选择 JSON</p>
-        </div>
-        <input type="file" id="fileInput" accept=".json,application/json,text/json,text/plain,*/*" hidden onchange="handleFile(this)">
-        <textarea id="pasteArea" placeholder="或粘贴 JSON 文本..." style="width:100%;height:60px;border:1px solid var(--line);border-radius:var(--radius-sm);padding:8px;font-size:11px;resize:none;margin-top:4px"></textarea>
-        <button class="option" style="justify-content:center;font-weight:600;font-size:11px;padding:6px" onclick="const t=document.getElementById('pasteArea');if(t.value.trim()){importJSON(t.value);t.value=''}">导入粘贴的题库</button>
-        ${importedCount ? `<button class="option" style="justify-content:center;color:var(--danger);font-weight:600;font-size:11px;padding:6px" onclick="clearImportedBanks()">清除导入题库</button>` : ''}
-      </details>
+      <input type="file" id="fileInput" accept=".json,application/json,text/json,text/plain,*/*" hidden onchange="handleFile(this)">
+      ${state.editMode && importedCount ? `<button class="option" style="justify-content:center;color:var(--danger);font-weight:600;font-size:11px;padding:6px" onclick="clearImportedBanks()">清除导入题库</button>` : ''}
     </div></div>
   `;
   setupImport();
+  setupEditableInteractions();
+}
+
+function renderIconPicker(name, current) {
+  return `
+    <div class="button-choice-grid">
+      ${getIconOptions().map(item => `
+        <label class="button-choice icon-choice ${current === item.key ? 'active' : ''}" title="${escapeAttr(item.label)}">
+          <input type="radio" name="${escapeAttr(name)}" value="${escapeAttr(item.key)}" ${current === item.key ? 'checked' : ''} onchange="selectIconStyle('${escapeAttr(name)}','${escapeAttr(item.key)}')">
+          <span>${escapeHtml(item.icon)}</span>
+        </label>
+      `).join('')}
+    </div>
+  `;
+}
+
+function selectIconStyle(name, key) {
+  const valid = getIconOptions().some(item => item.key === key);
+  if (!valid || !['iconStyle', 'subjectIconStyle', 'chapterIconStyle'].includes(name)) return;
+  state.uiConfig[name] = key;
+  document.querySelectorAll(`input[name="${name}"]`).forEach(input => {
+    const label = input.closest('.icon-choice');
+    if (label) label.classList.toggle('active', input.value === key);
+  });
+  applyUiConfig();
+}
+
+function previewSavedProgressWidgetWidth(value) {
+  const width = Math.max(280, Math.min(560, Number(value || 420)));
+  state.uiConfig.savedProgressWidgetWidth = width;
+  const label = document.getElementById('savedProgressWidgetWidthValue');
+  if (label) label.textContent = `${width}px`;
+  document.documentElement.style.setProperty('--saved-progress-width', `${width}px`);
+}
+
+function renderToolRestoreSettings() {
+  const hidden = state.uiConfig.hiddenToolCards || [];
+  if (!hidden.length) return '<div class="settings-subtitle">当前没有隐藏的工具组件。</div>';
+  return `
+    <div class="component-list">
+      ${hidden.map(key => `
+        <div class="component-item">
+          <div>
+            <strong>${escapeHtml(getToolCardMeta(key).label)}</strong>
+            <small>已从首页和科目页工具区隐藏</small>
+          </div>
+          <div class="component-actions"><button onclick="restoreToolCard('${escapeAttr(key)}')">加回来</button></div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+function renderMetricRestoreSettings() {
+  const hidden = state.uiConfig.hiddenHomeMetrics || [];
+  if (!hidden.length) return '<div class="settings-subtitle">当前没有隐藏的首页信息卡。</div>';
+  return `
+    <div class="component-list">
+      ${hidden.map(key => `
+        <div class="component-item">
+          <div>
+            <strong>${escapeHtml(getHomeMetricMeta(key).label)}</strong>
+            <small>已从首页顶部信息区隐藏</small>
+          </div>
+          <div class="component-actions"><button onclick="restoreHomeMetric('${escapeAttr(key)}')">加回来</button></div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+function renderStudyStatsPanel() {
+  const range = normalizeStudyChartRange(state.uiConfig.studyChartRange);
+  const chart = getStudyChartData(range);
+  const total = chart.rows.reduce((sum, item) => sum + item.seconds, 0);
+  const average = chart.rows.length ? Math.round(total / chart.rows.length) : 0;
+  const best = chart.rows.reduce((max, item) => Math.max(max, item.seconds), 0);
+  const startedAt = new Date(Number(state.studyStats[STUDY_STATS_META_KEY]?.startedAt || Date.now()));
+  const rangeButtons = [
+    ['week', '近 7 天'],
+    ['month', '近 30 天'],
+    ['thisMonth', '本月'],
+    ['lastMonth', '上月'],
+  ].map(([key, label]) => `
+    <button class="${range === key ? 'active' : ''}" onclick="setStudyChartRange('${key}')">${label}</button>
+  `).join('');
+  return `
+    <div class="study-chart-panel">
+      <div class="study-stats-controls">
+        <label class="setting-toggle">
+          <input type="checkbox" id="persistStudyStats" ${state.uiConfig.persistStudyStats !== false ? 'checked' : ''} onchange="setPersistStudyStats(this.checked)">
+          <span>
+            <strong>保存每日学习统计</strong>
+            <small>开启后会持续记录每天学习时长；最多保留最近 3 个月，关闭后只保留本次打开期间的显示。</small>
+          </span>
+        </label>
+        <div class="study-chart-tabs">${rangeButtons}</div>
+        <div class="settings-subtitle">${escapeHtml(chart.title)} · ${escapeHtml(getStudyChartRangeLabel(chart))} · 从 ${escapeHtml(getTodayKey(startedAt))} 开始记录</div>
+      </div>
+      <div class="study-stats-chart">
+        <div class="study-chart-summary">
+          <div><strong>${escapeHtml(formatStudyDuration(total))}</strong><span>范围累计</span></div>
+          <div><strong>${escapeHtml(formatStudyDuration(average))}</strong><span>日均时长</span></div>
+          <div><strong>${escapeHtml(formatStudyDuration(best))}</strong><span>单日最高</span></div>
+        </div>
+        ${renderStudyChartSvg(chart.rows)}
+        ${renderStudyChartLabels(chart.rows)}
+      </div>
+    </div>
+  `;
+}
+
+function renderStudyChartSvg(rows) {
+  const shouldAnimate = Boolean(state.studyChartAnimate);
+  state.studyChartAnimate = false;
+  const width = 320;
+  const height = 150;
+  const left = 18;
+  const top = 14;
+  const chartWidth = 284;
+  const chartHeight = 108;
+  const maxSeconds = Math.max(60, ...rows.map(item => item.seconds));
+  const points = rows.map((item, index) => {
+    const x = rows.length <= 1 ? left + chartWidth : left + (chartWidth * index) / (rows.length - 1);
+    const y = top + chartHeight - (item.seconds / maxSeconds) * chartHeight;
+    return { x, y, seconds: item.seconds, label: item.label };
+  });
+  const path = buildSmoothPath(points);
+  const selectedIndex = rows.findIndex(item => item.key === state.studyChartSelectedKey);
+  const selectedPoint = selectedIndex >= 0 ? points[selectedIndex] : null;
+  const hitAreas = points.map((point, index) => {
+    const startX = index === 0 ? left : (points[index - 1].x + point.x) / 2;
+    const endX = index === points.length - 1 ? left + chartWidth : (point.x + points[index + 1].x) / 2;
+    return `
+      <rect class="study-chart-hit" x="${startX.toFixed(1)}" y="${top}" width="${Math.max(1, endX - startX).toFixed(1)}" height="${chartHeight}" onclick="event.stopPropagation();selectStudyChartPoint(${index})">
+        <title>${escapeHtml(rows[index].label)} · ${escapeHtml(formatStudyDuration(rows[index].seconds))}</title>
+      </rect>
+    `;
+  }).join('');
+  const dots = points.map((point, index) => `
+    <circle class="study-chart-dot ${point.seconds ? 'active' : ''} ${selectedIndex === index ? 'selected' : ''}" cx="${point.x.toFixed(1)}" cy="${point.y.toFixed(1)}" r="${selectedIndex === index ? 4.8 : point.seconds ? 3.6 : 2.7}" onclick="event.stopPropagation();selectStudyChartPoint(${index})">
+      <title>${escapeHtml(rows[index].label)} · ${escapeHtml(formatStudyDuration(rows[index].seconds))}</title>
+    </circle>
+  `).join('');
+  const selectedOverlay = selectedPoint ? (() => {
+    const tooltipWidth = 82;
+    const tooltipHeight = 33;
+    const tooltipX = Math.max(4, Math.min(width - tooltipWidth - 4, selectedPoint.x - tooltipWidth / 2));
+    const tooltipY = selectedPoint.y < top + tooltipHeight + 8
+      ? selectedPoint.y + 12
+      : selectedPoint.y - tooltipHeight - 10;
+    const row = rows[selectedIndex];
+    return `
+      <line class="study-chart-marker" x1="${selectedPoint.x.toFixed(1)}" y1="${top}" x2="${selectedPoint.x.toFixed(1)}" y2="${top + chartHeight}"></line>
+      <g class="study-chart-tooltip" transform="translate(${tooltipX.toFixed(1)} ${tooltipY.toFixed(1)})">
+        <rect width="${tooltipWidth}" height="${tooltipHeight}" rx="8"></rect>
+        <text x="9" y="13">${escapeHtml(row.label)}</text>
+        <text x="9" y="27">${escapeHtml(formatStudyDuration(row.seconds))}</text>
+      </g>
+    `;
+  })() : '';
+  return `
+    <svg class="study-chart-svg ${shouldAnimate ? 'chart-enter' : ''}" viewBox="0 0 ${width} ${height}" role="img" aria-label="学习时长曲线图">
+      <line class="study-chart-grid" x1="${left}" y1="${top}" x2="${left + chartWidth}" y2="${top}"></line>
+      <line class="study-chart-grid" x1="${left}" y1="${top + chartHeight / 2}" x2="${left + chartWidth}" y2="${top + chartHeight / 2}"></line>
+      <line class="study-chart-grid" x1="${left}" y1="${top + chartHeight}" x2="${left + chartWidth}" y2="${top + chartHeight}"></line>
+      ${hitAreas}
+      <path class="study-chart-line" d="${path}"></path>
+      ${dots}
+      ${selectedOverlay}
+    </svg>
+  `;
+}
+
+function renderStudyChartLabels(rows) {
+  if (!rows.length) return '';
+  const indexes = rows.length <= 7
+    ? rows.map((_, index) => index)
+    : [0, Math.floor((rows.length - 1) / 2), rows.length - 1];
+  return `
+    <div class="study-chart-labels">
+      ${indexes.map(index => `
+        <button class="${rows[index].key === state.studyChartSelectedKey ? 'active' : ''}" onclick="event.stopPropagation();selectStudyChartPoint(${index})">${escapeHtml(rows[index].label)}</button>
+      `).join('')}
+    </div>
+  `;
+}
+
+function selectStudyChartPoint(index) {
+  const chart = getStudyChartData();
+  const row = chart.rows[Number(index)];
+  if (!row) return;
+  state.studyChartSelectedKey = row.key;
+  const panel = document.getElementById('studyStatsPanel');
+  if (panel) panel.innerHTML = renderStudyStatsPanel();
+}
+
+function clearStudyChartSelection() {
+  if (!state.studyChartSelectedKey) return;
+  state.studyChartSelectedKey = '';
+  const panel = document.getElementById('studyStatsPanel');
+  if (panel) panel.innerHTML = renderStudyStatsPanel();
+}
+
+function setStudyChartRange(range) {
+  const persistStudyEl = document.getElementById('persistStudyStats');
+  if (persistStudyEl) state.uiConfig.persistStudyStats = persistStudyEl.checked;
+  state.uiConfig.studyChartRange = normalizeStudyChartRange(range);
+  state.studyChartAnimate = true;
+  const chart = getStudyChartData();
+  if (!chart.rows.some(row => row.key === state.studyChartSelectedKey)) state.studyChartSelectedKey = '';
+  const panel = document.getElementById('studyStatsPanel');
+  if (panel) panel.innerHTML = renderStudyStatsPanel();
+}
+
+function setPersistStudyStats(enabled) {
+  state.uiConfig.persistStudyStats = Boolean(enabled);
+  saveUiConfig();
+  if (state.uiConfig.persistStudyStats) {
+    saveStudyStats();
+    showToast('已开启学习统计保存');
+  } else {
+    localStorage.removeItem(STUDY_STATS_KEY);
+    showToast('已关闭学习统计保存');
+  }
+}
+
+function handleStudyStatsCardKeydown(event) {
+  if (event.key !== 'Enter' && event.key !== ' ') return;
+  event.preventDefault();
+  openStudyStats();
+}
+
+function openStudyStats() {
+  pushRoute();
+  renderStudyStatsPage();
+}
+
+function renderStudyStatsPage() {
+  state.view = 'studyStats';
+  state.studyChartAnimate = true;
+  const app = document.getElementById('app');
+  app.innerHTML = `
+    <div class="topbar">
+      <button class="btn-back" onclick="goBackRoute()" aria-label="返回">←</button>
+      <h1>学习统计</h1>
+      <button class="btn-text" onclick="goHome()">首页</button>
+    </div>
+    <div class="viewport view-scroll" onclick="clearStudyChartSelection()"><div class="home settings-page study-stats-page">
+      <div class="settings-notice">这里统计顺序、随机、背题、答案表和错题集界面的学习时长；最多保留最近 3 个月。</div>
+      <div class="analysis-panel">
+        <div class="section-title">每日学习时长</div>
+        <div id="studyStatsPanel">
+          ${renderStudyStatsPanel()}
+        </div>
+      </div>
+    </div></div>
+  `;
+}
+
+function recycleTypeLabel(item) {
+  return item?.type === 'path' ? '层级/章节' : '题库';
+}
+
+function recycleDisplayTitle(item) {
+  return item?.title || pathTitle(item?.path || []) || '未命名项目';
+}
+
+function formatRecycleTime(value) {
+  const time = Number(value || 0);
+  if (!time) return '未知时间';
+  return new Date(time).toLocaleString();
+}
+
+function recycleStoragePath(item) {
+  return item?.storagePath || makeRecycleStoragePath(item?.id || '');
+}
+
+function recycleBankName(bank) {
+  return bank?.name || pathTitle(getBankPath(bank || {})) || '未命名题库';
+}
+
+function renderRecycleFileRows(item) {
+  const rows = [];
+  (item.libraryNodes || []).forEach(node => {
+    rows.push({ name: pathCrumbs(node.path || []), type: '层级' });
+  });
+  (item.importedBanks || []).forEach(bank => {
+    rows.push({ name: recycleBankName(bank), type: `${Array.isArray(bank.questions) ? bank.questions.length : 0} 题 · 导入题库` });
+  });
+  (item.bundledBankIds || []).forEach(bankId => {
+    const bank = state.banks.find(entry => entry.id === bankId);
+    rows.push({ name: bank?.name || String(bankId).replace(/^bundled:/, ''), type: '内置题库隐藏项' });
+  });
+  if (!rows.length) return '<small>没有可展示的题库文件明细。</small>';
+  return `
+    <div class="recycle-file-list">
+      ${rows.map(row => `
+        <div>
+          <span>${escapeHtml(row.name)}</span>
+          <span>${escapeHtml(row.type)}</span>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+function renderRecycleBinPanel() {
+  if (!state.recycleBin.length) {
+    return `
+      <details class="recycle-box">
+        <summary>回收站 <span>0 项</span></summary>
+        <div class="recycle-item">
+          <small>回收站为空。删除的科目、章节和题库会先出现在这里。</small>
+        </div>
+      </details>
+    `;
+  }
+  return `
+    <details class="recycle-box">
+      <summary>回收站 <span>${state.recycleBin.length} 项 · 点开查看</span></summary>
+      <div class="recycle-list">
+      ${state.recycleBin.map(item => `
+        <details class="recycle-item">
+          <summary>
+            <div>
+              <strong>${escapeHtml(recycleDisplayTitle(item))}</strong>
+              <small>${escapeHtml(recycleTypeLabel(item))} · ${escapeHtml(pathCrumbs(item.path || []))}</small>
+            </div>
+            <small>${escapeHtml(formatRecycleTime(item.deletedAt))}</small>
+          </summary>
+          <div class="recycle-detail">
+            <small>原路径：<code>${escapeHtml(pathCrumbs(item.path || []))}</code></small>
+            <small>回收索引：<code>${escapeHtml(recycleStoragePath(item))}</code></small>
+            ${renderRecycleFileRows(item)}
+            <div class="recycle-actions">
+              <button onclick="restoreRecycleItem('${escapeAttr(item.id)}')">回档</button>
+              <button class="danger" onclick="purgeRecycleItem('${escapeAttr(item.id)}')">彻底删除</button>
+            </div>
+          </div>
+        </details>
+      `).join('')}
+      </div>
+    </details>
+  `;
+}
+
+function openStorageFilePicker() {
+  const targetPath = normalizePath(state.activePath || []);
+  triggerImportForPath(targetPath);
+}
+
+function openDefaultBankDirectory() {
+  if (/Android/i.test(navigator.userAgent) || window.location.href.includes('/android_asset/')) {
+    showNotice(`手机端默认题库位置是相对目录 ${DEFAULT_BANK_DIRECTORY}。请选择 JSON 文件导入到当前层级。`);
+    openStorageFilePicker();
+    return;
+  }
+  const target = new URL(DEFAULT_BANK_DIRECTORY, window.location.href).href;
+  try {
+    const opened = window.open(target, '_blank');
+    if (opened) {
+      showToast(`已打开默认题库位置：${DEFAULT_BANK_DIRECTORY}`);
+      return;
+    }
+  } catch(e) {}
+  showNotice(`默认题库位置是相对目录 ${DEFAULT_BANK_DIRECTORY}。当前环境不能直接打开文件夹，请用系统文件选择器导入 JSON。`);
+  triggerImportForPath([]);
+}
+
+function renderUsageHelpDetails() {
+  return `
+    <details class="help-details">
+      <summary>
+        <strong>使用说明与免责声明</strong>
+        <span>展开</span>
+      </summary>
+      <div class="help-body">
+        <h4>题库与层级</h4>
+        <p>首页显示科目，进入科目后显示章节或题库。编辑模式下可以管理层级、导入 JSON、删除到回收站。</p>
+        <h4>练习方式</h4>
+        <p>顺序练习按题库原顺序做题；随机练习每次进入会打乱题目顺序；背题模式直接显示答案；答案表用于快速查询。</p>
+        <h4>保存与重做</h4>
+        <p>答题页右上角可以手动保存。开启自动保存后，退出顺序/随机练习会保存当前题号和已选答案。重做会清空当前范围的练习进度。</p>
+        <h4>错题集</h4>
+        <p>答错后可手动加入错题集。错题集不受普通重做影响，可以在错题集练习中删除题目。</p>
+        <h4>学习统计</h4>
+        <p>首页“今日学习时长”卡片可进入学习统计，查看近 7 天、近 30 天、本月和上月曲线。最多保留最近 3 个月。</p>
+        <h4>免责声明</h4>
+        <p>本项目是开源免费的本地刷题工具，不售卖软件、不售卖题库、不提供付费代练或代做服务。题库内容由用户自行整理或导入，请仅用于课程复习、知识巩固和个人学习记录。</p>
+      </div>
+    </details>
+  `;
 }
 
 function renderSettings() {
   state.view = 'settings';
-  const colors = ['#4f6ef7', '#1f9d72', '#d94757', '#7c5cff', '#0f8b8d'];
+  const palettes = Object.entries(PALETTE_PRESETS);
   const app = document.getElementById('app');
   app.innerHTML = `
     <div class="topbar">
       <button class="btn-back" onclick="goBackRoute()" aria-label="返回">←</button>
       <h1>设置</h1>
+      <button class="btn-text btn-save" onclick="saveAllSettings()">保存设置</button>
     </div>
     <div class="viewport view-scroll"><div class="home settings-page">
-      <div class="settings-notice">修改主题、颜色和功能自定义后，请点击“保存设置”才会在下次打开时继续生效。</div>
-      <div class="settings-actions top">
-        <button id="saveSettingsTopBtn" onclick="saveAllSettings()">保存设置</button>
-        <button class="secondary" onclick="goHome()">返回首页</button>
-      </div>
+      <div class="settings-notice">修改设置后请点击右上角“保存设置”。主题预览会立即显示，但只有保存后下次打开才会继续生效。</div>
+      ${renderUsageHelpDetails()}
       <div class="analysis-panel">
-        <div class="section-title">外观</div>
+        <div class="section-title">外观与图标</div>
         <div class="settings-row">
           <label>主题</label>
-          <select id="themeSelect" onchange="previewThemeSettings()">
-            <option value="light" ${state.uiConfig.theme === 'light' ? 'selected' : ''}>浅色</option>
-            <option value="dark" ${state.uiConfig.theme === 'dark' ? 'selected' : ''}>深色</option>
-            <option value="system" ${state.uiConfig.theme === 'system' ? 'selected' : ''}>跟随系统</option>
-          </select>
+          ${renderChoiceSelect('themeSelect', state.uiConfig.theme, [
+            { value: 'light', label: '浅色' },
+            { value: 'dark', label: '深色' },
+            { value: 'system', label: '跟随系统' },
+          ], 'theme')}
         </div>
         <div class="settings-row">
-          <label>主色</label>
-          <div class="swatches">
-            ${colors.map(color => `<button class="swatch ${state.uiConfig.primary.toLowerCase() === color ? 'active' : ''}" style="background:${color}" onclick="setPrimaryColor('${color}')" aria-label="${color}"></button>`).join('')}
+          <label>主题包</label>
+          <div class="palette-grid">
+            ${palettes.map(([key, item]) => `
+              <button class="palette-card ${state.uiConfig.palette === key ? 'active' : ''}" onclick="setPalette('${escapeAttr(key)}')">
+                <strong>${escapeHtml(item.name)}</strong>
+                <span class="palette-dots">
+                  <span style="background:${item.primary}"></span>
+                  <span style="background:${item.secondary}"></span>
+                  <span style="background:${item.light.bg}"></span>
+                </span>
+              </button>
+            `).join('')}
           </div>
-          <input id="customPrimary" value="${escapeAttr(state.uiConfig.primary)}" placeholder="#4f6ef7" onchange="setPrimaryColor(this.value)">
+        </div>
+        <div class="settings-row">
+          <label>科目图标</label>
+          ${renderIconPicker('subjectIconStyle', state.uiConfig.subjectIconStyle)}
+        </div>
+        <div class="settings-row">
+          <label>章节图标</label>
+          ${renderIconPicker('chapterIconStyle', state.uiConfig.chapterIconStyle)}
         </div>
       </div>
 
       <div class="analysis-panel">
-        <div class="section-title">功能自定义</div>
+        <div class="section-title">练习与保存</div>
         <label class="setting-toggle">
           <input type="checkbox" id="autoSaveOnExit" ${state.uiConfig.autoSaveOnExit ? 'checked' : ''}>
           <span>
             <strong>退出刷题时自动保存</strong>
-            <small>仅顺序练习和随机练习生效；从答题页返回时自动保存当前题号、已选答案和练习模式。</small>
+            <small>默认开启。关闭后，退出答题页不会自动保存题号，也不会自动保留本次选择的答案；仍可手动点答题页右上角“保存”。</small>
+          </span>
+        </label>
+        <label class="setting-toggle">
+          <input type="checkbox" id="mergePracticeProgress" ${state.uiConfig.progressScopePolicy === 'merged' ? 'checked' : ''}>
+          <span>
+            <strong>合并顺序和随机进度</strong>
+            <small>默认关闭。关闭时顺序和随机分别保存题号、选项和重做状态；开启后同一范围共用保存进度。</small>
           </span>
         </label>
         <label class="setting-toggle">
@@ -1907,6 +4471,58 @@ function renderSettings() {
             <small>开启后，随机练习里点击重做会清空当前进度，并重新生成一套随机顺序。</small>
           </span>
         </label>
+      </div>
+
+      <div class="analysis-panel">
+        <div class="section-title">首页与组件</div>
+        <label class="setting-toggle">
+          <input type="checkbox" id="toolPanelsDefaultExpanded" ${state.uiConfig.toolPanelsDefaultExpanded ? 'checked' : ''}>
+          <span>
+            <strong>工具面板默认展开</strong>
+            <small>首页和科目页的练习、背题、错题集面板默认展开；页面里仍可随时收拢或展开。</small>
+          </span>
+        </label>
+        <label class="setting-toggle">
+          <input type="checkbox" id="showSavedProgressEntry" ${state.uiConfig.showSavedProgressEntry ? 'checked' : ''}>
+          <span>
+            <strong>首页显示保存进度入口</strong>
+            <small>关闭后，首页不再显示上一次做题进度的小浮窗；已保存的进度不会被删除。</small>
+          </span>
+        </label>
+        <label class="setting-toggle">
+          <input type="checkbox" id="showSavedProgressHint" ${state.uiConfig.showSavedProgressHint ? 'checked' : ''}>
+          <span>
+            <strong>显示保存进度气泡提示</strong>
+            <small>第一次看到保存进度入口时提示用途；也可以在首页气泡里点“不再提醒”。</small>
+          </span>
+        </label>
+        <div class="settings-row">
+          <label>保存进度小组件宽度</label>
+          <div class="range-row">
+            <input id="savedProgressWidgetWidth" type="range" min="280" max="560" step="20" value="${state.uiConfig.savedProgressWidgetWidth || 420}" oninput="previewSavedProgressWidgetWidth(this.value)">
+            <strong id="savedProgressWidgetWidthValue">${state.uiConfig.savedProgressWidgetWidth || 420}px</strong>
+          </div>
+          <div class="saved-progress-float settings-widget-preview">
+            <div class="icon">续</div>
+            <div class="info">
+              <strong>保存的练习</strong>
+              <small>12/60 · 顺序练习</small>
+            </div>
+            <div class="actions"><button disabled>继续</button></div>
+          </div>
+        </div>
+        <div class="settings-row">
+          <label>已隐藏的工具组件</label>
+          ${renderToolRestoreSettings()}
+        </div>
+        <div class="settings-row">
+          <label>已隐藏的首页信息卡</label>
+          ${renderMetricRestoreSettings()}
+        </div>
+      </div>
+
+      <div class="analysis-panel">
+        <div class="section-title">阅读与答案表</div>
         <label class="setting-toggle">
           <input type="checkbox" id="rememberReviewPosition" ${state.uiConfig.rememberReviewPosition ? 'checked' : ''}>
           <span>
@@ -1923,7 +4539,58 @@ function renderSettings() {
         </label>
       </div>
 
-      <div class="analysis-panel" style="text-align:center;padding:16px">
+      <div class="analysis-panel">
+        <div class="section-title">编辑与题库</div>
+        <div class="settings-row">
+          <label>章节按钮方案</label>
+          ${renderChoiceSelect('chapterActionLayout', state.uiConfig.chapterActionLayout, [
+            { value: 'flat', label: '默认平铺所有模式' },
+            { value: 'compact', label: '点击章节卡片展开模式' },
+          ], 'chapterLayout')}
+        </div>
+        <div class="settings-row">
+          <label>章节显示的按钮</label>
+          <div class="button-choice-grid">
+            ${[
+              ['sequence', '顺序'],
+              ['random', '随机'],
+              ['reset', '重做'],
+              ['review', '背题'],
+              ['answer', '答案'],
+              ['wrong', '错题集'],
+            ].map(([key, label]) => `
+              <label class="button-choice">
+                <input type="checkbox" name="chapterActionButtons" value="${key}" ${getEnabledChapterActionButtons().includes(key) ? 'checked' : ''}>
+                <span>${label}</span>
+              </label>
+            `).join('')}
+          </div>
+        </div>
+        <label class="setting-toggle">
+          <input type="checkbox" id="chapterActionsDefaultExpanded" ${state.uiConfig.chapterActionsDefaultExpanded ? 'checked' : ''}>
+          <span>
+            <strong>展开式章节按钮默认展开</strong>
+            <small>仅在“点击章节卡片展开模式”方案下生效；关闭后第一次点章节卡片会展开按钮。</small>
+          </span>
+        </label>
+      </div>
+
+      <div class="analysis-panel">
+        <div class="section-title">存储与回收站</div>
+        <div class="storage-path-card">
+          <strong>默认题库位置</strong>
+          <code>${escapeHtml(DEFAULT_BANK_DIRECTORY)}</code>
+          <small>内置题库和默认导入参考这个相对目录；桌面和手机都不写死本机绝对路径。回收站索引使用 <code>${escapeHtml(RECYCLE_STORAGE_DIRECTORY)}</code>。</small>
+        </div>
+        <div class="settings-actions storage-actions">
+          <button onclick="openDefaultBankDirectory()">打开默认题库位置</button>
+          <button class="secondary" onclick="openStorageFilePicker()">导入 JSON / 文件选择器</button>
+          <button class="secondary" onclick="triggerImportForPath([])">导入到主页</button>
+        </div>
+        ${renderRecycleBinPanel()}
+      </div>
+
+      <div class="analysis-panel author-panel">
         <div class="section-title">作者信息</div>
         <div style="font-size:13px;line-height:1.9;text-align:left">
           <div><strong>作者</strong>：konwait12</div>
@@ -1938,48 +4605,87 @@ function renderSettings() {
           <button class="btn-submit" style="grid-column:1 / -1;background:var(--secondary)" onclick="openExternal('https://github.com/konwait12/QuizApp')">QuizApp 项目</button>
         </div>
       </div>
-      <div class="settings-actions">
-        <button id="saveSettingsBtn" onclick="saveAllSettings()">保存设置</button>
-        <button class="secondary" onclick="goHome()">返回首页</button>
-      </div>
     </div></div>
   `;
 }
 
 function previewThemeSettings() {
-  state.uiConfig.theme = document.getElementById('themeSelect')?.value || 'light';
+  state.uiConfig.theme = document.getElementById('themeSelect')?.value || 'system';
   applyUiConfig();
+}
+
+function setPalette(key) {
+  readTransientSettings();
+  const palette = PALETTE_PRESETS[key] || PALETTE_PRESETS.classic;
+  state.uiConfig.palette = PALETTE_PRESETS[key] ? key : 'classic';
+  state.uiConfig.primary = palette.primary;
+  applyUiConfig();
+  renderSettings();
 }
 
 function setPrimaryColor(color) {
   const value = String(color || '').trim();
   if (!/^#[0-9a-fA-F]{6}$/.test(value)) return;
+  readTransientSettings();
+  state.uiConfig.primary = value;
+  applyUiConfig();
+  renderSettings();
+}
+
+function readTransientSettings() {
+  const themeEl = document.getElementById('themeSelect');
+  if (themeEl) state.uiConfig.theme = themeEl.value || state.uiConfig.theme;
   const autoSaveEl = document.getElementById('autoSaveOnExit');
   if (autoSaveEl) state.uiConfig.autoSaveOnExit = autoSaveEl.checked;
+  const mergeProgressEl = document.getElementById('mergePracticeProgress');
+  if (mergeProgressEl) state.uiConfig.progressScopePolicy = mergeProgressEl.checked ? 'merged' : 'separate';
   const reshuffleEl = document.getElementById('randomReshuffleOnReset');
   if (reshuffleEl) state.uiConfig.randomReshuffleOnReset = reshuffleEl.checked;
   const rememberReviewEl = document.getElementById('rememberReviewPosition');
   if (rememberReviewEl) state.uiConfig.rememberReviewPosition = rememberReviewEl.checked;
   const rememberAnswerEl = document.getElementById('rememberAnswerLookupPosition');
   if (rememberAnswerEl) state.uiConfig.rememberAnswerLookupPosition = rememberAnswerEl.checked;
-  state.uiConfig.primary = value;
-  applyUiConfig();
-  renderSettings();
+  const panelDefaultEl = document.getElementById('toolPanelsDefaultExpanded');
+  if (panelDefaultEl) state.uiConfig.toolPanelsDefaultExpanded = panelDefaultEl.checked;
+  const savedEntryEl = document.getElementById('showSavedProgressEntry');
+  if (savedEntryEl) state.uiConfig.showSavedProgressEntry = savedEntryEl.checked;
+  const savedHintEl = document.getElementById('showSavedProgressHint');
+  if (savedHintEl) state.uiConfig.showSavedProgressHint = savedHintEl.checked;
+  const persistStudyEl = document.getElementById('persistStudyStats');
+  if (persistStudyEl) state.uiConfig.persistStudyStats = persistStudyEl.checked;
+  const iconStyleEl = document.querySelector('input[name="iconStyle"]:checked');
+  if (iconStyleEl) state.uiConfig.iconStyle = iconStyleEl.value || state.uiConfig.iconStyle;
+  const subjectIconStyleEl = document.querySelector('input[name="subjectIconStyle"]:checked');
+  if (subjectIconStyleEl) state.uiConfig.subjectIconStyle = subjectIconStyleEl.value || state.uiConfig.subjectIconStyle;
+  const chapterIconStyleEl = document.querySelector('input[name="chapterIconStyle"]:checked');
+  if (chapterIconStyleEl) state.uiConfig.chapterIconStyle = chapterIconStyleEl.value || state.uiConfig.chapterIconStyle;
+  const widgetWidthEl = document.getElementById('savedProgressWidgetWidth');
+  if (widgetWidthEl) state.uiConfig.savedProgressWidgetWidth = Number(widgetWidthEl.value || state.uiConfig.savedProgressWidgetWidth);
+  const chapterLayoutEl = document.getElementById('chapterActionLayout');
+  if (chapterLayoutEl) state.uiConfig.chapterActionLayout = chapterLayoutEl.value || state.uiConfig.chapterActionLayout;
+  const chapterDefaultEl = document.getElementById('chapterActionsDefaultExpanded');
+  if (chapterDefaultEl) state.uiConfig.chapterActionsDefaultExpanded = chapterDefaultEl.checked;
+  const chapterButtonEls = Array.from(document.querySelectorAll('input[name="chapterActionButtons"]'));
+  if (chapterButtonEls.length) {
+    const selected = chapterButtonEls.filter(el => el.checked).map(el => el.value);
+    state.uiConfig.chapterActionButtons = selected.length ? selected : ['sequence'];
+  }
 }
 
 function readSettingsForm() {
-  state.uiConfig.theme = document.getElementById('themeSelect')?.value || state.uiConfig.theme;
-  state.uiConfig.primary = document.getElementById('customPrimary')?.value.trim() || state.uiConfig.primary;
-  state.uiConfig.autoSaveOnExit = Boolean(document.getElementById('autoSaveOnExit')?.checked);
-  state.uiConfig.randomReshuffleOnReset = Boolean(document.getElementById('randomReshuffleOnReset')?.checked);
-  state.uiConfig.rememberReviewPosition = Boolean(document.getElementById('rememberReviewPosition')?.checked);
-  state.uiConfig.rememberAnswerLookupPosition = Boolean(document.getElementById('rememberAnswerLookupPosition')?.checked);
+  readTransientSettings();
+  if (!PALETTE_PRESETS[state.uiConfig.palette]) state.uiConfig.palette = 'classic';
+  normalizeUiConfig();
+  if (state.uiConfig.chapterActionLayout !== 'compact') state.uiConfig.chapterActionLayout = 'flat';
 }
 
 function saveAllSettings() {
   readSettingsForm();
+  state.panelExpanded = {};
+  state.chapterActionsExpanded = {};
   applyUiConfig();
   saveUiConfig();
+  saveStudyStats();
   renderSettings();
   showToast('设置已保存');
 }
@@ -1988,13 +4694,14 @@ function openSubject(subject) {
   pushRoute();
   state.view = 'subjects';
   state.activeSubject = subject;
+  state.activePath = [subject];
   renderSubject();
 }
 
 function startAllPractice(shuffled, forceNew = false) {
   startPractice({
     subject: '',
-    banks: state.banks,
+    banks: getVisibleBanks(),
     title: '全部题库',
     subtitle: shuffled ? '全部随机练习' : '全部顺序练习',
     shuffled,
@@ -2005,7 +4712,7 @@ function startAllPractice(shuffled, forceNew = false) {
 function startAllReview(forceNew = false) {
   startPractice({
     subject: '',
-    banks: state.banks,
+    banks: getVisibleBanks(),
     title: '全部题库',
     subtitle: '全部背题模式',
     shuffled: false,
@@ -2014,71 +4721,126 @@ function startAllReview(forceNew = false) {
   });
 }
 
-function renderSubject() {
+function renderSubject(options = {}) {
   state.view = 'subjects';
-  const subject = state.activeSubject;
-  const banks = getBanksBySubject(subject);
-  if (!subject || !banks.length) return renderHome();
+  const path = normalizePath(state.activePath || (state.activeSubject ? [state.activeSubject] : []));
+  state.activePath = path;
+  state.activeSubject = path[0] || '';
+  if (!path.length) return renderHome();
+  const banks = getDescendantBanks(path);
+  const directBanks = getBanksAtPath(path);
+  const children = getLibraryChildren(path);
+  if (!banks.length && !children.length && !state.editMode) return renderHome();
   const questionCount = banks.reduce((sum, b) => sum + b.questions.length, 0);
-  const subjectWrongCount = getWrongRecords({ subject }).length;
+  const wrongCount = getWrongRecords({ path }).length;
+  const title = pathTitle(path);
+  const subjectToolsKey = `subject-tools:${pathKey(path)}`;
+  const subjectToolsExpanded = isToolGroupExpanded(subjectToolsKey);
+  const listHtml = getLibraryDisplayItems(path).map(renderLibraryDisplayItem).join('');
 
   const app = document.getElementById('app');
   app.innerHTML = `
     <div class="topbar">
       <button class="btn-back" onclick="goBackRoute()" aria-label="返回">←</button>
-      <h1>${escapeHtml(subject)}</h1>
-      <span class="topbar-meta">${banks.length} 章</span>
+      <h1>${escapeHtml(title)}</h1>
+      <div class="topbar-actions">
+        <span class="topbar-meta">${children.length} 层 · ${banks.length} 库</span>
+        <button class="btn-text" onclick="toggleEditMode()">${state.editMode ? '完成' : '编辑'}</button>
+        <button class="btn-text" onclick="openSettings()">设置</button>
+      </div>
     </div>
     <div class="viewport view-scroll"><div class="home subject-page">
-      <div class="action-panel">
-        <div class="section-title">练习模式</div>
-        <div class="action-grid">
-          <button onclick="startSubjectPractice(false)">全科顺序练习</button>
-          <button class="secondary" onclick="startSubjectPractice(true)">全科随机练习</button>
-          <button class="muted-mode" onclick="startSubjectPractice(false,true)">全科重新做</button>
+      <div class="subject-summary">
+        <span>${escapeHtml(pathCrumbs(path))} · ${questionCount} 题</span>
+        ${state.editMode ? '<strong>编辑模式</strong>' : renderToolToggle(subjectToolsKey)}
+      </div>
+      ${state.editMode ? renderLibraryManager(path, { canEdit: true }) : ''}
+      ${subjectToolsExpanded ? `
+        <div class="tool-group">
+          ${renderToolPanels('subject', { subject: path[0] || '', wrongCount })}
         </div>
-      </div>
-      <div class="action-panel">
-        <div class="section-title">背题与答案</div>
-        <div class="action-grid">
-          <button class="answer-mode" onclick="startSubjectReview()">全科背题模式</button>
-          <button class="lookup-mode" onclick="openAnswerLookup('${escapeAttr(subject)}', '')">全科答案表</button>
-        </div>
-      </div>
-      <div class="action-panel">
-        <div class="section-title">错题集</div>
-        <div class="action-grid">
-          <button class="secondary" onclick="openWrongPractice('${escapeAttr(subject)}','',true)" ${subjectWrongCount ? '' : 'disabled'}>全科错题集 ${subjectWrongCount}</button>
-        </div>
-      </div>
-      <div class="subject-summary">${questionCount} 题 · ${banks.length} 个章节</div>
-      <div class="bank-list">
-        ${banks.map(b => {
-          const chapter = b.chapter || parseBankName(b.name).chapter;
-          const wrongCount = getWrongRecords({ subject, chapter }).length;
-          return `
-          <div class="bank-item">
-            <div class="icon">${b.bundled ? '📘' : '📋'}</div>
-            <div class="info">
-              <h4>${escapeHtml(chapter)} ${wrongCount ? `<span class="wrong-badge">错题集 ${wrongCount}</span>` : ''}</h4>
-              <small>${b.questions.length} 题 · ${b.bundled ? '内置题库' : '导入题库'}</small>
-            </div>
-            <div class="chapter-actions">
-              <button onclick="startChapterPractice('${escapeAttr(b.id)}',false)">顺序</button>
-              <button onclick="startChapterPractice('${escapeAttr(b.id)}',true)">随机</button>
-              <button class="muted-mode" onclick="startChapterPractice('${escapeAttr(b.id)}',false,true)">重做</button>
-              <button onclick="startChapterReview('${escapeAttr(b.id)}')">背题</button>
-              <button class="lookup-mode" onclick="openAnswerLookup('${escapeAttr(subject)}','${escapeAttr(chapter)}')">答案</button>
-              <button onclick="openWrongPractice('${escapeAttr(subject)}','${escapeAttr(chapter)}',true)" ${wrongCount ? '' : 'disabled'}>错题集</button>
-            </div>
-          </div>
-        `}).join('')}
-      </div>
+      ` : ''}
+      <div class="bank-list">${listHtml || '<div class="analysis-panel">当前层级还没有下级或题库，可以新建下级或导入 JSON。</div>'}</div>
     </div></div>
   `;
+  setupEditableInteractions();
+  restoreSubjectScroll(options);
+}
+
+function restoreSubjectScroll(options = {}) {
+  if (!options.preserveScroll) return;
+  const anchor = options.scrollAnchor || {};
+  const restore = () => {
+    const scroller = document.querySelector('.viewport.view-scroll');
+    if (!scroller) return;
+    const oldBehavior = scroller.style.scrollBehavior;
+    const oldAnchor = scroller.style.overflowAnchor;
+    scroller.style.scrollBehavior = 'auto';
+    scroller.style.overflowAnchor = 'none';
+    scroller.scrollTop = Number(anchor.scrollTop || 0);
+    if (anchor.bankId && Number.isFinite(anchor.cardTop)) {
+      const card = findBankCardElement(anchor.bankId);
+      if (card) scroller.scrollTop += card.getBoundingClientRect().top - anchor.cardTop;
+    }
+    scroller.style.scrollBehavior = oldBehavior;
+    scroller.style.overflowAnchor = oldAnchor;
+  };
+  restore();
+  requestAnimationFrame(() => {
+    restore();
+    requestAnimationFrame(restore);
+  });
+}
+
+function startPathPractice(shuffled, forceNew = false) {
+  const path = normalizePath(state.activePath);
+  const banks = getDescendantBanks(path);
+  if (!banks.length) return showNotice('当前层级还没有题库');
+  startPractice({
+    subject: path[0] || '',
+    banks,
+    title: pathTitle(path),
+    subtitle: shuffled ? '本层随机练习' : '本层顺序练习',
+    shuffled,
+    forceNew,
+    path,
+  });
+}
+
+function startPathReview(forceNew = false) {
+  const path = normalizePath(state.activePath);
+  const banks = getDescendantBanks(path);
+  if (!banks.length) return showNotice('当前层级还没有题库');
+  startPractice({
+    subject: path[0] || '',
+    banks,
+    title: pathTitle(path),
+    subtitle: '本层背题模式',
+    shuffled: false,
+    reviewMode: true,
+    forceNew,
+    path,
+  });
+}
+
+function openPathWrongPractice(shuffled) {
+  const path = normalizePath(state.activePath);
+  const records = getWrongRecords({ path });
+  if (!records.length) return showNotice('当前层级还没有错题集题目');
+  startQuestionPractice({
+    subject: path[0] || '',
+    title: `${pathTitle(path)}错题集`,
+    subtitle: `本层错题集${shuffled ? '随机' : '顺序'}练习`,
+    questions: records.map(record => record.question),
+    shuffled,
+    wrongPractice: true,
+    forceNew: true,
+    path,
+  });
 }
 
 function startSubjectPractice(shuffled, forceNew = false) {
+  if (normalizePath(state.activePath).length) return startPathPractice(shuffled, forceNew);
   const banks = getBanksBySubject(state.activeSubject);
   startPractice({
     subject: state.activeSubject,
@@ -2087,10 +4849,12 @@ function startSubjectPractice(shuffled, forceNew = false) {
     subtitle: shuffled ? '全科随机练习' : '全科顺序练习',
     shuffled,
     forceNew,
+    path: [state.activeSubject],
   });
 }
 
 function startSubjectReview(forceNew = false) {
+  if (normalizePath(state.activePath).length) return startPathReview(forceNew);
   const banks = getBanksBySubject(state.activeSubject);
   startPractice({
     subject: state.activeSubject,
@@ -2100,6 +4864,7 @@ function startSubjectReview(forceNew = false) {
     shuffled: false,
     reviewMode: true,
     forceNew,
+    path: [state.activeSubject],
   });
 }
 
@@ -2108,6 +4873,7 @@ function startChapterPractice(id, shuffled, forceNew = false) {
   if (!bank) return;
   const subject = bank.subject || parseBankName(bank.name).subject;
   const chapter = bank.chapter || parseBankName(bank.name).chapter;
+  const path = getBankPath(bank);
   startPractice({
     subject,
     banks: [bank],
@@ -2115,6 +4881,8 @@ function startChapterPractice(id, shuffled, forceNew = false) {
     subtitle: shuffled ? '章节随机练习' : '章节顺序练习',
     shuffled,
     forceNew,
+    path,
+    returnPath: parentPath(path),
   });
 }
 
@@ -2123,6 +4891,7 @@ function startChapterReview(id, forceNew = false) {
   if (!bank) return;
   const subject = bank.subject || parseBankName(bank.name).subject;
   const chapter = bank.chapter || parseBankName(bank.name).chapter;
+  const path = getBankPath(bank);
   startPractice({
     subject,
     banks: [bank],
@@ -2131,12 +4900,14 @@ function startChapterReview(id, forceNew = false) {
     shuffled: false,
     reviewMode: true,
     forceNew,
+    path,
+    returnPath: parentPath(path),
   });
 }
 
 function openWrongPractice(subject, chapter, shuffled) {
   const records = getWrongRecords({ subject, chapter });
-  if (!records.length) return alert('当前范围还没有错题集题目');
+  if (!records.length) return showNotice('当前范围还没有错题集题目');
   const questions = records.map(record => record.question);
   const title = chapter || subject || '全部错题集';
   const subtitle = `${chapter ? '章节' : subject ? '全科' : '全部'}错题集${shuffled ? '随机' : '顺序'}练习`;
@@ -2160,7 +4931,7 @@ function openAnswerLookup(subject = '', chapter = '') {
 }
 
 function getLookupQuestions(subject = '', chapter = '') {
-  const banks = subject ? getBanksBySubject(subject) : state.banks;
+  const banks = subject ? getBanksBySubject(subject) : getVisibleBanks();
   return buildQuestionSet(banks).filter(q => !chapter || q.sourceChapter === chapter);
 }
 
@@ -2170,7 +4941,7 @@ function renderAnswerLookup() {
   state.answerLookupContext = context;
   const subject = context.subject || '';
   const subjects = getSubjectGroups().map(group => group.subject);
-  const banks = subject ? getBanksBySubject(subject) : state.banks;
+  const banks = subject ? getBanksBySubject(subject) : getVisibleBanks();
   const chapters = Array.from(new Set(buildQuestionSet(banks).map(q => q.sourceChapter || '未分类'))).filter(Boolean);
   const questions = getLookupQuestions(subject, context.chapter || '');
   const title = subject ? `${subject}答案表` : '全部答案表';
@@ -2188,14 +4959,14 @@ function renderAnswerLookup() {
         <div class="section-title">答案查询</div>
         <div class="lookup-toolbar">
           <input id="answerLookupSearch" value="${escapeAttr(context.query || '')}" placeholder="搜索题干 / 选项 / 答案" oninput="state.answerLookupContext.query=this.value;filterAnswerRows()">
-          <select onchange="state.answerLookupContext.subject=this.value;state.answerLookupContext.chapter='';state.answerLookupContext.scrollTop=0;saveAnswerLookupPosition();renderAnswerLookup()">
-            <option value="">全部科目</option>
-            ${subjects.map(item => `<option value="${escapeAttr(item)}" ${subject === item ? 'selected' : ''}>${escapeHtml(item)}</option>`).join('')}
-          </select>
-          <select onchange="state.answerLookupContext.chapter=this.value;state.answerLookupContext.scrollTop=0;saveAnswerLookupPosition();renderAnswerLookup()">
-            <option value="">全部章节</option>
-            ${chapters.map(chapter => `<option value="${escapeAttr(chapter)}" ${context.chapter === chapter ? 'selected' : ''}>${escapeHtml(chapter)}</option>`).join('')}
-          </select>
+          ${renderChoiceSelect('answerLookupSubject', subject, [
+            { value: '', label: '全部科目' },
+            ...subjects.map(item => ({ value: item, label: item })),
+          ], 'answerSubject')}
+          ${renderChoiceSelect('answerLookupChapter', context.chapter || '', [
+            { value: '', label: '全部章节' },
+            ...chapters.map(chapter => ({ value: chapter, label: chapter })),
+          ], 'answerChapter')}
         </div>
       </div>
       <div class="answer-list" id="answerList">
@@ -2256,13 +5027,14 @@ function setupAnswerLookupTracking() {
 }
 
 function clearImportedBanks() {
-  if (!confirm('清除手动导入的题库？内置题库会保留。')) return;
-  state.banks = state.banks.filter(b => b.bundled);
-  saveBanks();
-  renderHome();
+  askConfirm('清除手动导入的题库？内置题库会保留。', () => {
+    state.banks = state.banks.filter(b => b.bundled);
+    saveBanks();
+    renderHome();
+  });
 }
 
-function renderQuiz() {
+function renderQuiz(options = {}) {
   state.view = 'quiz';
   const session = state.activeSession;
   if (!session) return renderHome();
@@ -2288,6 +5060,10 @@ function renderQuiz() {
   }
   const unansweredCount = state.reviewMode ? 0 : total - correctCount - wrongCount;
 
+  const preserveScroll = Boolean(options.preserveScroll);
+  const prevScrollTop = preserveScroll ? (document.getElementById('scrollContainer')?.scrollTop ?? document.getElementById('viewport')?.scrollTop ?? 0) : 0;
+  const preserveCardIndex = Number.isInteger(options.preserveCardIndex) ? options.preserveCardIndex : null;
+  const preserveCardTop = Number.isFinite(options.preserveCardTop) ? options.preserveCardTop : null;
   const app = document.getElementById('app');
   app.innerHTML = `
     <div class="topbar quiz-topbar">
@@ -2325,8 +5101,31 @@ function renderQuiz() {
   `;
 
   if (state.mode === 'scroll') {
-    const card = document.getElementById(`card-${idx}`);
-    if (card) card.scrollIntoView({ behavior: 'instant', block: 'start' });
+    if (preserveScroll) {
+      const restoreScroll = () => {
+        const scroller = document.getElementById('scrollContainer') || document.getElementById('viewport');
+        if (!scroller) return;
+        const oldBehavior = scroller.style.scrollBehavior;
+        const oldAnchor = scroller.style.overflowAnchor;
+        scroller.style.scrollBehavior = 'auto';
+        scroller.style.overflowAnchor = 'none';
+        scroller.scrollTop = prevScrollTop;
+        if (preserveCardIndex !== null && preserveCardTop !== null) {
+          const card = document.getElementById(`card-${preserveCardIndex}`);
+          if (card) scroller.scrollTop += card.getBoundingClientRect().top - preserveCardTop;
+        }
+        scroller.style.scrollBehavior = oldBehavior;
+        scroller.style.overflowAnchor = oldAnchor;
+      };
+      restoreScroll();
+      requestAnimationFrame(() => {
+        restoreScroll();
+        requestAnimationFrame(restoreScroll);
+      });
+    } else {
+      const card = document.getElementById(`card-${idx}`);
+      if (card) card.scrollIntoView({ behavior: 'instant', block: 'start' });
+    }
     setupScrollTracking();
   } else {
     setupPageTouch();
@@ -2443,7 +5242,7 @@ function renderCard(q, idx) {
     const clsFor = letter => {
       if (state.reviewMode) return correctAns === letter ? 'correct' : '';
       if (!answered) return userAns === letter ? 'selected' : '';
-      if (correctAns === letter) return `correct ${animateFeedback ? 'animate-answer' : ''}`;
+      if (correctAns === letter) return `${state.answers[idx] === letter ? 'selected ' : ''}correct ${animateFeedback ? 'animate-answer' : ''}`;
       if (state.answers[idx] === letter) return `wrong ${animateFeedback ? 'animate-answer' : ''}`;
       return '';
     };
@@ -2463,7 +5262,7 @@ function renderCard(q, idx) {
           if (state.reviewMode) {
             cls = correctAns.includes(letter) ? 'correct' : '';
           } else if (answered) {
-            if (correctAns.includes(letter)) cls = `correct ${animateFeedback ? 'animate-answer' : ''}`;
+            if (correctAns.includes(letter)) cls = `${selected ? 'selected ' : ''}correct ${animateFeedback ? 'animate-answer' : ''}`;
             else if (selected) cls = `wrong ${animateFeedback ? 'animate-answer' : ''}`;
             else cls = '';
           }
@@ -2525,8 +5324,8 @@ function renderCard(q, idx) {
             ${!state.reviewMode && !correct && !state.activeSession?.wrongPractice ? `
               <div class="feedback-actions">
                 ${inWrongBook
-                  ? `<button class="secondary" onclick="removeWrongFromBook(${idx})">从错题集删除</button>`
-                  : `<button onclick="addWrongToBook(${idx})">加入错题集</button>`}
+                  ? `<button class="danger" onclick="removeWrongFromBook(${idx})">从错题集删除</button>`
+                  : `<button class="danger" onclick="addWrongToBook(${idx})">加入错题集</button>`}
               </div>
             ` : ''}
             </div>
@@ -2537,10 +5336,12 @@ function renderCard(q, idx) {
 }
 
 function toggleAnswerReveal(idx) {
+  const card = document.getElementById(`card-${idx}`);
+  const preserveCardTop = card ? card.getBoundingClientRect().top : null;
   state.currentIndex = idx;
   if (state.revealedAnswers[idx]) delete state.revealedAnswers[idx];
   else state.revealedAnswers[idx] = true;
-  renderQuiz();
+  renderQuiz({ preserveScroll: true, preserveCardIndex: idx, preserveCardTop });
 }
 
 function answerSingle(idx, letter) {
@@ -2548,9 +5349,11 @@ function answerSingle(idx, letter) {
   if (state.answers[idx] === letter) {
     delete state.answers[idx];
     state.answerFeedbackIndex = null;
+    syncCurrentAnswerToGlobal(idx, '');
   } else {
     state.answers[idx] = letter;
     state.answerFeedbackIndex = idx;
+    syncCurrentAnswerToGlobal(idx, letter);
   }
   delete state.drafts[idx];
   delete state.revealedAnswers[idx];
@@ -2562,9 +5365,11 @@ function answerBool(idx, letter) {
   if (state.answers[idx] === letter) {
     delete state.answers[idx];
     state.answerFeedbackIndex = null;
+    syncCurrentAnswerToGlobal(idx, '');
   } else {
     state.answers[idx] = letter;
     state.answerFeedbackIndex = idx;
+    syncCurrentAnswerToGlobal(idx, letter);
   }
   delete state.drafts[idx];
   delete state.revealedAnswers[idx];
@@ -2582,6 +5387,7 @@ function toggleMulti(idx, letter) {
   if (next) state.drafts[idx] = next;
   else delete state.drafts[idx];
   delete state.answers[idx];
+  syncCurrentAnswerToGlobal(idx, '');
   delete state.revealedAnswers[idx];
   renderQuiz();
 }
@@ -2592,6 +5398,7 @@ function submitMulti(idx) {
   state.currentIndex = idx;
   state.answers[idx] = draft;
   state.answerFeedbackIndex = idx;
+  syncCurrentAnswerToGlobal(idx, draft);
   delete state.drafts[idx];
   renderQuiz();
 }
@@ -2801,11 +5608,29 @@ function escapeAttr(s) {
 
 // ========== Init ==========
 loadUiConfig();
+loadAnswerState();
+loadStudyStats();
+loadLibraryNodes();
+loadBankMeta();
+loadRecycleBin();
 loadBanks();
 loadWrongBook();
 loadBundledBanks();
+startStudyTimer();
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
   if (state.uiConfig.theme === 'system') applyUiConfig();
+});
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    saveCurrentViewPosition();
+    saveStudyStats();
+  }
+});
+document.addEventListener('click', closeChoiceSelects);
+window.addEventListener('beforeunload', () => {
+  saveCurrentViewPosition();
+  saveStudyStats();
+  if (isSavablePracticeSession() && state.uiConfig.autoSaveOnExit) saveCurrentSession({ silent: true });
 });
 </script>
 </body>

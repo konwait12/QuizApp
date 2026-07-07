@@ -1,3 +1,7 @@
+param(
+  [string]$Version = "v1.0.11"
+)
+
 $ErrorActionPreference = "Stop"
 
 $projectRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
@@ -53,7 +57,7 @@ $dexDir = Join-Path $buildDir "dex"
 $unsignedApk = Join-Path $buildDir "quizapp-unsigned.apk"
 $classesApk = Join-Path $buildDir "quizapp-classes.apk"
 $alignedApk = Join-Path $buildDir "quizapp-aligned.apk"
-$finalApk = Join-Path $projectRoot "output\QuizApp-v1.0.10-debug.apk"
+$finalApk = Join-Path $projectRoot "output\QuizApp-$Version-debug.apk"
 $keystore = Join-Path $projectRoot "output\quizapp-debug.keystore"
 
 if (Test-Path -LiteralPath $buildDir) { Remove-Item -LiteralPath $buildDir -Recurse -Force }

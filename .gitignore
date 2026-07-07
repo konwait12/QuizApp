@@ -3,6 +3,8 @@ data/
 
 # Output files
 output/
+desktop/**/bin/
+desktop/**/obj/
 
 # Images/assets (large binary files)
 *.assets/

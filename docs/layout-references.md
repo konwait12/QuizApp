@@ -24,3 +24,15 @@ Implementation notes:
 - Tablet landscape uses a two-pane quiz card: question stem on the left, options and answer feedback on the right.
 - Phone and narrow portrait layouts keep the existing single-column flow.
 - The app remains single-file and offline-capable; no external component runtime is added.
+
+## 2026-07-07 Tool Panels And Themes
+
+- Material Design 3 color roles: treat color as semantic roles across surfaces, text, borders, and states instead of changing only the primary button color. Reference: https://m3.material.io/styles/color/roles
+- daisyUI themes: use a named theme preset model with light and dark variants, but keep QuizApp dependency-free and implement it with local CSS variables. Reference: https://daisyui.com/docs/themes/
+- Mobbin and component.gallery: use collapsible product panels and compact action rows for mobile/tablet app surfaces where repeated action buttons would crowd the page.
+
+Implementation notes:
+
+- Home and subject tool groups share one collapsible panel renderer.
+- Chapter actions support a flat mode and a compact "expand modes" mode.
+- Settings stores the default expanded/collapsed behavior and theme preset choices in local storage.
