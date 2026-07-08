@@ -88,6 +88,11 @@ body{
 .topbar .btn-back:hover,.topbar .btn-icon:hover{background:var(--primary-soft);color:var(--primary);border-color:var(--primary)}
 .topbar .btn-back:active,.topbar .btn-icon:active{transform:scale(.96)}
 .topbar-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.mail-button{position:relative;font-size:15px!important}
+.mail-button.unread::after{
+  content:"";position:absolute;right:6px;top:6px;width:8px;height:8px;border-radius:50%;
+  background:var(--danger);box-shadow:0 0 0 2px var(--card)
+}
 .topbar .btn-text{
   height:34px;border:1px solid transparent;border-radius:99px;padding:0 12px;
   background:var(--primary-soft);color:var(--primary);
@@ -105,7 +110,7 @@ body[data-theme="dark"] .topbar .btn-icon,
 body[data-theme="dark"] .topbar-meta{background:rgba(18,21,28,.56)}
 body[data-theme="dark"] .topbar,
 body[data-theme="dark"] .bottombar{background:var(--bar-bg)}
-.quiz-topbar{align-items:flex-start}
+.quiz-topbar{align-items:center}
 .quiz-topbar .topbar-actions{gap:6px}
 .counter-pill{
   height:34px;display:inline-flex;align-items:center;justify-content:center;
@@ -116,18 +121,15 @@ body[data-theme="dark"] .bottombar{background:var(--bar-bg)}
 /* Progress bar */
 .progress-wrap{padding:10px 16px 9px;background:var(--card)}
 .progress-bar{
-  height:4px;background:var(--line);border-radius:2px;overflow:hidden;
-  display:flex;gap:2px;
+  height:6px;background:var(--line);border-radius:999px;overflow:hidden;
+  display:block
 }
-.progress-bar span{height:100%;border-radius:2px;transition:width .3s}
-.progress-bar .correct{background:var(--success)}
-.progress-bar .wrong{background:var(--danger)}
-.progress-bar .unanswered{background:var(--line)}
-.progress-bar .review{background:var(--primary)}
+.progress-bar canvas{display:block;width:100%;height:100%}
 .progress-info{
   display:grid;grid-template-columns:minmax(0,1fr) auto auto auto;gap:6px;align-items:center;margin-top:7px;
   font-size:11px;color:var(--muted)
 }
+.progress-info:empty{display:none}
 .progress-info span{white-space:nowrap}
 .progress-info span:first-child{overflow:hidden;text-overflow:ellipsis}
 .progress-info span:not(:first-child){
@@ -146,6 +148,7 @@ body[data-theme="dark"] .bottombar{background:var(--bar-bg)}
 /* Vertical scroll mode */
 .scroll-container{height:100%;overflow-y:auto;scroll-behavior:auto;padding:12px}
 .scroll-container .card{margin-bottom:14px}
+.scroll-spacer{height:var(--spacer-height,0px);flex:0 0 auto;pointer-events:none}
 
 /* Horizontal page mode */
 .page-frame{height:100%;overflow:hidden}
@@ -315,6 +318,17 @@ body[data-theme="dark"] .answer-reveal button{
 }
 .overview-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
 .overview-head strong{font-size:16px}
+.overview-stats{
+  display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:12px
+}
+.overview-stat{
+  min-width:0;background:var(--bg);border:1px solid var(--line);border-radius:12px;
+  padding:9px 8px;display:flex;flex-direction:column;gap:3px
+}
+.overview-stat span{font-size:11px;color:var(--muted);white-space:nowrap}
+.overview-stat strong{font-size:15px;color:var(--text);line-height:1.1}
+.overview-stat.good strong{color:var(--success)}
+.overview-stat.bad strong{color:var(--danger)}
 .overview-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
 .overview-num{
   height:42px;border:1px solid var(--line);border-radius:10px;
@@ -357,6 +371,18 @@ body[data-theme="dark"] .answer-reveal button{
 .announcement-body p,.announcement-body ul{margin:0}
 .announcement-body ul{padding-left:18px}
 .announcement-body li{margin:3px 0}
+.announcement-list{display:flex;flex-direction:column;gap:12px}
+.announcement-entry{
+  border:1px solid var(--line);border-radius:14px;background:var(--bg);padding:12px;
+  display:flex;flex-direction:column;gap:8px
+}
+.announcement-entry.latest{border-color:var(--primary);box-shadow:0 0 0 1px var(--primary-soft)}
+.announcement-meta{display:flex;justify-content:space-between;gap:10px;align-items:center}
+.announcement-meta strong{font-size:14px;color:var(--text)}
+.announcement-meta span{
+  white-space:nowrap;font-size:11px;font-weight:900;color:var(--primary);
+  background:var(--primary-soft);border-radius:999px;padding:4px 8px
+}
 .announcement-option{
   display:flex;align-items:center;gap:8px;border:1px solid var(--line);
   background:var(--bg);border-radius:var(--radius-sm);padding:10px 12px;
@@ -943,33 +969,20 @@ body[data-theme="dark"] .settings-actions.top{background:var(--bar-bg)}
   .topbar-meta{height:30px;padding:0 9px;font-size:11px}
   #questionCounter{display:none}
   .quiz-topbar{
-    display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;align-items:center;
+    display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;
     column-gap:8px;row-gap:7px;padding-top:8px;padding-bottom:9px
   }
   .quiz-topbar .btn-back{width:32px;height:32px}
   .quiz-topbar .topbar-actions{
-    display:contents
+    grid-column:3;grid-row:1;display:flex;gap:5px;justify-content:flex-end;align-items:center
   }
-  .quiz-topbar .btn-text{height:30px;padding:0 11px;font-size:12px}
-  .quiz-topbar .counter-pill{height:30px;padding:0 8px;font-size:12px}
-  .quiz-topbar #questionCounter{display:inline-flex}
-  .quiz-topbar #questionCounter{
-    grid-column:1 / 3;grid-row:2;justify-self:start;
-    min-width:72px;background:transparent;border-color:transparent;padding-left:0
-  }
-  .quiz-topbar .topbar-actions .btn-text:nth-of-type(1){
-    grid-column:3;grid-row:1;min-width:54px
-  }
-  .quiz-topbar .topbar-actions .btn-text:nth-of-type(2){
-    grid-column:3 / 5;grid-row:2;justify-self:end;
-    height:28px;min-width:68px;background:var(--bg);color:var(--muted);border-color:var(--line)
-  }
-  .quiz-topbar .topbar-actions .btn-text:nth-of-type(3){
-    grid-column:4;grid-row:1;min-width:54px
+  .quiz-topbar .btn-text{height:30px;padding:0 10px;font-size:12px;min-width:50px}
+  .quiz-topbar .counter-pill{display:none}
+  .quiz-topbar .topbar-actions .btn-text.btn-reset{
+    background:var(--bg);color:var(--muted);border-color:var(--line)
   }
   .settings-actions.top{top:8px;padding:7px}
   .progress-info{font-size:10px;gap:6px;grid-template-columns:minmax(0,1fr) auto auto}
-  .progress-info span:nth-child(3){display:none}
   .scroll-container{padding:14px}
   .page-slide{padding:14px 12px 18px}
   .card{padding:16px 14px 18px}
@@ -1259,13 +1272,16 @@ body[data-theme="dark"] .settings-actions.top{background:var(--bar-bg)}
   body[data-theme="dark"] .bottombar{background:var(--bar-bg)}
   .bottombar button{flex:0 1 180px}
   .btn-overview{flex-basis:220px!important}
-  .question-overview{align-items:center}
+  .question-overview{place-items:center}
   .overview-panel{
-    width:min(720px,calc(100vw - 72px));
+    width:min(920px,calc(100vw - 72px));
     max-height:80vh;
-    border-radius:18px
+    border-radius:18px;
+    padding:18px
   }
-  .overview-grid{grid-template-columns:repeat(10,1fr)}
+  .overview-stats{grid-template-columns:repeat(4,minmax(120px,1fr))}
+  .overview-grid{grid-template-columns:repeat(12,1fr);gap:7px}
+  .overview-num{height:38px;border-radius:9px}
   .answer-list{
     display:grid;
     grid-template-columns:repeat(2,minmax(0,1fr));
@@ -1297,7 +1313,7 @@ body[data-theme="dark"] .settings-actions.top{background:var(--bar-bg)}
 <script>
 // ========== State ==========
 const STORAGE_KEY = 'quizapp_banks';
-const APP_VERSION = 'v1.0.13';
+const APP_VERSION = 'v1.0.14';
 const RELEASE_API_URL = 'https://api.github.com/repos/konwait12/QuizApp/releases/latest';
 const RELEASE_PAGE_URL = 'https://github.com/konwait12/QuizApp/releases/latest';
 const WRONG_KEY = 'quizapp_wrong_book';
@@ -1311,9 +1327,37 @@ const LIBRARY_NODES_KEY = 'quizapp_library_nodes';
 const BANK_META_KEY = 'quizapp_bank_meta';
 const RECYCLE_BIN_KEY = 'quizapp_recycle_bin';
 const UI_CONFIG_VERSION = 2;
-const ANNOUNCEMENT_ID = 'project-intro-20260707';
+const ANNOUNCEMENT_ID = 'release-v1.0.14';
 const ANNOUNCEMENT_SEEN_KEY = 'quizapp_announcement_seen';
 const ANNOUNCEMENT_SUPPRESS_KEY = 'quizapp_announcement_suppressed';
+const ANNOUNCEMENTS = [
+  {
+    id: 'release-v1.0.14',
+    title: 'v1.0.14 练习页与题号总览优化',
+    date: '2026-07-08',
+    latest: true,
+    body: `
+      <ul>
+        <li>重排答题页顶部区域，保留进度条，题号显示改为进度条下方信息行。</li>
+        <li>题号总览新增已答、未答、正确、错误统计，平板横屏弹层改为居中显示。</li>
+        <li>习思 2081 题等大题库改用 Canvas 绘制进度条，避免进度条生成大量 DOM。</li>
+        <li>竖向滑动模式改为只渲染当前附近题卡，减少题目很多时的切换卡顿。</li>
+        <li>点击选项、看答案、加入或删除错题集时保持当前卡片视角，不再强制跳动。</li>
+        <li>保存进度不再写入整套题目内容，保存过程更轻。</li>
+      </ul>
+    `,
+  },
+  {
+    id: 'project-intro-20260707',
+    title: '项目说明、使用感谢与免责声明',
+    date: '2026-07-07',
+    body: `
+      <p>QuizApp 是一个开源免费的本地刷题工具，用于课程复习、题库练习、答案查询、错题集整理和学习时长统计。题库可以内置在 <code>data</code> 目录，也可以由用户在编辑模式或设置页导入 JSON。</p>
+      <p>当前版本还没有服务器/客户端架构，也没有云端账号、云同步、通知推送、题库远程分发。数据主要保存在本机浏览器或 APK WebView 的本地存储中，换设备前需要自行备份题库和重要数据。</p>
+      <p>本项目不售卖软件、不售卖题库、不提供付费代练或代做服务。题库内容由用户自行整理或导入，请确认来源合规，并仅用于课程复习、知识巩固和个人学习记录。</p>
+    `,
+  },
+];
 const UPDATE_LAST_CHECK_KEY = 'quizapp_update_last_check';
 const UPDATE_DISMISSED_TAG_KEY = 'quizapp_update_dismissed_tag';
 const UPDATE_CHECK_INTERVAL_MS = 12 * 60 * 60 * 1000;
@@ -1415,6 +1459,8 @@ let state = {
   answerFeedbackIndex: null,
   answerAnimationTimer: null,
   scrollTimer: null,
+  answerSaveTimer: null,
+  scrollCardEstimate: 520,
   wrongBook: {},
   answerState: { sequence: {}, random: {} },
   studyStats: {},
@@ -1742,20 +1788,27 @@ function saveCurrentSession(options = {}) {
     return;
   }
   syncCurrentAnswersToGlobal({ force: true });
+  flushAnswerStateSave();
   const scopeKey = session.scopeKey || makeQuestionScopeKey(session.subject, session.questions, state.reviewMode, session.title, session.shuffled);
   const currentQuestion = session.questions[state.currentIndex];
   const payload = {
-    ...session,
+    title: session.title || '',
+    subtitle: session.subtitle || '',
+    subject: session.subject || '',
+    path: normalizePath(session.path || []),
+    returnPath: normalizePath(session.returnPath || []),
+    shuffled: Boolean(session.shuffled),
+    reviewMode: Boolean(state.reviewMode),
+    wrongPractice: Boolean(session.wrongPractice),
     scopeKey,
+    bankIds: session.bankIds || [],
+    total: session.questions.length,
     currentIndex: state.currentIndex,
     currentQuestionKey: currentQuestion ? questionKey(currentQuestion) : '',
-    answers: state.answers,
-    drafts: state.drafts,
     answersByKey: mapIndexedValuesByQuestionKey(session.questions, state.answers),
     draftsByKey: mapIndexedValuesByQuestionKey(session.questions, state.drafts),
     questionOrderKeys: session.questions.map(questionKey),
     mode: state.mode,
-    reviewMode: state.reviewMode,
     savedAt: Date.now(),
   };
   localStorage.setItem(SAVED_SESSION_KEY, JSON.stringify(payload));
@@ -1829,6 +1882,17 @@ function saveAnswerState() {
   localStorage.setItem(ANSWER_STATE_KEY, JSON.stringify(state.answerState));
 }
 
+function saveAnswerStateDebounced() {
+  window.clearTimeout(state.answerSaveTimer);
+  state.answerSaveTimer = window.setTimeout(saveAnswerState, 120);
+}
+
+function flushAnswerStateSave() {
+  window.clearTimeout(state.answerSaveTimer);
+  state.answerSaveTimer = null;
+  saveAnswerState();
+}
+
 function hydrateAnswerStateFromSavedProgress() {
   const candidates = Object.values(getSavedProgress()).filter(isValidSavedSession);
   try {
@@ -1877,38 +1941,35 @@ function mergeAnswerMapsForMode(questions, modeKey, base = {}) {
   };
 }
 
+function updateSavedAnswerPayload(saved, key, value) {
+  if (!saved || !key) return false;
+  const keys = saved.questionOrderKeys || (saved.questions || []).map(questionKey);
+  if (!keys.includes(key)) return false;
+  const answersByKey = getSavedValueMap(saved, 'answersByKey', 'answers');
+  if (value) answersByKey[key] = value;
+  else delete answersByKey[key];
+  saved.answersByKey = answersByKey;
+  delete saved.answers;
+  saved.savedAt = Date.now();
+  return true;
+}
+
 function syncSavedScopesForQuestion(modeKey, key, value) {
   if (!modeKey || !key) return;
-  const store = getSavedProgress();
-  let changed = false;
-  Object.entries(store).forEach(([scopeKey, saved]) => {
-    if (!saved || saved.reviewMode || !isValidSavedSession(saved)) return;
-    if ((modeKey === 'random') !== Boolean(saved.shuffled)) return;
-    const keys = saved.questionOrderKeys || (saved.questions || []).map(questionKey);
-    if (!keys.includes(key)) return;
-    const answersByKey = getSavedValueMap(saved, 'answersByKey', 'answers');
-    if (value) answersByKey[key] = value;
-    else delete answersByKey[key];
-    saved.answersByKey = answersByKey;
-    saved.answers = mapQuestionKeysToIndices(saved.questions || [], answersByKey);
-    saved.savedAt = Date.now();
-    store[scopeKey] = saved;
-    changed = true;
-  });
-  if (changed) saveProgressStore(store);
+  const session = state.activeSession;
+  const scopeKey = session?.scopeKey || '';
+  if (scopeKey && ((modeKey === 'random') === Boolean(session?.shuffled))) {
+    const store = getSavedProgress();
+    const saved = store[scopeKey];
+    if (updateSavedAnswerPayload(saved, key, value)) {
+      store[scopeKey] = saved;
+      saveProgressStore(store);
+    }
+  }
   try {
     const saved = JSON.parse(localStorage.getItem(SAVED_SESSION_KEY));
-    if (saved && !saved.reviewMode && isValidSavedSession(saved) && ((modeKey === 'random') === Boolean(saved.shuffled))) {
-      const keys = saved.questionOrderKeys || (saved.questions || []).map(questionKey);
-      if (keys.includes(key)) {
-        const answersByKey = getSavedValueMap(saved, 'answersByKey', 'answers');
-        if (value) answersByKey[key] = value;
-        else delete answersByKey[key];
-        saved.answersByKey = answersByKey;
-        saved.answers = mapQuestionKeysToIndices(saved.questions || [], answersByKey);
-        saved.savedAt = Date.now();
-        localStorage.setItem(SAVED_SESSION_KEY, JSON.stringify(saved));
-      }
+    if (saved && !saved.reviewMode && ((modeKey === 'random') === Boolean(saved.shuffled)) && updateSavedAnswerPayload(saved, key, value)) {
+      localStorage.setItem(SAVED_SESSION_KEY, JSON.stringify(saved));
     }
   } catch(e) {}
 }
@@ -1920,8 +1981,12 @@ function setGlobalAnswerForQuestion(question, value, modeKey = getAnswerModeKeyF
   const key = questionKey(question);
   if (value) state.answerState[modeKey][key] = value;
   else delete state.answerState[modeKey][key];
-  saveAnswerState();
-  syncSavedScopesForQuestion(modeKey, key, value);
+  if (options.force) {
+    saveAnswerState();
+    syncSavedScopesForQuestion(modeKey, key, value);
+  } else {
+    saveAnswerStateDebounced();
+  }
 }
 
 function syncCurrentAnswerToGlobal(idx, value, options = {}) {
@@ -1933,10 +1998,19 @@ function syncCurrentAnswersToGlobal(options = {}) {
   const session = state.activeSession;
   const modeKey = getAnswerModeKeyFromSession(session);
   if (!session || !modeKey) return;
+  if (!options.force && !shouldAutoPersistAnswers(session)) return;
+  if (!state.answerState[modeKey]) state.answerState[modeKey] = {};
+  let changed = false;
   Object.entries(state.answers || {}).forEach(([idx, value]) => {
     const question = session.questions[Number(idx)];
-    if (question && value) setGlobalAnswerForQuestion(question, value, modeKey, options);
+    if (!question || !value) return;
+    const key = questionKey(question);
+    if (state.answerState[modeKey][key] !== value) {
+      state.answerState[modeKey][key] = value;
+      changed = true;
+    }
   });
+  if (changed) saveAnswerState();
 }
 
 function clearGlobalAnswersForQuestions(questions, modeKey) {
@@ -1944,7 +2018,6 @@ function clearGlobalAnswersForQuestions(questions, modeKey) {
   for (const question of questions || []) {
     const key = questionKey(question);
     delete state.answerState[modeKey][key];
-    syncSavedScopesForQuestion(modeKey, key, '');
   }
   saveAnswerState();
 }
@@ -3028,11 +3101,12 @@ function addWrongToBook(idx) {
   };
   saveWrongBook();
   showToast('已加入错题集');
-  renderQuiz();
+  renderQuizPreservingCard(idx);
 }
 
 function removeWrongFromBookByKey(key, rerender = true) {
   if (!key || !state.wrongBook[key]) return;
+  const currentIdx = state.activeSession?.questions?.findIndex(q => questionKey(q) === key) ?? state.currentIndex;
   delete state.wrongBook[key];
   saveWrongBook();
   showToast('已从错题集删除');
@@ -3045,7 +3119,10 @@ function removeWrongFromBookByKey(key, rerender = true) {
     }
     state.currentIndex = Math.min(state.currentIndex, state.activeSession.questions.length - 1);
   }
-  if (rerender) renderQuiz();
+  if (rerender) {
+    if (state.activeSession?.wrongPractice) renderQuiz();
+    else renderQuizPreservingCard(currentIdx >= 0 ? currentIdx : state.currentIndex);
+  }
 }
 
 function removeWrongFromBook(idx) {
@@ -4014,6 +4091,7 @@ function renderHome() {
   const totalWrongCount = getWrongRecords().length;
   const subjectGroups = getSubjectGroups();
   const saved = getSavedSession();
+  const savedTotal = saved ? Number(saved.total || saved.questionOrderKeys?.length || saved.questions?.length || 0) : 0;
   const homeToolsExpanded = isToolGroupExpanded('home-tools');
   const progressSummary = getPracticeProgressSummary();
   const todayStudyTime = formatStudyDuration(getTodayStudySeconds());
@@ -4025,11 +4103,13 @@ function renderHome() {
   ].join('');
   const subjectCards = subjectGroups.map(renderHomeSubjectItem).join('');
   const subjectEditCards = rootChildren.map(renderHomeSubjectEditNode).join('');
+  const unreadAnnouncements = hasUnreadAnnouncements();
 
   app.innerHTML = `
     <div class="topbar">
       <h1 class="brand-title"><span class="brand-mark">题</span><span>刷题</span></h1>
       <div class="topbar-actions">
+        <button class="btn-icon mail-button ${unreadAnnouncements ? 'unread' : ''}" onclick="openAnnouncementBoard()" aria-label="公告栏" title="公告栏">✉</button>
         <button class="btn-text" onclick="toggleEditMode()">${state.editMode ? '完成' : '编辑'}</button>
         <button class="btn-text" onclick="openSettings()">设置</button>
       </div>
@@ -4040,7 +4120,7 @@ function renderHome() {
           <div class="icon">续</div>
           <div class="info">
             <strong>${escapeHtml(saved.title || '保存的练习')}</strong>
-            <small>${saved.currentIndex + 1}/${saved.questions.length} · ${escapeHtml(saved.reviewMode ? '背题模式' : (saved.subtitle || '练习'))}</small>
+            <small>${saved.currentIndex + 1}/${savedTotal} · ${escapeHtml(saved.reviewMode ? '背题模式' : (saved.subtitle || '练习'))}</small>
           </div>
           <div class="actions">
             <button onclick="resumeSavedSession()">继续</button>
@@ -4480,39 +4560,44 @@ window.onNativeBankDirectoryResult = function onNativeBankDirectoryResult(ok, me
   else showNotice(message || '系统没有允许直接打开默认题库文件夹');
 };
 
-function renderAnnouncementBody() {
+function renderAnnouncementBody(options = {}) {
+  const all = Boolean(options.all);
+  const items = all ? ANNOUNCEMENTS : ANNOUNCEMENTS.slice(0, 1);
   return `
     <div class="announcement-body">
-      <h4>项目说明</h4>
-      <p>QuizApp 是一个开源免费的本地刷题工具，主要用于课程复习、题库练习、答案查询、错题集整理和学习时长统计。题库可以内置在 <code>data</code> 目录，也可以由用户在编辑模式或设置页导入 JSON。</p>
-      <h4>当前边界</h4>
-      <p>目前还没有做服务器/客户端架构，也没有云端账号、云同步、通知推送、题库远程分发和版本自动下发。当前版本的数据主要保存在本机浏览器或 APK WebView 的本地存储中，换设备前需要自行备份题库和重要数据。</p>
-      <h4>更新与数据</h4>
-      <p>设置页可以手动检查 GitHub Release，也可以开启启动自动检测。检测到新版 APK 后，直接覆盖安装同包名同签名的 APK，不会清除本机题库、进度、错题集、设置和学习统计；不要先卸载旧版，也不要清除应用数据。</p>
-      <h4>使用感谢</h4>
-      <p>感谢使用和测试这个小工具。现在的功能仍会继续根据真实刷题体验修复和调整，遇到题库解析、保存进度、手机适配等问题，可以继续反馈。</p>
-      <h4>基本用法</h4>
-      <ul>
-        <li>首页显示科目，进入科目后显示章节或题库。</li>
-        <li>顺序练习按题库顺序做题，随机练习每次进入会重新打乱。</li>
-        <li>背题模式直接查看答案，答案表用于快速查询全部答案。</li>
-        <li>答错后可手动加入错题集，错题集不受普通重做影响。</li>
-        <li>设置和编辑模式里可以调整组件显示、题库层级、导入 JSON 和回收站。</li>
-      </ul>
-      <h4>免责声明</h4>
-      <p>本项目是开源免费的本地学习工具，不售卖软件、不售卖题库、不提供付费代练或代做服务。题库内容由用户自行整理或导入，请确认来源合规，并仅用于课程复习、知识巩固和个人学习记录。</p>
+      <div class="announcement-list">
+        ${items.map(item => `
+          <article class="announcement-entry ${item.latest ? 'latest' : ''}">
+            <div class="announcement-meta">
+              <strong>${escapeHtml(item.title)}</strong>
+              <span>${escapeHtml(item.date)}${item.latest ? ' · 最新' : ''}</span>
+            </div>
+            <div>${item.body}</div>
+          </article>
+        `).join('')}
+      </div>
+      ${all ? `
+        <h4>基本用法</h4>
+        <ul>
+          <li>首页显示科目，进入科目后显示章节或题库。</li>
+          <li>顺序练习按题库顺序做题，随机练习每次进入会重新打乱。</li>
+          <li>背题模式直接查看答案，答案表用于快速查询全部答案。</li>
+          <li>答错后可手动加入错题集，错题集不受普通重做影响。</li>
+          <li>设置和编辑模式里可以调整组件显示、题库层级、导入 JSON 和回收站。</li>
+        </ul>
+      ` : ''}
     </div>
   `;
 }
 
 function renderAnnouncementBoard() {
   return `
-    <details class="help-details">
+    <details class="help-details" onclick="markAllAnnouncementsRead()">
       <summary>
         <strong>公告栏</strong>
         <span>展开</span>
       </summary>
-      ${renderAnnouncementBody()}
+      ${renderAnnouncementBody({ all: true })}
     </details>
   `;
 }
@@ -4522,20 +4607,32 @@ function markAnnouncementSeen(suppress = false) {
   if (suppress) localStorage.setItem(ANNOUNCEMENT_SUPPRESS_KEY, '1');
 }
 
-function shouldShowStartupAnnouncement() {
-  return localStorage.getItem(ANNOUNCEMENT_SUPPRESS_KEY) !== '1'
-    && localStorage.getItem(ANNOUNCEMENT_SEEN_KEY) !== ANNOUNCEMENT_ID;
+function markAllAnnouncementsRead() {
+  localStorage.setItem(ANNOUNCEMENT_SEEN_KEY, ANNOUNCEMENT_ID);
 }
 
-function showAnnouncementDialog({ startup = false } = {}) {
+function hasUnreadAnnouncements() {
+  return localStorage.getItem(ANNOUNCEMENT_SEEN_KEY) !== ANNOUNCEMENT_ID;
+}
+
+function shouldShowStartupAnnouncement() {
+  return localStorage.getItem(ANNOUNCEMENT_SUPPRESS_KEY) !== '1'
+    && hasUnreadAnnouncements();
+}
+
+function openAnnouncementBoard() {
+  showAnnouncementDialog({ all: true });
+}
+
+function showAnnouncementDialog({ startup = false, all = false } = {}) {
   closeAppDialog();
   const mask = document.createElement('div');
   mask.className = 'app-dialog-mask';
   const dialog = document.createElement('div');
   dialog.className = 'app-dialog announcement-dialog';
   dialog.innerHTML = `
-    <h3>QuizApp 公告</h3>
-    ${renderAnnouncementBody()}
+    <h3>${all ? 'QuizApp 公告栏' : 'QuizApp 公告'}</h3>
+    ${renderAnnouncementBody({ all })}
     ${startup ? `
       <label class="announcement-option">
         <input id="announcementDontShow" type="checkbox">
@@ -4549,8 +4646,9 @@ function showAnnouncementDialog({ startup = false } = {}) {
   mask.appendChild(dialog);
   document.body.appendChild(mask);
   const close = () => {
-    if (startup) markAnnouncementSeen(Boolean(document.getElementById('announcementDontShow')?.checked));
+    markAnnouncementSeen(startup && Boolean(document.getElementById('announcementDontShow')?.checked));
     closeAppDialog();
+    if (state.view === 'home') renderHome();
   };
   dialog.querySelector('button').onclick = close;
   mask.onclick = e => { if (e.target === mask) close(); };
@@ -5364,6 +5462,112 @@ function clearImportedBanks() {
   });
 }
 
+function computeQuizProgress(session) {
+  const total = session?.questions?.length || 0;
+  const codes = new Array(total);
+  let correctCount = 0;
+  let wrongCount = 0;
+  if (state.reviewMode) {
+    codes.fill(3);
+    return { codes, correctCount: 0, wrongCount: 0, unansweredCount: 0 };
+  }
+  for (let i = 0; i < total; i++) {
+    const answer = state.answers[i];
+    if (!answer) {
+      codes[i] = 0;
+      continue;
+    }
+    if (checkAnswer(session.questions[i], answer)) {
+      correctCount++;
+      codes[i] = 1;
+    } else {
+      wrongCount++;
+      codes[i] = 2;
+    }
+  }
+  return { codes, correctCount, wrongCount, unansweredCount: total - correctCount - wrongCount };
+}
+
+function drawQuizProgressBar(codes) {
+  const canvas = document.getElementById('quizProgressCanvas');
+  if (!canvas || !codes || !codes.length) return;
+  const rect = canvas.getBoundingClientRect();
+  const cssWidth = Math.max(1, Math.floor(rect.width));
+  const cssHeight = Math.max(1, Math.floor(rect.height));
+  const dpr = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
+  const internalWidth = Math.max(Math.ceil(cssWidth * dpr), codes.length * 2);
+  const internalHeight = Math.max(2, Math.ceil(cssHeight * dpr));
+  if (canvas.width !== internalWidth) canvas.width = internalWidth;
+  if (canvas.height !== internalHeight) canvas.height = internalHeight;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+  const style = getComputedStyle(document.documentElement);
+  const colors = [
+    style.getPropertyValue('--line').trim() || '#e2eadb',
+    style.getPropertyValue('--success').trim() || '#22a06b',
+    style.getPropertyValue('--danger').trim() || '#d94a5a',
+    style.getPropertyValue('--primary').trim() || '#1f8f62',
+  ];
+  ctx.clearRect(0, 0, internalWidth, internalHeight);
+  const unit = internalWidth / codes.length;
+  const gap = unit >= 3 ? Math.max(1, Math.floor(unit * .28)) : 0;
+  for (let i = 0; i < codes.length; i++) {
+    const x = Math.floor(i * unit);
+    const nextX = Math.ceil((i + 1) * unit);
+    const width = Math.max(1, nextX - x - gap);
+    ctx.fillStyle = colors[codes[i] || 0];
+    ctx.fillRect(x, 0, width, internalHeight);
+  }
+}
+
+function clampNumber(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function getScrollWindow(total, center = state.currentIndex) {
+  if (total <= 36) return { start: 0, end: Math.max(0, total - 1) };
+  const radius = 7;
+  let start = center - radius;
+  let end = center + radius;
+  if (start < 0) {
+    end += -start;
+    start = 0;
+  }
+  if (end > total - 1) {
+    start -= end - (total - 1);
+    end = total - 1;
+  }
+  start = clampNumber(start, 0, Math.max(0, total - 1));
+  end = clampNumber(end, 0, Math.max(0, total - 1));
+  return { start, end };
+}
+
+function getCardTop(idx) {
+  const card = document.getElementById(`card-${idx}`);
+  return card ? card.getBoundingClientRect().top : null;
+}
+
+function renderQuizPreservingCard(idx) {
+  const preserveCardTop = getCardTop(idx);
+  renderQuiz({ preserveScroll: true, preserveCardIndex: idx, preserveCardTop });
+}
+
+function restoreQuizScrollPosition(options = {}) {
+  const scroller = options.scroller || document.getElementById('scrollContainer') || document.querySelector('.page-slide.current-slide') || document.getElementById('viewport');
+  if (!scroller) return;
+  const oldBehavior = scroller.style.scrollBehavior;
+  const oldAnchor = scroller.style.overflowAnchor;
+  scroller.style.scrollBehavior = 'auto';
+  scroller.style.overflowAnchor = 'none';
+  if (Number.isFinite(options.scrollTop)) scroller.scrollTop = options.scrollTop;
+  if (Number.isInteger(options.cardIndex) && Number.isFinite(options.cardTop)) {
+    const card = document.getElementById(`card-${options.cardIndex}`);
+    if (card) scroller.scrollTop += card.getBoundingClientRect().top - options.cardTop;
+  }
+  scroller.style.scrollBehavior = oldBehavior;
+  scroller.style.overflowAnchor = oldAnchor;
+}
+
 function renderQuiz(options = {}) {
   state.view = 'quiz';
   const session = state.activeSession;
@@ -5378,46 +5582,34 @@ function renderQuiz(options = {}) {
   state.currentIndex = Math.max(0, Math.min(state.currentIndex, total - 1));
   const idx = state.currentIndex;
   const savablePractice = isSavablePracticeSession(session);
+  const sessionTitle = String(session.title || session.subject || '练习');
 
-  let correctCount = 0;
-  let wrongCount = 0;
-  if (!state.reviewMode) {
-    for (let i = 0; i < total; i++) {
-      if (state.answers[i]) {
-        checkAnswer(session.questions[i], state.answers[i]) ? correctCount++ : wrongCount++;
-      }
-    }
-  }
-  const unansweredCount = state.reviewMode ? 0 : total - correctCount - wrongCount;
+  const progress = computeQuizProgress(session);
 
   const preserveScroll = Boolean(options.preserveScroll);
   const prevScrollTop = preserveScroll ? (document.getElementById('scrollContainer')?.scrollTop ?? document.getElementById('viewport')?.scrollTop ?? 0) : 0;
+  const prevPageScrollTop = preserveScroll ? (document.querySelector('.page-slide.current-slide')?.scrollTop ?? 0) : 0;
   const preserveCardIndex = Number.isInteger(options.preserveCardIndex) ? options.preserveCardIndex : null;
   const preserveCardTop = Number.isFinite(options.preserveCardTop) ? options.preserveCardTop : null;
   const app = document.getElementById('app');
   app.innerHTML = `
     <div class="topbar quiz-topbar">
       <button class="btn-back" onclick="backFromQuiz()" aria-label="返回">←</button>
-      <h1>${escapeHtml(session.title.slice(0, 24))}</h1>
+      <h1>${escapeHtml(sessionTitle.slice(0, 24))}</h1>
       <div class="topbar-actions">
-        <span id="questionCounter" class="counter-pill">${idx + 1}/${total}</span>
         <button class="btn-text" onclick="cycleMode()">${state.mode === 'page' ? '竖向' : '横向'}</button>
         ${savablePractice ? `
-          <button class="btn-text" onclick="resetCurrentPractice()">重做</button>
+          <button class="btn-text btn-reset" onclick="resetCurrentPractice()">重做</button>
           <button class="btn-text btn-save" onclick="saveCurrentSession()">保存</button>
         ` : ''}
       </div>
     </div>
     <div class="progress-wrap">
-      <div class="progress-bar">
-        ${Array.from({ length: total }, (_, i) => {
-          const a = state.answers[i];
-          const cls = state.reviewMode ? 'review' : (a ? (checkAnswer(session.questions[i], a) ? 'correct' : 'wrong') : 'unanswered');
-          return `<span class="${cls}" style="width:${100 / total}%;min-width:2px"></span>`;
-        }).join('')}
+      <div class="progress-bar" title="${idx + 1}/${total}">
+        <canvas id="quizProgressCanvas" aria-label="题目进度 ${idx + 1}/${total}"></canvas>
       </div>
       <div class="progress-info">
-        <span>${escapeHtml(session.subtitle)}</span><span>${state.reviewMode ? '背题' : `正确 ${correctCount}`}</span><span>${state.reviewMode ? '答案可见' : `错误 ${wrongCount}`}</span><span>${state.reviewMode ? `${total} 题` : `未答 ${unansweredCount}`}</span>
+        <span>${escapeHtml(session.subtitle)}</span><span>${state.reviewMode ? '答案可见' : `${total} 题`}</span><span id="progressPositionLabel">${idx + 1}/${total}</span>
       </div>
     </div>
     <div class="viewport ${state.mode === 'scroll' ? 'view-scroll' : 'view-page'}" id="viewport">
@@ -5435,17 +5627,7 @@ function renderQuiz(options = {}) {
       const restoreScroll = () => {
         const scroller = document.getElementById('scrollContainer') || document.getElementById('viewport');
         if (!scroller) return;
-        const oldBehavior = scroller.style.scrollBehavior;
-        const oldAnchor = scroller.style.overflowAnchor;
-        scroller.style.scrollBehavior = 'auto';
-        scroller.style.overflowAnchor = 'none';
-        scroller.scrollTop = prevScrollTop;
-        if (preserveCardIndex !== null && preserveCardTop !== null) {
-          const card = document.getElementById(`card-${preserveCardIndex}`);
-          if (card) scroller.scrollTop += card.getBoundingClientRect().top - preserveCardTop;
-        }
-        scroller.style.scrollBehavior = oldBehavior;
-        scroller.style.overflowAnchor = oldAnchor;
+        restoreQuizScrollPosition({ scroller, scrollTop: prevScrollTop, cardIndex: preserveCardIndex, cardTop: preserveCardTop });
       };
       restoreScroll();
       requestAnimationFrame(() => {
@@ -5459,8 +5641,20 @@ function renderQuiz(options = {}) {
     setupScrollTracking();
   } else {
     setupPageTouch();
+    if (preserveScroll) {
+      const restorePageScroll = () => {
+        const scroller = document.querySelector('.page-slide.current-slide');
+        restoreQuizScrollPosition({ scroller, scrollTop: prevPageScrollTop, cardIndex: preserveCardIndex, cardTop: preserveCardTop });
+      };
+      restorePageScroll();
+      requestAnimationFrame(() => {
+        restorePageScroll();
+        requestAnimationFrame(restorePageScroll);
+      });
+    }
     updateNavState();
   }
+  requestAnimationFrame(() => drawQuizProgressBar(progress.codes));
   scheduleAnswerAnimationCleanup();
   state.answerFeedbackIndex = null;
 }
@@ -5476,7 +5670,7 @@ function renderPageMode(session) {
     <div class="page-frame">
       <div class="page-track" id="pageTrack" data-start-index="${start}" data-end-index="${end}" data-current-pos="${currentPos}" style="transform:translateX(${-currentPos * 100}%)">
         ${indices.map(i => `
-          <div class="page-slide">
+          <div class="page-slide ${i === state.currentIndex ? 'current-slide' : ''}">
             ${renderCard(session.questions[i], i)}
           </div>
         `).join('')}
@@ -5495,9 +5689,17 @@ function scheduleAnswerAnimationCleanup() {
 }
 
 function renderScrollMode(session) {
+  const total = session.questions.length;
+  const { start, end } = getScrollWindow(total);
+  const estimate = clampNumber(Math.round(state.scrollCardEstimate || 520), 320, 900);
+  const topHeight = start * estimate;
+  const bottomHeight = Math.max(0, total - end - 1) * estimate;
+  const indices = Array.from({ length: end - start + 1 }, (_, i) => start + i);
   return `
-    <div class="scroll-container" id="scrollContainer">
-      ${session.questions.map((q, i) => renderCard(q, i)).join('')}
+    <div class="scroll-container" id="scrollContainer" data-window-start="${start}" data-window-end="${end}" data-estimate="${estimate}">
+      ${topHeight ? `<div class="scroll-spacer" style="--spacer-height:${topHeight}px"></div>` : ''}
+      ${indices.map(i => renderCard(session.questions[i], i)).join('')}
+      ${bottomHeight ? `<div class="scroll-spacer" style="--spacer-height:${bottomHeight}px"></div>` : ''}
     </div>
   `;
 }
@@ -5510,11 +5712,30 @@ function getQuestionStatus(idx) {
   return checkAnswer(state.activeSession.questions[idx], answer) ? 'correct' : 'wrong';
 }
 
+function getQuizOverviewStats() {
+  const session = state.activeSession;
+  const total = session?.questions?.length || 0;
+  if (!session || state.reviewMode) {
+    return { total, answered: total, unanswered: 0, correct: total, wrong: 0 };
+  }
+  let answered = 0;
+  let correct = 0;
+  let wrong = 0;
+  for (let i = 0; i < total; i++) {
+    const answer = state.answers[i];
+    if (!answer) continue;
+    answered++;
+    checkAnswer(session.questions[i], answer) ? correct++ : wrong++;
+  }
+  return { total, answered, unanswered: total - answered, correct, wrong };
+}
+
 function showQuestionOverview() {
   const session = state.activeSession;
   if (!session) return;
   const old = document.getElementById('questionOverview');
   if (old) old.remove();
+  const stats = getQuizOverviewStats();
 
   const wrap = document.createElement('div');
   wrap.id = 'questionOverview';
@@ -5525,17 +5746,34 @@ function showQuestionOverview() {
         <strong>题号总览</strong>
         <button class="btn-submit" onclick="closeQuestionOverview()">关闭</button>
       </div>
-      <div class="overview-grid">
-        ${session.questions.map((_, i) => `
-          <button class="overview-num ${getQuestionStatus(i)} ${i === state.currentIndex ? 'current' : ''}" onclick="jumpToQuestion(${i})">${i + 1}</button>
-        `).join('')}
+      <div class="overview-stats">
+        <div class="overview-stat"><span>已答</span><strong>${stats.answered}/${stats.total}</strong></div>
+        <div class="overview-stat"><span>未答</span><strong>${stats.unanswered}</strong></div>
+        <div class="overview-stat good"><span>正确</span><strong>${stats.correct}</strong></div>
+        <div class="overview-stat bad"><span>错误</span><strong>${stats.wrong}</strong></div>
       </div>
+      <div class="overview-grid" id="overviewGrid"></div>
     </div>
   `;
   wrap.addEventListener('click', e => {
     if (e.target === wrap) closeQuestionOverview();
   });
   document.body.appendChild(wrap);
+  renderQuestionOverviewChunk(0);
+}
+
+function renderQuestionOverviewChunk(start) {
+  const session = state.activeSession;
+  const grid = document.getElementById('overviewGrid');
+  if (!session || !grid) return;
+  const chunkSize = 240;
+  const end = Math.min(session.questions.length, start + chunkSize);
+  let html = '';
+  for (let i = start; i < end; i++) {
+    html += `<button class="overview-num ${getQuestionStatus(i)} ${i === state.currentIndex ? 'current' : ''}" onclick="jumpToQuestion(${i})">${i + 1}</button>`;
+  }
+  grid.insertAdjacentHTML('beforeend', html);
+  if (end < session.questions.length) requestAnimationFrame(() => renderQuestionOverviewChunk(end));
 }
 
 function closeQuestionOverview() {
@@ -5612,7 +5850,7 @@ function renderCard(q, idx) {
   }
 
   return `
-    <div class="card ${answered ? `answered ${correct ? 'correct' : 'wrong'}` : ''}" id="card-${idx}">
+    <div class="card ${answered ? `answered ${correct ? 'correct' : 'wrong'}` : ''}" id="card-${idx}" data-index="${idx}">
       <div class="card-header">
         <span class="card-num">${idx + 1}</span>
         <span class="card-type type-${t === 'multi' ? 'multi' : t === 'bool' ? 'bool' : 'single'}">${getTypeLabel(t)}</span>
@@ -5666,12 +5904,10 @@ function renderCard(q, idx) {
 }
 
 function toggleAnswerReveal(idx) {
-  const card = document.getElementById(`card-${idx}`);
-  const preserveCardTop = card ? card.getBoundingClientRect().top : null;
   state.currentIndex = idx;
   if (state.revealedAnswers[idx]) delete state.revealedAnswers[idx];
   else state.revealedAnswers[idx] = true;
-  renderQuiz({ preserveScroll: true, preserveCardIndex: idx, preserveCardTop });
+  renderQuizPreservingCard(idx);
 }
 
 function answerSingle(idx, letter) {
@@ -5687,7 +5923,7 @@ function answerSingle(idx, letter) {
   }
   delete state.drafts[idx];
   delete state.revealedAnswers[idx];
-  renderQuiz();
+  renderQuizPreservingCard(idx);
 }
 
 function answerBool(idx, letter) {
@@ -5703,7 +5939,7 @@ function answerBool(idx, letter) {
   }
   delete state.drafts[idx];
   delete state.revealedAnswers[idx];
-  renderQuiz();
+  renderQuizPreservingCard(idx);
 }
 
 function toggleMulti(idx, letter) {
@@ -5719,7 +5955,7 @@ function toggleMulti(idx, letter) {
   delete state.answers[idx];
   syncCurrentAnswerToGlobal(idx, '');
   delete state.revealedAnswers[idx];
-  renderQuiz();
+  renderQuizPreservingCard(idx);
 }
 
 function submitMulti(idx) {
@@ -5730,7 +5966,7 @@ function submitMulti(idx) {
   state.answerFeedbackIndex = idx;
   syncCurrentAnswerToGlobal(idx, draft);
   delete state.drafts[idx];
-  renderQuiz();
+  renderQuizPreservingCard(idx);
 }
 
 function nextQ() {
@@ -5844,9 +6080,11 @@ function updateNavState() {
   if (!state.activeSession) return;
   const total = state.activeSession.questions.length;
   const counter = document.getElementById('questionCounter');
+  const progressPos = document.getElementById('progressPositionLabel');
   const prev = document.getElementById('prevBtn');
   const next = document.getElementById('nextBtn');
   if (counter) counter.textContent = `${state.currentIndex + 1}/${total}`;
+  if (progressPos) progressPos.textContent = `${state.currentIndex + 1}/${total}`;
   if (prev) prev.disabled = state.currentIndex === 0;
   if (next) next.disabled = state.currentIndex === total - 1;
 }
@@ -5876,19 +6114,40 @@ function setupScrollTracking() {
     window.clearTimeout(state.scrollTimer);
     state.scrollTimer = window.setTimeout(() => {
       const cards = Array.from(container.querySelectorAll('.card'));
+      if (!cards.length) return;
       let bestIndex = state.currentIndex;
       let bestDistance = Infinity;
       const top = container.getBoundingClientRect().top;
-      cards.forEach((card, i) => {
+      cards.forEach(card => {
+        const cardIndex = Number(card.dataset.index);
+        if (!Number.isFinite(cardIndex)) return;
         const distance = Math.abs(card.getBoundingClientRect().top - top - 12);
         if (distance < bestDistance) {
           bestDistance = distance;
-          bestIndex = i;
+          bestIndex = cardIndex;
         }
       });
+      const measured = cards
+        .map(card => card.getBoundingClientRect().height)
+        .filter(height => height > 160);
+      if (measured.length) {
+        const average = measured.reduce((sum, height) => sum + height, 0) / measured.length;
+        state.scrollCardEstimate = clampNumber(Math.round((state.scrollCardEstimate || average) * .7 + average * .3), 320, 900);
+      }
+      const total = state.activeSession.questions.length;
+      const start = Number(container.dataset.windowStart || 0);
+      const end = Number(container.dataset.windowEnd || start);
+      const estimate = Number(container.dataset.estimate || state.scrollCardEstimate || 520);
+      if (bestDistance > Math.max(260, estimate * .7)) {
+        bestIndex = clampNumber(Math.round(container.scrollTop / estimate), 0, total - 1);
+      }
       state.currentIndex = bestIndex;
       saveReviewPosition();
       updateNavState();
+      if ((bestIndex - start <= 2 && start > 0) || (end - bestIndex <= 2 && end < total - 1) || bestDistance > Math.max(260, estimate * .7)) {
+        const preserveCardTop = getCardTop(bestIndex);
+        renderQuiz({ preserveScroll: preserveCardTop !== null, preserveCardIndex: bestIndex, preserveCardTop });
+      }
     }, 80);
   }, { passive: true });
 }
