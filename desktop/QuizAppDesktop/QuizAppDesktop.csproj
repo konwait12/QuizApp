@@ -9,6 +9,6 @@
 
   <ItemGroup>
     <EmbeddedResource Include="..\..\index.html" LogicalName="assets/index.html" />
-    <EmbeddedResource Include="..\..\data\*.json" LogicalName="assets/data/%(Filename)%(Extension)" />
+    <EmbeddedResource Include="..\..\data\**\*.json" LogicalName="assets/data/%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
 </Project>

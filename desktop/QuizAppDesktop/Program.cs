@@ -214,6 +214,11 @@ static void ExtractEmbeddedBankFiles(string bankDirectory)
 
         var fileName = resourceName["assets/data/".Length..];
         var targetPath = Path.Combine(bankDirectory, fileName);
+        var targetDirectory = Path.GetDirectoryName(targetPath);
+        if (!string.IsNullOrWhiteSpace(targetDirectory))
+        {
+            Directory.CreateDirectory(targetDirectory);
+        }
         if (File.Exists(targetPath))
         {
             continue;

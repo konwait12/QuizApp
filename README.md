@@ -4,9 +4,9 @@
 
 ## 题库目录与分类规则
 
-默认题库文件统一放在 `./data/`。这些 JSON 可以全部平铺在同一层，不需要再按真实文件夹拆成“科目/章节”。
+默认题库文件统一放在 `./data/`。新版推荐按 `./data/科目/章节.json` 组织，例如 `./data/毛概/第一章.json`；旧版平铺在 `./data/毛概-第一章.json` 的文件仍然兼容。
 
-分类不是靠文件夹路径完成的，而是靠 JSON 内部字段和应用本地层级配置完成：
+应用显示分类优先靠 JSON 内部字段和应用本地层级配置完成，物理文件夹只是更清楚的存放方式：
 
 - `subject`：第一级科目，例如 `毛概`、`习思`。
 - `chapter`：第二级章节，例如 `导论`、`第一章`。
@@ -20,17 +20,27 @@
 3. 仍然缺失时，从 `name` 或文件名按 `科目-章节` 解析。
 4. 解析失败时归入 `未分类 / 综合练习`。
 
-因此 `./data/` 可以这样平铺：
+推荐新版目录：
+
+```text
+./data/
+  毛概/
+    导论.json
+    第一章.json
+  习思/
+    导论.json
+    第一章.json
+```
+
+旧版平铺目录也能继续读取：
 
 ```text
 ./data/
   毛概-导论.json
   毛概-第一章.json
-  习思-导论.json
-  习思-第一章.json
 ```
 
-应用会读取每个 JSON 内部的 `subject`、`chapter` 或 `path`，再在首页归到对应科目和章节。真实文件夹只负责存放文件，不负责决定分类。
+应用会读取每个 JSON 内部的 `subject`、`chapter` 或 `path`，再在首页归到对应科目和章节。真实文件夹用于管理文件，不作为唯一分类依据。
 
 ## JSON 格式示例
 
@@ -92,25 +102,31 @@
 
 ## Release 题库分发
 
-题库更新同样不需要服务器。设置页里的“检查题库更新”会读取 GitHub Releases Latest，先弹窗展示可用题库包，用户确认“下载题库”后再写入本机，并按下面规则拉取题库：
+题库更新同样不需要服务器。设置页里的“检查题库更新”会读取 GitHub Releases Latest，检查期间显示进度条；检查完成后弹窗按“科目 -> 章节”展示可用题库包。用户可以直接勾选整个科目，也可以展开科目后只勾选部分章节；确认“下载题库”后，应用只拉取被勾选的题库文件并写入本机。
 
 1. 优先读取 Release asset 里的 `quizapp-bank-manifest.json`、`QuizApp-bank-manifest.json` 或 `bank-manifest.json`。
-2. 清单可以直接放题库对象，也可以写 `banks` 数组；每项可以是完整题库 JSON，也可以用 `file` / `asset` / `name` 指向同一个 Release 里的题库 JSON。
+2. 新版清单推荐只放题库元信息，每项用 `file` 指向同一个 Release 里的单独题库 JSON；`path` 按 `["科目", "章节"]` 记录逻辑分类。旧版清单直接内嵌完整题库对象仍然兼容。
 3. 没有清单时，会自动识别 Release asset 中以 `quizapp-bank-` 开头、以 `.json` 结尾的文件。
-4. 拉取到的题库会保存到本机导入题库区，并标记为 Release 分发题库；同一路径下的 Release 题库会覆盖内置题库显示，但不会删除用户自己导入的其他题库和本地做题数据。
+4. 拉取到的题库会保存到本机导入题库区，并标记为 Release 分发题库；如果本地已有同路径或同名题库，用户可以选择覆盖，也可以另存为新题库，不会删除做题进度、错题集和其他未选题库。
 
 推荐清单格式：
 
 ```json
 {
   "banks": [
-    { "file": "quizapp-bank-maogai-intro.json" },
-    { "file": "quizapp-bank-maogai-chapter-1.json" }
+    {
+      "file": "quizapp-bank-001-毛概-导论.json",
+      "name": "毛概-导论",
+      "subject": "毛概",
+      "chapter": "导论",
+      "path": ["毛概", "导论"],
+      "questionCount": 12
+    }
   ]
 }
 ```
 
-被引用的题库 JSON 仍使用本项目原有格式，`subject`、`chapter`、`path` 负责分类；真实文件可以都平铺在 Release asset 中。
+被引用的题库 JSON 仍使用本项目原有格式，`subject`、`chapter`、`path` 负责分类。以后本项目内置题库推荐使用 `data/科目/章节.json` 物理目录；Release asset 可以继续平铺上传单个题库 JSON，因为分级显示依赖清单和 JSON 内部 `path`，不依赖资产文件夹。
 
 APK 打包：
 
