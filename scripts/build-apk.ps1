@@ -1,5 +1,5 @@
 param(
-  [string]$Version = "v1.0.15",
+  [string]$Version = "v1.0.16",
   [string]$AppVersion = "",
   [int]$VersionCode = 0
 )

@@ -27,6 +27,14 @@ def clean_question(text: object) -> str:
     return value.strip()
 
 
+def declared_type_from_question(text: object) -> str:
+    value = str(text or "").strip()
+    match = re.match(r"^\s*[（(]\s*(单选题|多选题|判断题)\s*[)）]", value)
+    if not match:
+        match = re.match(r"^\s*【\s*(单选题|多选题|判断题)\s*】", value)
+    return normalize_type(match.group(1)) if match else ""
+
+
 def clean_option(text: object) -> str:
     value = str(text or "").replace("\u200b", "").replace("\ufeff", "").strip()
     value = re.sub(r"^\s*[A-Ha-h](?:[.．、]|\s+)\s*", "", value)
@@ -72,7 +80,9 @@ def normalize_questions(payload: dict) -> list[dict[str, object]]:
         if not isinstance(raw, dict):
             continue
 
-        question_type = normalize_type(raw.get("type") or raw.get("question_type"))
+        question_type = declared_type_from_question(raw.get("q") or raw.get("question") or raw.get("stem"))
+        if not question_type:
+            question_type = normalize_type(raw.get("type") or raw.get("question_type"))
         options = [clean_option(item.get("text") if isinstance(item, dict) else item) for item in raw.get("options") or []]
         options = [item for item in options if item]
         if question_type == "判断":
@@ -101,6 +111,7 @@ def validate_questions(questions: list[dict[str, object]]) -> dict[str, int]:
         "tooFewOptions": 0,
         "answerOutOfRange": 0,
         "joinedOptions": 0,
+        "choiceWithBoolOptions": 0,
     }
     for question in questions:
         qtype = str(question.get("type") or "")
@@ -113,6 +124,8 @@ def validate_questions(questions: list[dict[str, object]]) -> dict[str, int]:
             issues["emptyAnswer"] += 1
         if qtype in {"单选", "多选"} and len(options) < 2:
             issues["tooFewOptions"] += 1
+        if qtype in {"单选", "多选"} and set(map(str, options)) == {"对", "错"}:
+            issues["choiceWithBoolOptions"] += 1
         if qtype in {"单选", "多选"} and any(ord(c) - 64 > len(options) for c in answer if "A" <= c <= "H"):
             issues["answerOutOfRange"] += 1
         if any(re.search(r"(^|\n|\s)[A-H][.．、].+(\n|\s)[B-H][.．、]", str(option)) for option in options):
