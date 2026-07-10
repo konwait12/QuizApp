@@ -34,13 +34,6 @@ def parse_bank_name(name: str) -> tuple[str, str]:
     return clean or "未分类", "综合练习"
 
 
-def safe_asset_part(value: object) -> str:
-    text = str(value or "").strip()
-    text = re.sub(r"[\\/:*?\"<>|\s]+", "-", text)
-    text = re.sub(r"-+", "-", text).strip("-")
-    return text or "bank"
-
-
 def load_bank(path: Path) -> dict:
     payload = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(payload, dict):
@@ -68,11 +61,9 @@ def main() -> None:
     source_files = sorted(DATA_DIR.rglob("*.json"), key=lambda item: str(item.relative_to(DATA_DIR)).lower())
     for index, source in enumerate(source_files, start=1):
         bank = load_bank(source)
-        asset_name = "quizapp-bank-{index:03d}-{subject}-{chapter}.json".format(
-            index=index,
-            subject=safe_asset_part(bank.get("subject")),
-            chapter=safe_asset_part(bank.get("chapter")),
-        )
+        # Keep Release asset names ASCII-only. GitHub/CLI may normalize non-ASCII
+        # filenames, while the manifest must match assets exactly.
+        asset_name = f"quizapp-bank-{index:03d}.json"
         target = OUT_DIR / asset_name
         bank["releaseSource"] = asset_name
         target.write_text(json.dumps(bank, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

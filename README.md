@@ -115,7 +115,7 @@
 {
   "banks": [
     {
-      "file": "quizapp-bank-001-毛概-导论.json",
+      "file": "quizapp-bank-001.json",
       "name": "毛概-导论",
       "subject": "毛概",
       "chapter": "导论",
@@ -126,7 +126,7 @@
 }
 ```
 
-被引用的题库 JSON 仍使用本项目原有格式，`subject`、`chapter`、`path` 负责分类。以后本项目内置题库推荐使用 `data/科目/章节.json` 物理目录；Release asset 可以继续平铺上传单个题库 JSON，因为分级显示依赖清单和 JSON 内部 `path`，不依赖资产文件夹。
+被引用的题库 JSON 仍使用本项目原有格式，`subject`、`chapter`、`path` 负责分类。以后本项目内置题库推荐使用 `data/科目/章节.json` 物理目录；Release asset 可以继续平铺上传单个题库 JSON，因为分级显示依赖清单和 JSON 内部 `path`，不依赖资产文件夹。Release asset 文件名建议只使用 ASCII，例如 `quizapp-bank-001.json`，避免中文文件名在上传后被平台或命令行工具改写。
 
 APK 打包：
 
