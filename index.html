@@ -386,6 +386,40 @@ body[data-theme="dark"] .answer-reveal button{
 .announcement-body p,.announcement-body ul{margin:0}
 .announcement-body ul{padding-left:18px}
 .announcement-body li{margin:3px 0}
+.release-bank-toolbar{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.release-bank-toolbar-actions{display:flex;gap:8px;flex-wrap:wrap}
+.release-bank-toolbar button{
+  border:1px solid var(--line);border-radius:999px;background:var(--bg);color:var(--text);
+  padding:6px 10px;font-size:12px;font-weight:900
+}
+.release-bank-selection-hint{font-size:12px;color:var(--muted);font-weight:800}
+.release-bank-list{display:flex;flex-direction:column;gap:10px;max-height:42dvh;overflow:auto;padding-right:2px}
+.release-bank-group{border:1px solid var(--line);border-radius:14px;background:var(--bg);overflow:hidden}
+.release-bank-group summary{
+  list-style:none;display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;
+  padding:11px 12px;cursor:pointer
+}
+.release-bank-group summary::-webkit-details-marker{display:none}
+.release-bank-group[open] summary{border-bottom:1px solid var(--line)}
+.release-bank-group-title{display:flex;flex-direction:column;gap:3px;min-width:0}
+.release-bank-group-title strong{font-size:13px;color:var(--text);line-height:1.35}
+.release-bank-group-title span{font-size:12px;color:var(--muted);line-height:1.35}
+.release-bank-group-arrow{font-size:13px;color:var(--muted);transition:transform .18s ease}
+.release-bank-group[open] .release-bank-group-arrow{transform:rotate(90deg)}
+.release-bank-children{display:flex;flex-direction:column;gap:8px;padding:10px}
+.release-bank-item{
+  display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:start;
+  border:1px solid var(--line);border-radius:12px;background:var(--card);padding:10px
+}
+.release-bank-item input,.release-bank-group input{width:auto;margin-top:3px}
+.release-bank-main{display:flex;flex-direction:column;gap:6px;min-width:0}
+.release-bank-title{font-size:13px;font-weight:900;color:var(--text);line-height:1.35}
+.release-bank-meta{font-size:12px;color:var(--muted);line-height:1.45}
+.release-bank-conflict{font-size:12px;color:var(--danger);font-weight:800}
+.release-bank-action{
+  border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--text);
+  padding:8px 10px;font-size:12px;font-weight:800
+}
 .announcement-list{display:flex;flex-direction:column;gap:12px}
 .announcement-entry{
   border:1px solid var(--line);border-radius:14px;background:var(--bg);padding:12px;
@@ -1328,7 +1362,7 @@ body[data-theme="dark"] .settings-actions.top{background:var(--bar-bg)}
 <script>
 // ========== State ==========
 const STORAGE_KEY = 'quizapp_banks';
-const APP_VERSION = 'v1.0.16';
+const APP_VERSION = 'v1.0.17';
 const RELEASE_API_URL = 'https://api.github.com/repos/konwait12/QuizApp/releases/latest';
 const RELEASE_PAGE_URL = 'https://github.com/konwait12/QuizApp/releases/latest';
 const BANK_MANIFEST_ASSET_NAMES = ['quizapp-bank-manifest.json', 'QuizApp-bank-manifest.json', 'bank-manifest.json'];
@@ -1346,15 +1380,29 @@ const LIBRARY_NODES_KEY = 'quizapp_library_nodes';
 const BANK_META_KEY = 'quizapp_bank_meta';
 const RECYCLE_BIN_KEY = 'quizapp_recycle_bin';
 const UI_CONFIG_VERSION = 2;
-const ANNOUNCEMENT_ID = 'release-v1.0.16';
+const ANNOUNCEMENT_ID = 'release-v1.0.17';
 const ANNOUNCEMENT_SEEN_KEY = 'quizapp_announcement_seen';
 const ANNOUNCEMENT_SUPPRESS_KEY = 'quizapp_announcement_suppressed';
 const ANNOUNCEMENTS = [
   {
+    id: 'release-v1.0.17',
+    title: 'v1.0.17 分级题库下载与新版目录规则',
+    date: '2026-07-10',
+    latest: true,
+    body: `
+      <ul>
+        <li>题库更新弹窗改为按科目分组，可直接勾选整个科目，也可以展开后只选择部分章节下载。</li>
+        <li>检查题库更新时显示进度条，检查完成后再展示可下载题库清单。</li>
+        <li>Release 题库分发改为清单加单独题库文件，用户勾选哪些就只下载哪些。</li>
+        <li>本地已有同路径或同名题库时，可选择覆盖，也可以另存为新题库。</li>
+        <li>以后内置题库推荐使用 <code>data/科目/章节.json</code> 目录规则；旧版平铺 JSON 和旧用户本地数据继续兼容。</li>
+      </ul>
+    `,
+  },
+  {
     id: 'release-v1.0.16',
     title: 'v1.0.16 题库更新确认弹窗',
     date: '2026-07-10',
-    latest: true,
     body: `
       <ul>
         <li>设置页“检查题库更新”改为先弹窗展示 Release 题库包，用户确认后再下载并应用。</li>
@@ -1397,62 +1445,62 @@ const STUDY_STATS_RETENTION_DAYS = 92;
 const DEFAULT_BANK_DIRECTORY = './data/';
 const RECYCLE_STORAGE_DIRECTORY = './data/.quizapp-recycle/';
 const DEFAULT_BANK_FILES = [
-  '毛概-导论.json',
-  '毛概-第一章.json',
-  '毛概-第二章 新民主主义革命理论.json',
-  '毛概-第三章.json',
-  '毛概-第四章.json',
-  '毛概-第五章.json',
-  '毛概-第六章.json',
-  '毛概-第七章.json',
-  '毛概-第八章.json',
-  '习思-导论.json',
-  '习思-第一章.json',
-  '习思-第二章.json',
-  '习思-第三章.json',
-  '习思-第四章.json',
-  '习思-第五章.json',
-  '习思-第六章.json',
-  '习思-第七章.json',
-  '习思-第八章.json',
-  '习思-第九章.json',
-  '习思-第十章.json',
-  '习思-第十一章.json',
-  '习思-第十二章.json',
-  '习思-第十三章.json',
-  '习思-第十四章.json',
-  '习思-第十五章.json',
-  '习思-第十六章.json',
-  '习思-第十七章.json',
+  '毛概/导论.json',
+  '毛概/第一章.json',
+  '毛概/第二章 新民主主义革命理论.json',
+  '毛概/第三章.json',
+  '毛概/第四章.json',
+  '毛概/第五章.json',
+  '毛概/第六章.json',
+  '毛概/第七章.json',
+  '毛概/第八章.json',
+  '习思/导论.json',
+  '习思/第一章 新时代坚持和发展中国特色社会主义.json',
+  '习思/第二章 以中国式现代化全面推进中华民族伟大复兴.json',
+  '习思/第三章 坚持党的全面领导.json',
+  '习思/第四章 坚持以人民为中心.json',
+  '习思/第五章 全面深化改革开放.json',
+  '习思/第六章 推动高质量发展.json',
+  '习思/第七章 社会主义现代化建设的教育、科技、人才战略.json',
+  '习思/第八章 发展全过程人民民主.json',
+  '习思/第九章 全面依法治国.json',
+  '习思/第十章 建设社会主义文化强国.json',
+  '习思/第十一章 以保障和改善民生为重点加强社会建设.json',
+  '习思/第十二章 建设社会主义生态文明.json',
+  '习思/第十三章 维护和塑造国家安全.json',
+  '习思/第十四章 建设巩固国防和强大人民军队.json',
+  '习思/第十五章 坚持“一国两制”和推进祖国完全统一.json',
+  '习思/第十六章 中国特色大国外交和推动构建人类命运共同体.json',
+  '习思/第十七章 全面从严治党.json',
 ];
 const DEFAULT_BANK_FILES_RUNTIME = [
-  '毛概-导论.json',
-  '毛概-第一章.json',
-  '毛概-第二章 新民主主义革命理论.json',
-  '毛概-第三章.json',
-  '毛概-第四章.json',
-  '毛概-第五章.json',
-  '毛概-第六章.json',
-  '毛概-第七章.json',
-  '毛概-第八章.json',
-  '习思-导论.json',
-  '习思-第一章.json',
-  '习思-第二章.json',
-  '习思-第三章.json',
-  '习思-第四章.json',
-  '习思-第五章.json',
-  '习思-第六章.json',
-  '习思-第七章.json',
-  '习思-第八章.json',
-  '习思-第九章.json',
-  '习思-第十章.json',
-  '习思-第十一章.json',
-  '习思-第十二章.json',
-  '习思-第十三章.json',
-  '习思-第十四章.json',
-  '习思-第十五章.json',
-  '习思-第十六章.json',
-  '习思-第十七章.json',
+  '毛概/导论.json',
+  '毛概/第一章.json',
+  '毛概/第二章 新民主主义革命理论.json',
+  '毛概/第三章.json',
+  '毛概/第四章.json',
+  '毛概/第五章.json',
+  '毛概/第六章.json',
+  '毛概/第七章.json',
+  '毛概/第八章.json',
+  '习思/导论.json',
+  '习思/第一章 新时代坚持和发展中国特色社会主义.json',
+  '习思/第二章 以中国式现代化全面推进中华民族伟大复兴.json',
+  '习思/第三章 坚持党的全面领导.json',
+  '习思/第四章 坚持以人民为中心.json',
+  '习思/第五章 全面深化改革开放.json',
+  '习思/第六章 推动高质量发展.json',
+  '习思/第七章 社会主义现代化建设的教育、科技、人才战略.json',
+  '习思/第八章 发展全过程人民民主.json',
+  '习思/第九章 全面依法治国.json',
+  '习思/第十章 建设社会主义文化强国.json',
+  '习思/第十一章 以保障和改善民生为重点加强社会建设.json',
+  '习思/第十二章 建设社会主义生态文明.json',
+  '习思/第十三章 维护和塑造国家安全.json',
+  '习思/第十四章 建设巩固国防和强大人民军队.json',
+  '习思/第十五章 坚持“一国两制”和推进祖国完全统一.json',
+  '习思/第十六章 中国特色大国外交和推动构建人类命运共同体.json',
+  '习思/第十七章 全面从严治党.json',
 ];
 window.__QUIZAPP_EMBEDDED_BANKS__ = null;
 
@@ -4828,34 +4876,101 @@ function findReleaseAssetByName(release, name) {
   return assets.find(asset => asset?.name === target) || null;
 }
 
-async function collectReleaseBankPayloads(release) {
+function showBankCheckingDialog(message = '正在连接 GitHub Release') {
+  closeAppDialog();
+  const mask = document.createElement('div');
+  mask.className = 'app-dialog-mask';
+  const dialog = document.createElement('div');
+  dialog.className = 'app-dialog';
+  dialog.innerHTML = `
+    <h3>正在检查题库更新</h3>
+    <p id="bankCheckingText">${escapeHtml(message)}</p>
+    <div class="update-progress">
+      <div class="update-progress-track"><div class="update-progress-fill" id="bankCheckingFill" style="width:12%"></div></div>
+      <div class="update-progress-text">请稍候，不会上传本地题库和做题记录</div>
+    </div>
+  `;
+  mask.appendChild(dialog);
+  document.body.appendChild(mask);
+}
+
+function updateBankCheckingDialog(percent, message) {
+  const fill = document.getElementById('bankCheckingFill');
+  const text = document.getElementById('bankCheckingText');
+  if (fill) fill.style.width = `${Math.max(8, Math.min(100, percent))}%`;
+  if (text && message) text.textContent = message;
+}
+
+function normalizeReleaseBankMeta(entry, source, index, bank = null) {
+  const data = bank || (entry && typeof entry === 'object' ? entry : {});
+  const rawName = data.name || data.title || data['科目'] || entry?.name || entry?.title || source || `题库 ${index + 1}`;
+  const parsed = parseBankName(rawName);
+  const subject = data.subject || data['科目'] || entry?.subject || entry?.['科目'] || parsed.subject;
+  const chapter = getDisplayChapter(subject, data.chapter || data['章节'] || entry?.chapter || entry?.['章节'] || parsed.chapter);
+  const path = normalizePath(data.path || data['路径'] || entry?.path || entry?.['路径'] || [subject, chapter]);
+  return {
+    name: data.name || entry?.name || pathTitle(path) || rawName,
+    subject,
+    chapter,
+    path,
+    questionCount: Array.isArray(data.questions) ? data.questions.length : Number(entry?.questionCount || entry?.count || 0),
+  };
+}
+
+function createReleaseBankItem({ entry = {}, payload = null, asset = null, source = '', release, index }) {
+  const embedded = payload || entry.bank || entry.data || (entry.questions ? entry : null);
+  const bank = embedded ? normalizeReleaseBankPayload(embedded, release, source || entry.file || entry.name || `bank-${index + 1}`, index) : null;
+  const meta = normalizeReleaseBankMeta(entry, source || asset?.name || entry.file || entry.name, index, bank);
+  return {
+    index,
+    entry,
+    bank,
+    asset,
+    url: entry.url || '',
+    source: source || asset?.name || entry.file || entry.asset || entry.name || meta.name,
+    ...meta,
+  };
+}
+
+async function collectReleaseBankItems(release) {
   const manifestAsset = getLatestBankManifestAsset(release);
-  const payloads = [];
+  const items = [];
   if (manifestAsset) {
     const manifest = await fetchReleaseJsonAsset(manifestAsset);
     const entries = Array.isArray(manifest) ? manifest : (Array.isArray(manifest?.banks) ? manifest.banks : []);
-    for (const entry of entries) {
+    for (let index = 0; index < entries.length; index++) {
+      const entry = entries[index];
       if (!entry) continue;
       if (entry.questions || entry.bank || entry.data) {
-        payloads.push({ payload: entry.bank || entry.data || entry, source: entry.file || entry.name || manifestAsset.name });
+        items.push(createReleaseBankItem({
+          entry,
+          payload: entry.bank || entry.data || entry,
+          source: entry.file || entry.name || manifestAsset.name,
+          release,
+          index,
+        }));
         continue;
       }
       const asset = findReleaseAssetByName(release, entry.file || entry.asset || entry.name);
-      if (!asset && entry.url) {
-        const res = await fetch(entry.url, { cache: 'no-store' });
-        if (!res.ok) throw new Error(`${entry.url} 下载失败：${res.status}`);
-        payloads.push({ payload: await res.json(), source: entry.file || entry.url });
-        continue;
+      if (asset || entry.url) {
+        items.push(createReleaseBankItem({
+          entry,
+          asset,
+          source: asset?.name || entry.file || entry.asset || entry.name || entry.url,
+          release,
+          index,
+        }));
       }
-      if (asset) payloads.push({ payload: await fetchReleaseJsonAsset(asset), source: asset.name });
     }
-    return payloads;
+    return items;
   }
 
-  for (const asset of getReleaseBankJsonAssets(release)) {
-    payloads.push({ payload: await fetchReleaseJsonAsset(asset), source: asset.name });
+  const assets = getReleaseBankJsonAssets(release);
+  for (let index = 0; index < assets.length; index++) {
+    const asset = assets[index];
+    items.push(createReleaseBankItem({ asset, source: asset.name, release, index }));
   }
-  return payloads;
+  return items;
 }
 
 function normalizeReleaseBankPayload(payload, release, source, index) {
@@ -4874,23 +4989,46 @@ function normalizeReleaseBankPayload(payload, release, source, index) {
   return bank;
 }
 
+async function loadReleaseBankItem(item, release, index) {
+  if (item.bank) return item.bank;
+  let payload = null;
+  if (item.asset) {
+    payload = await fetchReleaseJsonAsset(item.asset);
+  } else if (item.url) {
+    const res = await fetch(item.url, { cache: 'no-store' });
+    if (!res.ok) throw new Error(`${item.url} 下载失败：${res.status}`);
+    payload = await res.json();
+  } else {
+    throw new Error(`题库 ${item.name || index + 1} 缺少下载地址`);
+  }
+  item.bank = normalizeReleaseBankPayload(payload, release, item.source || item.name, index);
+  item.questionCount = item.bank.questions.length;
+  item.path = getBankPath(item.bank);
+  item.name = item.bank.name;
+  item.subject = item.bank.subject;
+  item.chapter = item.bank.chapter;
+  return item.bank;
+}
+
 async function checkForBankUpdates(options = {}) {
   const manual = Boolean(options.manual);
-  if (manual) showToast('正在检查题库更新');
+  if (manual) showBankCheckingDialog();
   try {
+    if (manual) updateBankCheckingDialog(18, '正在读取最新 Release');
     const release = await fetchLatestRelease();
-    const payloads = await collectReleaseBankPayloads(release);
+    if (manual) updateBankCheckingDialog(42, '正在读取题库清单');
+    const items = await collectReleaseBankItems(release);
+    if (manual) updateBankCheckingDialog(78, '正在整理可下载题库');
     localStorage.setItem(BANK_UPDATE_LAST_CHECK_KEY, String(Date.now()));
-    const banks = payloads
-      .map((item, index) => normalizeReleaseBankPayload(item.payload, release, item.source, index))
-      .filter(bank => bank.questions.length);
+    const validItems = items.filter(item => item.bank ? item.bank.questions.length : (item.asset || item.url || item.questionCount));
     if (manual) {
-      showBankUpdateDialog({ release, banks });
-    } else if (banks.length && hasNewReleaseBankUpdate(banks, release)) {
-      showBankUpdateDialog({ release, banks, automatic: true });
+      updateBankCheckingDialog(100, '检查完成');
+      showBankUpdateDialog({ release, items: validItems });
+    } else if (validItems.length && hasNewReleaseBankUpdate(validItems, release)) {
+      showBankUpdateDialog({ release, items: validItems, automatic: true });
     }
     if (state.view === 'settings' && !document.querySelector('.app-dialog-mask')) renderSettings();
-    return banks;
+    return validItems;
   } catch(e) {
     if (manual) showNotice(`题库更新失败：${e.message || e}`);
     return [];
@@ -4905,35 +5043,174 @@ function getBankUpdateMeta() {
   }
 }
 
-function hasNewReleaseBankUpdate(banks, release) {
-  if (!banks.length) return false;
-  const meta = getBankUpdateMeta();
-  const tag = release?.tag_name || release?.tagName || '';
-  const sources = banks.map(bank => bank.releaseSource).filter(Boolean).sort().join('|');
-  const oldSources = Array.isArray(meta.sources) ? meta.sources.slice().sort().join('|') : '';
-  return meta.tag !== tag || Number(meta.count || 0) !== banks.length || oldSources !== sources;
+function getReleaseItemPath(item) {
+  return normalizePath(item.path || (item.bank ? getBankPath(item.bank) : []));
 }
 
-function summarizeReleaseBankGroups(banks) {
+function getReleaseItemCount(item) {
+  return Number(item.questionCount || item.bank?.questions?.length || 0);
+}
+
+function findBankByPath(path) {
+  const key = pathKey(path);
+  return state.banks.find(bank => pathKey(getBankPath(bank)) === key) || null;
+}
+
+function findBankConflict(item) {
+  const p = getReleaseItemPath(item);
+  const byPath = findBankByPath(p);
+  if (byPath) return byPath;
+  const name = String(item?.name || pathTitle(p) || '').trim();
+  if (!name) return null;
+  return state.banks.find(bank => String(bank.name || pathTitle(getBankPath(bank)) || '').trim() === name) || null;
+}
+
+function hasNewReleaseBankUpdate(items, release) {
+  if (!items.length) return false;
+  const meta = getBankUpdateMeta();
+  const tag = release?.tag_name || release?.tagName || '';
+  const sources = items.map(item => item.source || item.bank?.releaseSource).filter(Boolean).sort().join('|');
+  const oldSources = Array.isArray(meta.sources) ? meta.sources.slice().sort().join('|') : '';
+  return meta.tag !== tag || Number(meta.count || 0) !== items.length || oldSources !== sources;
+}
+
+function summarizeReleaseBankGroups(items) {
   const groups = new Map();
-  for (const bank of banks) {
-    const subject = bank.subject || pathTitle(getBankPath(bank)) || '未分类';
+  for (const item of items) {
+    const subject = item.subject || pathTitle(getReleaseItemPath(item)) || '未分类';
     const current = groups.get(subject) || { subject, banks: 0, questions: 0 };
     current.banks += 1;
-    current.questions += bank.questions.length;
+    current.questions += getReleaseItemCount(item);
     groups.set(subject, current);
   }
   return Array.from(groups.values()).sort((a, b) => a.subject.localeCompare(b.subject, 'zh-CN'));
 }
 
-function showBankUpdateDialog({ release, banks, automatic = false }) {
+function buildReleaseBankGroups(items) {
+  const groups = new Map();
+  items.forEach((item, index) => {
+    const p = getReleaseItemPath(item);
+    const subject = p[0] || item.subject || '未分类';
+    const subjectKey = pathKey([subject]) || subject || `subject-${index}`;
+    if (!groups.has(subjectKey)) {
+      groups.set(subjectKey, { key: `release-group-${groups.size}`, subject, items: [], questions: 0 });
+    }
+    const group = groups.get(subjectKey);
+    group.items.push({ item, index });
+    group.questions += getReleaseItemCount(item);
+  });
+  return Array.from(groups.values()).sort((a, b) => a.subject.localeCompare(b.subject, 'zh-CN'));
+}
+
+function renderReleaseBankRow(item, index, groupKey) {
+  const p = getReleaseItemPath(item);
+    const title = item.name || pathTitle(p) || `题库 ${index + 1}`;
+  const conflict = findBankConflict(item);
+    const countText = getReleaseItemCount(item) ? `${getReleaseItemCount(item)} 题` : '题量下载后确认';
+    return `
+      <label class="release-bank-item">
+      <input class="release-bank-check" type="checkbox" data-index="${index}" data-group="${escapeHtml(groupKey)}" checked>
+        <span class="release-bank-main">
+          <span class="release-bank-title">${escapeHtml(title)}</span>
+          <span class="release-bank-meta">${escapeHtml(p.join(' / ') || '未分类')} · ${escapeHtml(countText)}</span>
+        ${conflict ? `<span class="release-bank-conflict">本地已有同路径/同名题库：${escapeHtml(conflict.name || pathTitle(getBankPath(conflict)))}</span>
+            <select class="release-bank-action" data-index="${index}" onclick="event.stopPropagation()">
+              <option value="overwrite">覆盖本地同名题库</option>
+              <option value="copy">下载为新题库</option>
+            </select>` : '<span class="release-bank-meta">新题库</span>'}
+        </span>
+      </label>
+    `;
+}
+
+function renderReleaseBankRows(items) {
+  const groups = buildReleaseBankGroups(items);
+  return `
+    <div class="release-bank-toolbar">
+      <span class="release-bank-selection-hint" id="bankSelectionHint">已选择 ${items.length} 个题库</span>
+      <span class="release-bank-toolbar-actions">
+        <button type="button" data-bank-tree-action="select-all">全选</button>
+        <button type="button" data-bank-tree-action="clear-all">清空</button>
+      </span>
+    </div>
+    <div class="release-bank-list">
+      ${groups.map(group => `
+        <details class="release-bank-group" data-group="${escapeHtml(group.key)}" open>
+          <summary>
+            <input class="release-bank-subject-check" type="checkbox" data-group="${escapeHtml(group.key)}" checked onclick="event.stopPropagation()">
+            <span class="release-bank-group-title">
+              <strong>${escapeHtml(group.subject)}</strong>
+              <span>${group.items.length} 个题库 · ${group.questions} 题，可展开只选部分章节</span>
+            </span>
+            <span class="release-bank-group-arrow">›</span>
+          </summary>
+          <div class="release-bank-children">
+            ${group.items.map(entry => renderReleaseBankRow(entry.item, entry.index, group.key)).join('')}
+          </div>
+        </details>
+      `).join('')}
+    </div>
+  `;
+}
+
+function updateReleaseBankSelectionHint(dialog) {
+  const hint = dialog.querySelector('#bankSelectionHint');
+  if (!hint) return;
+  const selected = dialog.querySelectorAll('.release-bank-check:checked').length;
+  const total = dialog.querySelectorAll('.release-bank-check').length;
+  hint.textContent = `已选择 ${selected}/${total} 个题库`;
+}
+
+function syncReleaseBankGroupState(dialog, groupKey) {
+  const subject = dialog.querySelector(`.release-bank-subject-check[data-group="${groupKey}"]`);
+  const checks = Array.from(dialog.querySelectorAll(`.release-bank-check[data-group="${groupKey}"]`));
+  if (!subject || !checks.length) return;
+  const checked = checks.filter(input => input.checked).length;
+  subject.checked = checked === checks.length;
+  subject.indeterminate = checked > 0 && checked < checks.length;
+}
+
+function wireReleaseBankTree(dialog) {
+  dialog.querySelectorAll('.release-bank-subject-check').forEach(input => {
+    input.addEventListener('change', () => {
+      const groupKey = input.dataset.group || '';
+      dialog.querySelectorAll(`.release-bank-check[data-group="${groupKey}"]`).forEach(child => {
+        child.checked = input.checked;
+      });
+      syncReleaseBankGroupState(dialog, groupKey);
+      updateReleaseBankSelectionHint(dialog);
+    });
+  });
+  dialog.querySelectorAll('.release-bank-check').forEach(input => {
+    input.addEventListener('change', () => {
+      syncReleaseBankGroupState(dialog, input.dataset.group || '');
+      updateReleaseBankSelectionHint(dialog);
+    });
+  });
+  dialog.querySelectorAll('[data-bank-tree-action]').forEach(button => {
+    button.addEventListener('click', () => {
+      const checked = button.dataset.bankTreeAction === 'select-all';
+      dialog.querySelectorAll('.release-bank-check,.release-bank-subject-check').forEach(input => {
+        input.checked = checked;
+        input.indeterminate = false;
+      });
+      updateReleaseBankSelectionHint(dialog);
+    });
+  });
+  dialog.querySelectorAll('.release-bank-subject-check').forEach(input => {
+    syncReleaseBankGroupState(dialog, input.dataset.group || '');
+  });
+  updateReleaseBankSelectionHint(dialog);
+}
+
+function showBankUpdateDialog({ release, items = [], automatic = false }) {
   closeAppDialog();
   const latestTag = release?.tag_name || release?.tagName || 'Release';
   const releaseUrl = release?.html_url || release?.url || RELEASE_PAGE_URL;
-  const hasBanks = banks.length > 0;
-  const hasUpdate = hasNewReleaseBankUpdate(banks, release);
-  const totalQuestions = banks.reduce((sum, bank) => sum + bank.questions.length, 0);
-  const groups = summarizeReleaseBankGroups(banks);
+  const hasBanks = items.length > 0;
+  const hasUpdate = hasNewReleaseBankUpdate(items, release);
+  const totalQuestions = items.reduce((sum, item) => sum + getReleaseItemCount(item), 0);
+  const groups = summarizeReleaseBankGroups(items);
   const groupHtml = groups.slice(0, 8).map(group => `
     <li><strong>${escapeHtml(group.subject)}</strong>：${group.banks} 个题库 · ${group.questions} 题</li>
   `).join('');
@@ -4953,9 +5230,10 @@ function showBankUpdateDialog({ release, banks, automatic = false }) {
       <p>Release：<strong>${escapeHtml(latestTag)}</strong></p>
       ${meta.tag ? `<p>本机上次题库版本：${escapeHtml(meta.tag)} · ${Number(meta.count || 0)} 个题库</p>` : '<p>本机还没有题库更新记录。</p>'}
       ${hasBanks ? `
-        <p>可用题库包：<strong>${banks.length}</strong> 个题库，合计 <strong>${totalQuestions}</strong> 题。</p>
+        <p>可用题库包：<strong>${items.length}</strong> 个题库，合计 <strong>${totalQuestions}</strong> 题。</p>
         <ul>${groupHtml}${moreHtml}</ul>
-        <p>点击“下载题库”后才会写入本地题库区；同路径的 Release 题库会覆盖旧的 Release 题库显示，不会清除本地做题进度、错题集和用户手动导入的其他题库。</p>
+        <div class="release-bank-list">${renderReleaseBankRows(items)}</div>
+        <p>勾选要下载的题库；同路径题库可以选择覆盖，也可以另存为新题库。不会清除本地做题进度和错题集。</p>
       ` : '<p>请确认 Release 中存在 quizapp-bank-manifest.json，或上传 quizapp-bank-*.json。</p>'}
     </div>
     <div class="update-progress" id="bankUpdateProgress" hidden>
@@ -4969,41 +5247,100 @@ function showBankUpdateDialog({ release, banks, automatic = false }) {
   `;
   mask.appendChild(dialog);
   document.body.appendChild(mask);
-  const buttons = dialog.querySelectorAll('button');
+  if (hasBanks) wireReleaseBankTree(dialog);
+  const buttons = dialog.querySelectorAll('.app-dialog-actions button');
   const closeBtn = buttons[0];
   const releaseBtn = hasBanks ? buttons[1] : buttons[1];
   const downloadBtn = hasBanks ? buttons[2] : null;
   closeBtn.onclick = closeAppDialog;
   releaseBtn.onclick = () => openExternal(releaseUrl);
   if (downloadBtn) {
-    downloadBtn.onclick = () => {
+    downloadBtn.onclick = async () => {
       const progress = document.getElementById('bankUpdateProgress');
       const fill = document.getElementById('bankUpdateProgressFill');
       const text = document.getElementById('bankUpdateProgressText');
+      const selected = Array.from(dialog.querySelectorAll('.release-bank-check:checked'))
+        .map(input => Number(input.dataset.index))
+        .filter(index => Number.isInteger(index) && items[index]);
+      if (!selected.length) return showToast('请至少选择一个题库');
       progress.hidden = false;
-      fill.style.width = '100%';
-      text.textContent = '正在写入本地题库';
+      fill.style.width = '8%';
+      text.textContent = '正在下载题库';
       downloadBtn.disabled = true;
-      window.setTimeout(() => {
-        applyReleaseBankUpdates(banks, release);
-        text.textContent = `题库更新完成：${banks.length} 个题库`;
-        showToast(`题库更新完成：${banks.length} 个题库`);
+      try {
+        const selectedBanks = [];
+        const modes = new Map();
+        for (let i = 0; i < selected.length; i++) {
+          const itemIndex = selected[i];
+          const item = items[itemIndex];
+          const modeEl = dialog.querySelector(`.release-bank-action[data-index="${itemIndex}"]`);
+          modes.set(itemIndex, modeEl?.value || 'overwrite');
+          text.textContent = `正在下载题库 ${i + 1}/${selected.length}`;
+          fill.style.width = `${Math.max(8, Math.round(((i + 0.5) / selected.length) * 80))}%`;
+          selectedBanks.push({ bank: await loadReleaseBankItem(item, release, itemIndex), mode: modes.get(itemIndex) });
+        }
+        fill.style.width = '96%';
+        text.textContent = '正在写入本地题库';
+        applyReleaseBankUpdates(selectedBanks, release);
+        fill.style.width = '100%';
+        text.textContent = `题库更新完成：${selectedBanks.length} 个题库`;
+        showToast(`题库更新完成：${selectedBanks.length} 个题库`);
         window.setTimeout(() => {
           closeAppDialog();
           if (state.view === 'settings') renderSettings();
         }, 520);
-      }, 80);
+      } catch(e) {
+        downloadBtn.disabled = false;
+        text.textContent = `题库下载失败：${e.message || e}`;
+        showToast('题库下载失败');
+      }
     };
   }
   mask.onclick = e => { if (e.target === mask) closeAppDialog(); };
   (downloadBtn || closeBtn).focus();
 }
 
-function applyReleaseBankUpdates(banks, release) {
-  const ids = new Set(banks.map(bank => bank.id));
-  const paths = new Set(banks.map(bank => pathKey(getBankPath(bank))).filter(Boolean));
-  state.banks = state.banks.filter(bank => !(bank.releaseManaged && (ids.has(bank.id) || paths.has(pathKey(getBankPath(bank))))));
-  for (const bank of banks) {
+function uniqueReleaseCopyPath(path, release) {
+  const base = normalizePath(path);
+  const parent = base.slice(0, -1);
+  const title = base[base.length - 1] || '新题库';
+  const tag = String(release?.tag_name || release?.tagName || '').replace(/^v/i, '') || '新版';
+  let candidate = `${title}（${tag}）`;
+  let index = 2;
+  const used = new Set(state.banks.map(bank => pathKey(getBankPath(bank))));
+  while (used.has(pathKey([...parent, candidate]))) {
+    candidate = `${title}（${tag}-${index++}）`;
+  }
+  return [...parent, candidate];
+}
+
+function prepareReleaseBankForCopy(bank, release) {
+  const next = JSON.parse(JSON.stringify(bank));
+  const newPath = uniqueReleaseCopyPath(getBankPath(bank), release);
+  next.path = newPath;
+  next.subject = newPath[0] || next.subject;
+  next.chapter = newPath[newPath.length - 1] || next.chapter;
+  next.name = `${next.subject}-${next.chapter}`;
+  next.id = `${next.id || 'release'}:copy:${Date.now()}:${Math.random().toString(36).slice(2, 7)}`;
+  return next;
+}
+
+function applyReleaseBankUpdates(entries, release) {
+  const normalized = entries.map(entry => entry?.bank ? entry : { bank: entry, mode: 'overwrite' }).filter(entry => entry.bank);
+  for (const entry of normalized) {
+    let bank = entry.bank;
+    const originalPath = getBankPath(bank);
+    if (entry.mode === 'copy') {
+      bank = prepareReleaseBankForCopy(bank, release);
+    } else {
+      const id = bank.id;
+      const path = pathKey(originalPath);
+      const name = String(bank.name || pathTitle(originalPath) || '').trim();
+      state.banks = state.banks.filter(item => {
+        const sameName = name && String(item.name || pathTitle(getBankPath(item)) || '').trim() === name;
+        return item.id !== id && pathKey(getBankPath(item)) !== path && !sameName;
+      });
+    }
     ensureLibraryPath(getBankPath(bank));
     state.banks.push(bank);
   }
@@ -5011,8 +5348,8 @@ function applyReleaseBankUpdates(banks, release) {
   localStorage.setItem(BANK_UPDATE_META_KEY, JSON.stringify({
     tag: release?.tag_name || release?.tagName || '',
     checkedAt: Date.now(),
-    count: banks.length,
-    sources: banks.map(bank => bank.releaseSource).filter(Boolean),
+    count: normalized.length,
+    sources: normalized.map(entry => entry.bank.releaseSource).filter(Boolean),
   }));
   if (state.view === 'home') renderHome();
   if (state.view === 'subjects') renderSubject();

@@ -1,5 +1,5 @@
 param(
-  [string]$Version = "v1.0.16",
+  [string]$Version = "v1.0.17",
   [string]$AppVersion = "",
   [int]$VersionCode = 0
 )
@@ -80,11 +80,18 @@ Copy-Item -LiteralPath (Join-Path $projectRoot "index.html") -Destination (Join-
 $assetDataDir = Join-Path $assetDir "data"
 New-Item -ItemType Directory -Force -Path $assetDataDir | Out-Null
 $assetBankFiles = @()
-$sourceBankFiles = Get-ChildItem -LiteralPath (Join-Path $projectRoot "data") -Filter "*.json" | Sort-Object Name
+$sourceDataRoot = Join-Path $projectRoot "data"
+$sourceDataRootFull = (Resolve-Path -LiteralPath $sourceDataRoot).Path.TrimEnd("\", "/")
+$sourceBankFiles = Get-ChildItem -LiteralPath $sourceDataRoot -Filter "*.json" -Recurse | Sort-Object FullName
 for ($i = 0; $i -lt $sourceBankFiles.Count; $i++) {
-  $assetName = "bank-{0:D3}.json" -f ($i + 1)
-  Copy-Item -LiteralPath $sourceBankFiles[$i].FullName -Destination (Join-Path $assetDataDir $assetName)
-  $assetBankFiles += $assetName
+  $relativePath = $sourceBankFiles[$i].FullName.Substring($sourceDataRootFull.Length).TrimStart("\", "/").Replace("\", "/")
+  $assetTarget = Join-Path $assetDataDir ($relativePath.Replace("/", [System.IO.Path]::DirectorySeparatorChar))
+  $assetTargetDir = Split-Path -Parent $assetTarget
+  if (-not (Test-Path -LiteralPath $assetTargetDir)) {
+    New-Item -ItemType Directory -Force -Path $assetTargetDir | Out-Null
+  }
+  Copy-Item -LiteralPath $sourceBankFiles[$i].FullName -Destination $assetTarget
+  $assetBankFiles += $relativePath
 }
 
 $assetIndex = Join-Path $assetDir "index.html"
@@ -127,7 +134,6 @@ if ($LASTEXITCODE -ne 0) { throw "d8 failed" }
   -o $unsignedApk `
   --manifest $manifestFile `
   -I $platformJar `
-  -A $assetDir `
   --min-sdk-version 23 `
   --target-sdk-version 32
 if ($LASTEXITCODE -ne 0) { throw "aapt2 link failed" }
@@ -137,6 +143,17 @@ Push-Location $dexDir
 try {
   & $jar uf $classesApk "classes.dex"
   if ($LASTEXITCODE -ne 0) { throw "jar update failed" }
+} finally {
+  Pop-Location
+}
+
+$assetPackageFiles = Get-ChildItem -LiteralPath $assetDir -Recurse -File | ForEach-Object {
+  $_.FullName.Substring($buildDir.Length + 1)
+}
+Push-Location $buildDir
+try {
+  & $jar uf $classesApk $assetPackageFiles
+  if ($LASTEXITCODE -ne 0) { throw "jar asset update failed" }
 } finally {
   Pop-Location
 }
