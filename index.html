@@ -88,9 +88,9 @@ body{
 .topbar .btn-back:hover,.topbar .btn-icon:hover{background:var(--primary-soft);color:var(--primary);border-color:var(--primary)}
 .topbar .btn-back:active,.topbar .btn-icon:active{transform:scale(.96)}
 .topbar-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
-.mail-button{position:relative;font-size:15px!important}
+.mail-button{position:relative;font-size:15px!important;display:inline-grid!important;place-items:center;line-height:1}
 .mail-button.unread::after{
-  content:"";position:absolute;right:6px;top:6px;width:8px;height:8px;border-radius:50%;
+  content:"";position:absolute;right:4px;top:4px;width:8px;height:8px;border-radius:50%;
   background:var(--danger);box-shadow:0 0 0 2px var(--card)
 }
 .topbar .btn-text{
@@ -365,7 +365,7 @@ body[data-theme="dark"] .answer-reveal button{
 .app-dialog{
   width:min(420px,100%);background:var(--card);border:1px solid var(--line);
   border-radius:18px;box-shadow:0 24px 64px rgba(0,0,0,.22);
-  padding:16px;display:flex;flex-direction:column;gap:12px
+  padding:16px;display:flex;flex-direction:column;gap:12px;max-height:calc(100dvh - 40px);min-height:0
 }
 .app-dialog h3{font-size:16px;line-height:1.4}
 .app-dialog p{font-size:13px;line-height:1.6;color:var(--muted)}
@@ -375,13 +375,19 @@ body[data-theme="dark"] .answer-reveal button{
 }
 .app-dialog-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .app-dialog-actions.triple{grid-template-columns:1fr 1fr 1fr}
+.app-dialog-actions.single{display:flex;justify-content:flex-end}
 .app-dialog-actions button{
   border:0;border-radius:99px;padding:11px 12px;font-size:13px;font-weight:900;
   background:var(--primary);color:#fff;cursor:pointer
 }
+.app-dialog-actions.single button{min-width:112px}
 .app-dialog-actions button.secondary{background:var(--bg);color:var(--muted)}
-.announcement-dialog{width:min(560px,100%);max-height:calc(100dvh - 40px);overflow:auto}
-.announcement-body{display:flex;flex-direction:column;gap:10px;color:var(--muted);font-size:13px;line-height:1.7}
+.announcement-dialog{width:min(560px,100%);overflow:hidden}
+.announcement-body{
+  display:flex;flex-direction:column;gap:10px;color:var(--muted);font-size:13px;line-height:1.7;
+  flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y;
+  padding-right:2px
+}
 .announcement-body h4{font-size:14px;color:var(--text);line-height:1.35}
 .announcement-body p,.announcement-body ul{margin:0}
 .announcement-body ul{padding-left:18px}
@@ -393,7 +399,10 @@ body[data-theme="dark"] .answer-reveal button{
   padding:6px 10px;font-size:12px;font-weight:900
 }
 .release-bank-selection-hint{font-size:12px;color:var(--muted);font-weight:800}
-.release-bank-list{display:flex;flex-direction:column;gap:10px;max-height:42dvh;overflow:auto;padding-right:2px}
+.release-bank-list{
+  display:flex;flex-direction:column;gap:10px;max-height:42dvh;overflow:auto;padding-right:2px;
+  min-height:0;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y
+}
 .release-bank-group{border:1px solid var(--line);border-radius:14px;background:var(--bg);overflow:hidden}
 .release-bank-group summary{
   list-style:none;display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;
@@ -420,17 +429,26 @@ body[data-theme="dark"] .answer-reveal button{
   border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--text);
   padding:8px 10px;font-size:12px;font-weight:800
 }
-.announcement-list{display:flex;flex-direction:column;gap:12px}
+.announcement-list{display:flex;flex-direction:column;gap:10px;min-height:0}
 .announcement-entry{
-  border:1px solid var(--line);border-radius:14px;background:var(--bg);padding:12px;
-  display:flex;flex-direction:column;gap:8px
+  border:1px solid var(--line);border-radius:14px;background:var(--bg);overflow:hidden
 }
 .announcement-entry.latest{border-color:var(--primary);box-shadow:0 0 0 1px var(--primary-soft)}
-.announcement-meta{display:flex;justify-content:space-between;gap:10px;align-items:center}
+.announcement-meta{
+  list-style:none;display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;
+  padding:12px;cursor:pointer
+}
+.announcement-meta::-webkit-details-marker{display:none}
 .announcement-meta strong{font-size:14px;color:var(--text)}
 .announcement-meta span{
   white-space:nowrap;font-size:11px;font-weight:900;color:var(--primary);
   background:var(--primary-soft);border-radius:999px;padding:4px 8px
+}
+.announcement-arrow{font-size:14px;color:var(--muted);transition:transform .18s ease}
+.announcement-entry[open] .announcement-arrow{transform:rotate(90deg)}
+.announcement-entry-body{
+  border-top:1px solid var(--line);padding:12px;max-height:min(34dvh,320px);overflow:auto;
+  overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y
 }
 .announcement-option{
   display:flex;align-items:center;gap:8px;border:1px solid var(--line);
@@ -1362,7 +1380,8 @@ body[data-theme="dark"] .settings-actions.top{background:var(--bar-bg)}
 <script>
 // ========== State ==========
 const STORAGE_KEY = 'quizapp_banks';
-const APP_VERSION = 'v1.0.17';
+const APP_VERSION = 'v1.0.18';
+const APP_BUILD_COMMIT = 'dev';
 const RELEASE_API_URL = 'https://api.github.com/repos/konwait12/QuizApp/releases/latest';
 const RELEASE_PAGE_URL = 'https://github.com/konwait12/QuizApp/releases/latest';
 const BANK_MANIFEST_ASSET_NAMES = ['quizapp-bank-manifest.json', 'QuizApp-bank-manifest.json', 'bank-manifest.json'];
@@ -1380,15 +1399,33 @@ const LIBRARY_NODES_KEY = 'quizapp_library_nodes';
 const BANK_META_KEY = 'quizapp_bank_meta';
 const RECYCLE_BIN_KEY = 'quizapp_recycle_bin';
 const UI_CONFIG_VERSION = 2;
-const ANNOUNCEMENT_ID = 'release-v1.0.17';
+const ANNOUNCEMENT_ID = 'release-v1.0.18';
 const ANNOUNCEMENT_SEEN_KEY = 'quizapp_announcement_seen';
 const ANNOUNCEMENT_SUPPRESS_KEY = 'quizapp_announcement_suppressed';
+const ANNOUNCEMENT_READ_IDS_KEY = 'quizapp_announcement_read_ids';
+const ANNOUNCEMENT_REMOTE_CACHE_KEY = 'quizapp_remote_announcements';
+const ANNOUNCEMENT_REMOTE_LAST_CHECK_KEY = 'quizapp_remote_announcement_last_check';
+const ANNOUNCEMENT_ASSET_NAMES = ['quizapp-announcements.json', 'QuizApp-announcements.json', 'announcements.json'];
 const ANNOUNCEMENTS = [
+  {
+    id: 'release-v1.0.18',
+    title: 'v1.0.18 公告与更新检测修复',
+    date: '2026-07-10',
+    latest: true,
+    body: `
+      <ul>
+        <li>公告弹窗改为分篇展开，长内容可以在弹窗内滑动查看。</li>
+        <li>首页信件公告按钮调整为居中显示，未读红点位置更稳定。</li>
+        <li>设置页不再放公告栏，公告统一从首页信件入口查看。</li>
+        <li>题库更新弹窗的分级列表修复移动端展开后不易滑动的问题。</li>
+        <li>版本更新检测不再只看版本号，还会比较 Release 目标提交和 APK 资产指纹。</li>
+      </ul>
+    `,
+  },
   {
     id: 'release-v1.0.17',
     title: 'v1.0.17 分级题库下载与新版目录规则',
     date: '2026-07-10',
-    latest: true,
     body: `
       <ul>
         <li>题库更新弹窗改为按科目分组，可直接勾选整个科目，也可以展开后只选择部分章节下载。</li>
@@ -1546,6 +1583,7 @@ let state = {
   studyChartSelectedKey: '',
   studyChartAnimate: true,
   studyTimer: null,
+  remoteAnnouncements: [],
   libraryNodes: [],
   bankMeta: {},
   recycleBin: [],
@@ -1564,6 +1602,7 @@ let state = {
     rememberReviewPosition: true,
     rememberAnswerLookupPosition: true,
     autoUpdateCheck: true,
+    autoAnnouncementCheck: true,
     persistStudyStats: true,
     studyChartRange: 'week',
     toolPanelsDefaultExpanded: false,
@@ -4665,31 +4704,110 @@ window.onNativeBankDirectoryResult = function onNativeBankDirectoryResult(ok, me
   else showNotice(message || '系统没有允许直接打开默认题库文件夹');
 };
 
+function getAnnouncementId(item) {
+  return String(item?.id || `${item?.date || ''}:${item?.title || ''}`).trim();
+}
+
+function sanitizeAnnouncementHtml(value) {
+  return String(value || '')
+    .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, '')
+    .replace(/\son\w+\s*=\s*(['"]).*?\1/gi, '')
+    .replace(/\son\w+\s*=\s*[^\s>]+/gi, '')
+    .replace(/javascript:/gi, '');
+}
+
+function normalizeAnnouncementItem(item, index = 0, remote = false) {
+  if (!item || typeof item !== 'object') return null;
+  const title = String(item.title || item.name || `公告 ${index + 1}`).trim();
+  const date = String(item.date || item.publishedAt || item.updatedAt || '').trim();
+  const id = String(item.id || `${remote ? 'remote' : 'local'}:${date}:${title}`).trim();
+  const body = sanitizeAnnouncementHtml(item.bodyHtml || item.html || item.body || (item.text ? `<p>${escapeHtml(item.text)}</p>` : ''));
+  if (!id || !title || !body) return null;
+  return {
+    id,
+    title,
+    date,
+    body,
+    latest: Boolean(item.latest),
+    remote: Boolean(remote),
+  };
+}
+
+function getLocalAnnouncements() {
+  return ANNOUNCEMENTS.map((item, index) => normalizeAnnouncementItem(item, index, false)).filter(Boolean);
+}
+
+function getAllAnnouncements() {
+  const seen = new Set();
+  return [...state.remoteAnnouncements, ...getLocalAnnouncements()].filter(item => {
+    const id = getAnnouncementId(item);
+    if (!id || seen.has(id)) return false;
+    seen.add(id);
+    return true;
+  });
+}
+
+function getReadAnnouncementIds() {
+  try {
+    const ids = JSON.parse(localStorage.getItem(ANNOUNCEMENT_READ_IDS_KEY) || '[]');
+    return new Set(Array.isArray(ids) ? ids.map(String) : []);
+  } catch(e) {
+    return new Set();
+  }
+}
+
+function saveReadAnnouncementIds(ids) {
+  localStorage.setItem(ANNOUNCEMENT_READ_IDS_KEY, JSON.stringify(Array.from(ids)));
+}
+
+function isAnnouncementRead(item) {
+  const id = getAnnouncementId(item);
+  if (!id) return true;
+  const read = getReadAnnouncementIds();
+  if (read.has(id)) return true;
+  return !item.remote && localStorage.getItem(ANNOUNCEMENT_SEEN_KEY) === ANNOUNCEMENT_ID;
+}
+
+function getUnreadAnnouncements() {
+  return getAllAnnouncements().filter(item => !isAnnouncementRead(item));
+}
+
 function renderAnnouncementBody(options = {}) {
   const all = Boolean(options.all);
-  const items = all ? ANNOUNCEMENTS : ANNOUNCEMENTS.slice(0, 1);
+  const items = Array.isArray(options.items)
+    ? options.items
+    : (all ? getAllAnnouncements() : getAllAnnouncements().slice(0, 1));
   return `
     <div class="announcement-body">
       <div class="announcement-list">
         ${items.map(item => `
-          <article class="announcement-entry ${item.latest ? 'latest' : ''}">
-            <div class="announcement-meta">
+          <details class="announcement-entry ${item.latest ? 'latest' : ''}" ${item.latest || !all ? 'open' : ''}>
+            <summary class="announcement-meta">
               <strong>${escapeHtml(item.title)}</strong>
               <span>${escapeHtml(item.date)}${item.latest ? ' · 最新' : ''}</span>
-            </div>
-            <div>${item.body}</div>
-          </article>
+              <b class="announcement-arrow">›</b>
+            </summary>
+            <div class="announcement-entry-body">${item.body}</div>
+          </details>
         `).join('')}
       </div>
       ${all ? `
-        <h4>基本用法</h4>
-        <ul>
-          <li>首页显示科目，进入科目后显示章节或题库。</li>
-          <li>顺序练习按题库顺序做题，随机练习每次进入会重新打乱。</li>
-          <li>背题模式直接查看答案，答案表用于快速查询全部答案。</li>
-          <li>答错后可手动加入错题集，错题集不受普通重做影响。</li>
-          <li>设置和编辑模式里可以调整组件显示、题库层级、导入 JSON 和回收站。</li>
-        </ul>
+        <details class="announcement-entry">
+          <summary class="announcement-meta">
+            <strong>基本用法</strong>
+            <span>说明</span>
+            <b class="announcement-arrow">›</b>
+          </summary>
+          <div class="announcement-entry-body">
+            <ul>
+              <li>首页显示科目，进入科目后显示章节或题库。</li>
+              <li>顺序练习按题库顺序做题，随机练习每次进入会重新打乱。</li>
+              <li>背题模式直接查看答案，答案表用于快速查询全部答案。</li>
+              <li>答错后可手动加入错题集，错题集不受普通重做影响。</li>
+              <li>设置和编辑模式里可以调整组件显示、题库层级、导入 JSON 和回收站。</li>
+            </ul>
+          </div>
+        </details>
       ` : ''}
     </div>
   `;
@@ -4709,42 +4827,53 @@ function renderAnnouncementBoard() {
 
 function markAnnouncementSeen(suppress = false) {
   localStorage.setItem(ANNOUNCEMENT_SEEN_KEY, ANNOUNCEMENT_ID);
+  const ids = getReadAnnouncementIds();
+  getAllAnnouncements().forEach(item => ids.add(getAnnouncementId(item)));
+  saveReadAnnouncementIds(ids);
   if (suppress) localStorage.setItem(ANNOUNCEMENT_SUPPRESS_KEY, '1');
 }
 
 function markAllAnnouncementsRead() {
   localStorage.setItem(ANNOUNCEMENT_SEEN_KEY, ANNOUNCEMENT_ID);
+  const ids = getReadAnnouncementIds();
+  getAllAnnouncements().forEach(item => ids.add(getAnnouncementId(item)));
+  saveReadAnnouncementIds(ids);
 }
 
 function hasUnreadAnnouncements() {
-  return localStorage.getItem(ANNOUNCEMENT_SEEN_KEY) !== ANNOUNCEMENT_ID;
+  return getUnreadAnnouncements().length > 0;
 }
 
 function shouldShowStartupAnnouncement() {
-  return localStorage.getItem(ANNOUNCEMENT_SUPPRESS_KEY) !== '1'
-    && hasUnreadAnnouncements();
+  const unread = getUnreadAnnouncements();
+  if (!unread.length) return false;
+  if (unread.some(item => item.remote)) return true;
+  return localStorage.getItem(ANNOUNCEMENT_SUPPRESS_KEY) !== '1';
 }
 
 function openAnnouncementBoard() {
   showAnnouncementDialog({ all: true });
+  markAllAnnouncementsRead();
 }
 
 function showAnnouncementDialog({ startup = false, all = false } = {}) {
   closeAppDialog();
+  const unread = getUnreadAnnouncements();
+  const items = all ? getAllAnnouncements() : (startup && unread.length ? unread : getAllAnnouncements().slice(0, 1));
   const mask = document.createElement('div');
   mask.className = 'app-dialog-mask';
   const dialog = document.createElement('div');
   dialog.className = 'app-dialog announcement-dialog';
   dialog.innerHTML = `
     <h3>${all ? 'QuizApp 公告栏' : 'QuizApp 公告'}</h3>
-    ${renderAnnouncementBody({ all })}
+    ${renderAnnouncementBody({ all, items })}
     ${startup ? `
       <label class="announcement-option">
         <input id="announcementDontShow" type="checkbox">
         <span>以后不再自动显示</span>
       </label>
     ` : ''}
-    <div class="app-dialog-actions">
+    <div class="app-dialog-actions single">
       <button type="button">${startup ? '知道了' : '关闭'}</button>
     </div>
   `;
@@ -4766,6 +4895,72 @@ function showStartupAnnouncementIfNeeded() {
   }
 }
 
+function loadRemoteAnnouncementCache() {
+  try {
+    const items = JSON.parse(localStorage.getItem(ANNOUNCEMENT_REMOTE_CACHE_KEY) || '[]');
+    state.remoteAnnouncements = Array.isArray(items)
+      ? items.map((item, index) => normalizeAnnouncementItem(item, index, true)).filter(Boolean)
+      : [];
+  } catch(e) {
+    state.remoteAnnouncements = [];
+  }
+}
+
+function saveRemoteAnnouncementCache(items) {
+  state.remoteAnnouncements = Array.isArray(items)
+    ? items.map((item, index) => normalizeAnnouncementItem(item, index, true)).filter(Boolean)
+    : [];
+  localStorage.setItem(ANNOUNCEMENT_REMOTE_CACHE_KEY, JSON.stringify(state.remoteAnnouncements));
+  localStorage.setItem(ANNOUNCEMENT_REMOTE_LAST_CHECK_KEY, String(Date.now()));
+}
+
+function getAnnouncementAsset(release) {
+  const assets = Array.isArray(release?.assets) ? release.assets : [];
+  return assets.find(asset => ANNOUNCEMENT_ASSET_NAMES.includes(asset?.name || '')) || null;
+}
+
+function normalizeAnnouncementPayload(payload) {
+  const list = Array.isArray(payload) ? payload : (Array.isArray(payload?.announcements) ? payload.announcements : []);
+  return list.map((item, index) => normalizeAnnouncementItem(item, index, true)).filter(Boolean);
+}
+
+async function checkForRemoteAnnouncements(options = {}) {
+  const manual = Boolean(options.manual);
+  if (!manual && state.uiConfig.autoAnnouncementCheck === false) return [];
+  try {
+    const release = options.release || await fetchLatestRelease();
+    const asset = getAnnouncementAsset(release);
+    if (!asset) {
+      if (manual) showNotice('当前 Release 没有公告文件 quizapp-announcements.json');
+      return [];
+    }
+    const payload = await fetchReleaseJsonAsset(asset);
+    const items = normalizeAnnouncementPayload(payload);
+    saveRemoteAnnouncementCache(items);
+    if (state.view === 'home') renderHome();
+    const unread = getUnreadAnnouncements().filter(item => item.remote);
+    if (unread.length) {
+      showAnnouncementDialog({ startup: !manual, all: false });
+    } else if (manual) {
+      showNotice('公告已经是最新，没有未读公告');
+    }
+    return items;
+  } catch(e) {
+    if (manual) showNotice(`检查公告失败：${e.message || e}`);
+    return [];
+  }
+}
+
+function scheduleAutoAnnouncementCheck() {
+  window.setTimeout(() => {
+    if (document.querySelector('.app-dialog-mask')) {
+      scheduleAutoAnnouncementCheck();
+      return;
+    }
+    checkForRemoteAnnouncements({ manual: false });
+  }, 1100);
+}
+
 function normalizeVersionTag(value) {
   return String(value || '').trim().replace(/^v/i, '');
 }
@@ -4781,6 +4976,44 @@ function compareVersionTags(a, b) {
     if (av < bv) return -1;
   }
   return 0;
+}
+
+function normalizeCommit(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function getReleaseTargetCommit(release) {
+  return normalizeCommit(release?.target_commitish || release?.targetCommitish || release?.target || '');
+}
+
+function getApkAssetFingerprint(asset) {
+  if (!asset) return '';
+  return [
+    asset.name || '',
+    asset.id || '',
+    asset.size || '',
+    asset.digest || '',
+    asset.updated_at || asset.updatedAt || '',
+  ].join('|');
+}
+
+function getReleaseUpdateFingerprint(release, apkAsset) {
+  return [
+    release?.tag_name || release?.tagName || '',
+    getReleaseTargetCommit(release),
+    getApkAssetFingerprint(apkAsset),
+  ].join('::');
+}
+
+function hasInstallableReleaseUpdate(release, apkAsset) {
+  if (!release || !apkAsset) return false;
+  const latestTag = release?.tag_name || release?.tagName || '';
+  const versionCompare = compareVersionTags(latestTag, APP_VERSION);
+  if (versionCompare > 0) return true;
+  if (versionCompare < 0) return false;
+  const releaseCommit = getReleaseTargetCommit(release);
+  const buildCommit = normalizeCommit(APP_BUILD_COMMIT);
+  return Boolean(releaseCommit && buildCommit && buildCommit !== 'dev' && releaseCommit !== buildCommit);
 }
 
 function getLatestApkAsset(release) {
@@ -4810,19 +5043,16 @@ async function fetchLatestRelease() {
 async function checkForUpdates(options = {}) {
   const manual = Boolean(options.manual);
   if (!manual && state.uiConfig.autoUpdateCheck === false) return null;
-  const now = Date.now();
-  const last = Number(localStorage.getItem(UPDATE_LAST_CHECK_KEY) || 0);
-  if (!manual && last && now - last < UPDATE_CHECK_INTERVAL_MS) return null;
-
   if (manual) showToast('正在检查更新');
   try {
     const release = await fetchLatestRelease();
     localStorage.setItem(UPDATE_LAST_CHECK_KEY, String(Date.now()));
     const latestTag = release?.tag_name || release?.tagName || '';
     const apkAsset = getLatestApkAsset(release);
-    const hasNewer = latestTag && compareVersionTags(latestTag, APP_VERSION) > 0;
+    const updateFingerprint = getReleaseUpdateFingerprint(release, apkAsset);
+    const hasNewer = hasInstallableReleaseUpdate(release, apkAsset);
     if (hasNewer && apkAsset) {
-      if (!manual && localStorage.getItem(UPDATE_DISMISSED_TAG_KEY) === latestTag) return release;
+      if (!manual && localStorage.getItem(UPDATE_DISMISSED_TAG_KEY) === updateFingerprint) return release;
       showUpdateDialog({ release, apkAsset, manual });
     } else if (manual) {
       showNotice(`当前已是最新版本：${APP_VERSION}`);
@@ -5358,6 +5588,8 @@ function applyReleaseBankUpdates(entries, release) {
 function showUpdateDialog({ release, apkAsset, manual = false }) {
   closeAppDialog();
   const latestTag = release?.tag_name || release?.tagName || '';
+  const releaseCommit = getReleaseTargetCommit(release);
+  const updateFingerprint = getReleaseUpdateFingerprint(release, apkAsset);
   const releaseUrl = release?.html_url || release?.url || RELEASE_PAGE_URL;
   const downloadUrl = apkAsset?.browser_download_url || apkAsset?.url || releaseUrl;
   const mask = document.createElement('div');
@@ -5368,6 +5600,7 @@ function showUpdateDialog({ release, apkAsset, manual = false }) {
     <h3>发现新版本 ${escapeHtml(latestTag)}</h3>
     <div class="announcement-body">
       <p>当前版本：<strong>${escapeHtml(APP_VERSION)}</strong></p>
+      <p>当前构建：<code>${escapeHtml(APP_BUILD_COMMIT === 'dev' ? '本地开发版' : APP_BUILD_COMMIT.slice(0, 12))}</code>${releaseCommit ? `，Release 构建：<code>${escapeHtml(releaseCommit.slice(0, 12))}</code>` : ''}</p>
       <p>GitHub Release 已发布新版 APK。点击“下载 APK”会优先调用系统下载器，下载完成后拉起系统安装器；浏览器环境会直接打开 APK 下载链接。</p>
       <p>覆盖安装不会清除本机题库、做题进度、错题集、设置和学习统计；这些数据保存在同一个 App 包名的数据区。不要先卸载旧版，也不要清除应用数据。</p>
       <p>如果系统提示签名不一致，说明安装包不是同一个签名来源，不能覆盖安装，请改用本项目 release 内的 APK。</p>
@@ -5391,7 +5624,7 @@ function showUpdateDialog({ release, apkAsset, manual = false }) {
   const [laterBtn, releaseBtn, downloadBtn] = dialog.querySelectorAll('button');
   const close = () => {
     if (document.getElementById('updateDontShowThisTag')?.checked && latestTag) {
-      localStorage.setItem(UPDATE_DISMISSED_TAG_KEY, latestTag);
+      localStorage.setItem(UPDATE_DISMISSED_TAG_KEY, updateFingerprint || latestTag);
     }
     closeAppDialog();
   };
@@ -5422,17 +5655,25 @@ function renderUpdatePanel() {
       <div class="storage-path-card">
         <strong>当前版本</strong>
         <code>${escapeHtml(APP_VERSION)}</code>
-        <small>更新检测直接读取 GitHub Releases Latest，不需要服务器。Release 里必须放 APK，检测到更高版本号时会弹窗提示下载。</small>
+        <small>更新检测直接读取 GitHub Releases Latest，不需要服务器。Release 里必须放 APK；除版本号外，也会比较 Release 目标提交和 APK 资产指纹。</small>
       </div>
       <label class="setting-toggle">
         <input type="checkbox" id="autoUpdateCheck" ${state.uiConfig.autoUpdateCheck !== false ? 'checked' : ''}>
         <span>
           <strong>启动时自动检测 GitHub 新版本</strong>
-          <small>默认开启。自动检测按间隔执行，不会上传本地题库、做题记录或任何个人数据。</small>
+          <small>默认开启。每次打开应用会读取 GitHub Releases Latest，不会上传本地题库、做题记录或任何个人数据。</small>
+        </span>
+      </label>
+      <label class="setting-toggle">
+        <input type="checkbox" id="autoAnnouncementCheck" ${state.uiConfig.autoAnnouncementCheck !== false ? 'checked' : ''}>
+        <span>
+          <strong>启动时自动检测公告</strong>
+          <small>默认开启。会读取 Release 里的 <code>quizapp-announcements.json</code>，发现新公告后自动弹窗，首页信件按钮显示红点。</small>
         </span>
       </label>
       <div class="settings-actions storage-actions">
         <button onclick="checkForUpdates({ manual: true })">检查更新</button>
+        <button class="secondary" onclick="checkForRemoteAnnouncements({ manual: true })">检查公告</button>
         <button class="secondary" onclick="checkForBankUpdates({ manual: true })">检查题库更新</button>
         <button class="secondary" onclick="openExternal('${RELEASE_PAGE_URL}')">打开 Release</button>
       </div>
@@ -5454,7 +5695,6 @@ function renderSettings() {
     </div>
     <div class="viewport view-scroll"><div class="home settings-page">
       <div class="settings-notice">修改设置后请点击右上角“保存设置”。主题预览会立即显示，但只有保存后下次打开才会继续生效。</div>
-      ${renderAnnouncementBoard()}
       ${renderUpdatePanel()}
       <div class="analysis-panel">
         <div class="section-title">外观与图标</div>
@@ -5697,6 +5937,8 @@ function readTransientSettings() {
   if (rememberAnswerEl) state.uiConfig.rememberAnswerLookupPosition = rememberAnswerEl.checked;
   const autoUpdateEl = document.getElementById('autoUpdateCheck');
   if (autoUpdateEl) state.uiConfig.autoUpdateCheck = autoUpdateEl.checked;
+  const autoAnnouncementEl = document.getElementById('autoAnnouncementCheck');
+  if (autoAnnouncementEl) state.uiConfig.autoAnnouncementCheck = autoAnnouncementEl.checked;
   const panelDefaultEl = document.getElementById('toolPanelsDefaultExpanded');
   if (panelDefaultEl) state.uiConfig.toolPanelsDefaultExpanded = panelDefaultEl.checked;
   const savedEntryEl = document.getElementById('showSavedProgressEntry');
@@ -6871,8 +7113,10 @@ loadBankMeta();
 loadRecycleBin();
 loadBanks();
 loadWrongBook();
+loadRemoteAnnouncementCache();
 loadBundledBanks();
 showStartupAnnouncementIfNeeded();
+scheduleAutoAnnouncementCheck();
 scheduleAutoUpdateCheck();
 startStudyTimer();
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {

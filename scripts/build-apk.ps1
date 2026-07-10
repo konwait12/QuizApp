@@ -1,7 +1,8 @@
 param(
-  [string]$Version = "v1.0.17",
+  [string]$Version = "v1.0.18",
   [string]$AppVersion = "",
-  [int]$VersionCode = 0
+  [int]$VersionCode = 0,
+  [string]$BuildCommit = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -64,6 +65,17 @@ $keystore = Join-Path $projectRoot "output\quizapp-debug.keystore"
 $manifestFile = Join-Path $buildDir "AndroidManifest.xml"
 $resolvedAppVersion = if ($AppVersion) { $AppVersion } else { $Version }
 $resolvedVersionName = $resolvedAppVersion.TrimStart("v")
+$buildCommit = if ($BuildCommit) { $BuildCommit.Trim() } else { "dev" }
+if (-not $BuildCommit) {
+  try {
+    $gitCommit = (& git -C $projectRoot rev-parse HEAD 2>$null)
+    if ($LASTEXITCODE -eq 0 -and $gitCommit) {
+      $buildCommit = ($gitCommit | Select-Object -First 1).Trim()
+    }
+  } catch {
+    $buildCommit = "dev"
+  }
+}
 if (-not $VersionCode -or $VersionCode -lt 1) {
   $versionMatch = [regex]::Match($resolvedVersionName, "(\d+)\.(\d+)\.(\d+)")
   if ($versionMatch.Success) {
@@ -114,6 +126,7 @@ foreach ($sourceBankFile in $sourceBankFiles) {
 $embeddedJson = $embeddedBanks | ConvertTo-Json -Depth 100 -Compress
 $indexText = $indexText.Replace("window.__QUIZAPP_EMBEDDED_BANKS__ = null;", "window.__QUIZAPP_EMBEDDED_BANKS__ = $embeddedJson;")
 $indexText = [regex]::Replace($indexText, "const APP_VERSION = 'v[^']+';", "const APP_VERSION = '$resolvedAppVersion';")
+$indexText = [regex]::Replace($indexText, "const APP_BUILD_COMMIT = '[^']*';", "const APP_BUILD_COMMIT = '$buildCommit';")
 [System.IO.File]::WriteAllText($assetIndex, $indexText, [System.Text.UTF8Encoding]::new($false))
 
 $manifestText = [System.IO.File]::ReadAllText((Join-Path $androidDir "AndroidManifest.xml"), [System.Text.Encoding]::UTF8)
@@ -190,6 +203,7 @@ $apk = Get-Item -LiteralPath $finalApk
 Write-Host "APK=$($apk.FullName)"
 Write-Host "SIZE=$($apk.Length)"
 Write-Host "APP_VERSION=$resolvedAppVersion"
+Write-Host "BUILD_COMMIT=$buildCommit"
 Write-Host "VERSION_CODE=$VersionCode"
 
 if ($substCreated) {
