@@ -90,6 +90,28 @@
 - 浏览器或网络环境不稳定时，可以打开 GitHub Release 页面手动下载。
 - 覆盖安装同包名、同签名的 APK 不会清除本机题库、做题进度、错题集、设置和学习统计；卸载旧版或清除应用数据会删除本地数据。
 
+## Release 题库分发
+
+题库更新同样不需要服务器。设置页里的“检查题库更新”会读取 GitHub Releases Latest，并按下面规则拉取题库：
+
+1. 优先读取 Release asset 里的 `quizapp-bank-manifest.json`、`QuizApp-bank-manifest.json` 或 `bank-manifest.json`。
+2. 清单可以直接放题库对象，也可以写 `banks` 数组；每项可以是完整题库 JSON，也可以用 `file` / `asset` / `name` 指向同一个 Release 里的题库 JSON。
+3. 没有清单时，会自动识别 Release asset 中以 `quizapp-bank-` 开头、以 `.json` 结尾的文件。
+4. 拉取到的题库会保存到本机导入题库区，并标记为 Release 分发题库；同一路径下的 Release 题库会覆盖内置题库显示，但不会删除用户自己导入的其他题库和本地做题数据。
+
+推荐清单格式：
+
+```json
+{
+  "banks": [
+    { "file": "quizapp-bank-maogai-intro.json" },
+    { "file": "quizapp-bank-maogai-chapter-1.json" }
+  ]
+}
+```
+
+被引用的题库 JSON 仍使用本项目原有格式，`subject`、`chapter`、`path` 负责分类；真实文件可以都平铺在 Release asset 中。
+
 APK 打包：
 
 ```powershell

@@ -330,6 +330,21 @@ body[data-theme="dark"] .answer-reveal button{
 .overview-stat.good strong{color:var(--success)}
 .overview-stat.bad strong{color:var(--danger)}
 .overview-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
+.overview-type-label{
+  grid-column:1 / -1;
+  display:flex;align-items:center;gap:8px;
+  margin:8px 0 2px;
+  color:var(--muted);
+  font-size:12px;font-weight:900;
+  letter-spacing:0
+}
+.overview-type-label::before{
+  content:"";
+  width:6px;height:6px;border-radius:50%;
+  background:var(--primary);
+  opacity:.75
+}
+.overview-type-label small{font-size:11px;font-weight:700;color:var(--muted)}
 .overview-num{
   height:42px;border:1px solid var(--line);border-radius:10px;
   background:var(--bg);color:var(--muted);font-weight:900;cursor:pointer
@@ -1316,6 +1331,10 @@ const STORAGE_KEY = 'quizapp_banks';
 const APP_VERSION = 'v1.0.14';
 const RELEASE_API_URL = 'https://api.github.com/repos/konwait12/QuizApp/releases/latest';
 const RELEASE_PAGE_URL = 'https://github.com/konwait12/QuizApp/releases/latest';
+const BANK_MANIFEST_ASSET_NAMES = ['quizapp-bank-manifest.json', 'QuizApp-bank-manifest.json', 'bank-manifest.json'];
+const BANK_ASSET_PREFIX = 'quizapp-bank-';
+const BANK_UPDATE_LAST_CHECK_KEY = 'quizapp_bank_update_last_check';
+const BANK_UPDATE_META_KEY = 'quizapp_bank_update_meta';
 const WRONG_KEY = 'quizapp_wrong_book';
 const UI_CONFIG_KEY = 'quizapp_ui_config';
 const SAVED_SESSION_KEY = 'quizapp_saved_session';
@@ -1755,7 +1774,15 @@ function isBankHidden(bank) {
 }
 
 function getVisibleBanks() {
-  return state.banks.filter(bank => !isBankHidden(bank));
+  const visible = state.banks.filter(bank => !isBankHidden(bank));
+  const releasePaths = new Set(
+    visible
+      .filter(bank => bank.releaseManaged)
+      .map(bank => pathKey(getBankPath(bank)))
+      .filter(Boolean)
+  );
+  if (!releasePaths.size) return visible;
+  return visible.filter(bank => !(bank.bundled && releasePaths.has(pathKey(getBankPath(bank)))));
 }
 
 function saveWrongBook() {
@@ -2717,6 +2744,22 @@ function stripOptionLabel(text) {
   return String(text || '').replace(/^\s*[A-H](?:[.．、]|\s+)\s*/i, '').trim();
 }
 
+function isBooleanOptionSet(options) {
+  const normalized = (options || [])
+    .map(item => stripOptionLabel(item).replace(/\s/g, '').toLowerCase())
+    .filter(Boolean);
+  if (!normalized.length || normalized.length > 2) return false;
+  const boolValues = new Set(['对', '错', '正确', '错误', '是', '否', 'true', 'false', 't', 'f', 'yes', 'no', 'y', 'n', '1', '0', '√', '×', '✓', '✗']);
+  return normalized.every(item => boolValues.has(item));
+}
+
+function looksLikeBooleanAnswer(value) {
+  const raw = String(value ?? '').trim();
+  const upper = raw.toUpperCase();
+  return ['TRUE', 'FALSE', 'T', 'F', 'YES', 'NO', 'Y', 'N', '1', '0', '对', '错', '正确', '错误', '是', '否', '√', '×', '✓', '✗'].includes(upper)
+    || ['对', '错', '正确', '错误', '是', '否', '√', '×', '✓', '✗'].includes(raw);
+}
+
 function cleanQuestionText(text) {
   return String(text || '')
     .replace(/\u200b|\u200c|\u200d|\ufeff/g, '')
@@ -2727,14 +2770,13 @@ function cleanQuestionText(text) {
 
 function inferQuestionType(raw, rawAnswer, options) {
   const declared = getType(raw);
-  const joinedOptions = (options || []).join('|');
   const rawText = String(raw.type || raw['题型'] || '');
   const answerLetters = String(rawAnswer ?? '').toUpperCase().split('').filter(c => c >= 'A' && c <= 'Z');
+  const optionCount = (options || []).length;
 
-  if (rawText.includes('判断') || /^([AB]|对|错|正确|错误|√|✓|×|✗)$/i.test(String(rawAnswer ?? '').trim())) {
-    if ((options || []).length <= 2 || /^(对|错)\|?(错)?$/.test(joinedOptions.replace(/\s/g, ''))) return 'bool';
-  }
   if (rawText.includes('多选') || answerLetters.length > 1) return 'multi';
+  if (optionCount >= 3) return 'single';
+  if ((rawText.includes('判断') || declared === 'bool' || looksLikeBooleanAnswer(rawAnswer)) && isBooleanOptionSet(options)) return 'bool';
   if (rawText.includes('单选')) return 'single';
   return declared;
 }
@@ -2749,7 +2791,7 @@ function normalizeQuestion(q, i) {
     id: raw.id || `q${i + 1}`,
     type,
     q: cleanQuestionText(question),
-    options: (type === 'bool' ? ['对', '错'] : (options.length ? options : getOptions({ ...raw, type }))).map(o => String(o)),
+    options: (type === 'bool' && isBooleanOptionSet(options) ? ['对', '错'] : (options.length ? options : getOptions({ ...raw, type }))).map(o => String(o)),
     ans: normalizeAnswer({ ...raw, type }, answerValue),
     rawAns: String(answerValue ?? ''),
     exp: raw.exp || raw.explanation || raw['解析'] || raw.note || '',
@@ -2784,6 +2826,9 @@ function normalizeBank(data, fallbackId, bundled) {
     path,
     questions,
     bundled: Boolean(bundled),
+    releaseManaged: Boolean(data.releaseManaged),
+    releaseVersion: data.releaseVersion || '',
+    releaseSource: data.releaseSource || '',
   };
 }
 
@@ -4730,6 +4775,137 @@ async function checkForUpdates(options = {}) {
   }
 }
 
+function getLatestBankManifestAsset(release) {
+  const assets = Array.isArray(release?.assets) ? release.assets : [];
+  return assets.find(asset => BANK_MANIFEST_ASSET_NAMES.includes(asset?.name || '')) || null;
+}
+
+function getReleaseBankJsonAssets(release) {
+  const assets = Array.isArray(release?.assets) ? release.assets : [];
+  return assets.filter(asset => {
+    const name = String(asset?.name || '');
+    return name.toLowerCase().endsWith('.json')
+      && name.toLowerCase().startsWith(BANK_ASSET_PREFIX)
+      && !BANK_MANIFEST_ASSET_NAMES.includes(name);
+  });
+}
+
+function formatBankUpdateCheckTime() {
+  const time = Number(localStorage.getItem(BANK_UPDATE_LAST_CHECK_KEY) || 0);
+  if (!time) return '尚未检查';
+  try {
+    return new Date(time).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+  } catch(e) {
+    return '已检查';
+  }
+}
+
+async function fetchReleaseJsonAsset(asset) {
+  const url = asset?.browser_download_url || asset?.url;
+  if (!url) throw new Error('Release 资产缺少下载地址');
+  const headers = asset?.browser_download_url ? {} : { 'Accept': 'application/octet-stream' };
+  const res = await fetch(url, { cache: 'no-store', headers });
+  if (!res.ok) throw new Error(`${asset?.name || 'JSON'} 下载失败：${res.status}`);
+  return res.json();
+}
+
+function findReleaseAssetByName(release, name) {
+  const target = String(name || '').trim();
+  if (!target) return null;
+  const assets = Array.isArray(release?.assets) ? release.assets : [];
+  return assets.find(asset => asset?.name === target) || null;
+}
+
+async function collectReleaseBankPayloads(release) {
+  const manifestAsset = getLatestBankManifestAsset(release);
+  const payloads = [];
+  if (manifestAsset) {
+    const manifest = await fetchReleaseJsonAsset(manifestAsset);
+    const entries = Array.isArray(manifest) ? manifest : (Array.isArray(manifest?.banks) ? manifest.banks : []);
+    for (const entry of entries) {
+      if (!entry) continue;
+      if (entry.questions || entry.bank || entry.data) {
+        payloads.push({ payload: entry.bank || entry.data || entry, source: entry.file || entry.name || manifestAsset.name });
+        continue;
+      }
+      const asset = findReleaseAssetByName(release, entry.file || entry.asset || entry.name);
+      if (!asset && entry.url) {
+        const res = await fetch(entry.url, { cache: 'no-store' });
+        if (!res.ok) throw new Error(`${entry.url} 下载失败：${res.status}`);
+        payloads.push({ payload: await res.json(), source: entry.file || entry.url });
+        continue;
+      }
+      if (asset) payloads.push({ payload: await fetchReleaseJsonAsset(asset), source: asset.name });
+    }
+    return payloads;
+  }
+
+  for (const asset of getReleaseBankJsonAssets(release)) {
+    payloads.push({ payload: await fetchReleaseJsonAsset(asset), source: asset.name });
+  }
+  return payloads;
+}
+
+function normalizeReleaseBankPayload(payload, release, source, index) {
+  const data = payload && typeof payload === 'object' ? payload : {};
+  const fallbackId = String(data.id || data.name || source || `bank-${index + 1}`).replace(/^release:/, '');
+  const bank = normalizeBank({
+    ...data,
+    id: `release:${fallbackId}`,
+    releaseManaged: true,
+    releaseVersion: release?.tag_name || release?.tagName || '',
+    releaseSource: source || '',
+  }, `release:${fallbackId}`, false);
+  bank.releaseManaged = true;
+  bank.releaseVersion = release?.tag_name || release?.tagName || '';
+  bank.releaseSource = source || '';
+  return bank;
+}
+
+async function checkForBankUpdates(options = {}) {
+  const manual = Boolean(options.manual);
+  if (manual) showToast('正在检查题库更新');
+  try {
+    const release = await fetchLatestRelease();
+    const payloads = await collectReleaseBankPayloads(release);
+    localStorage.setItem(BANK_UPDATE_LAST_CHECK_KEY, String(Date.now()));
+    const banks = payloads
+      .map((item, index) => normalizeReleaseBankPayload(item.payload, release, item.source, index))
+      .filter(bank => bank.questions.length);
+    if (!banks.length) {
+      if (manual) showNotice('当前 Release 没有可用的题库更新资产。请在 Release 中上传 quizapp-bank-manifest.json，或上传 quizapp-bank-*.json。');
+      if (state.view === 'settings' && !document.querySelector('.app-dialog-mask')) renderSettings();
+      return [];
+    }
+    applyReleaseBankUpdates(banks, release);
+    if (manual) showNotice(`题库更新完成：已拉取 ${banks.length} 个题库。`);
+    if (state.view === 'settings' && !document.querySelector('.app-dialog-mask')) renderSettings();
+    return banks;
+  } catch(e) {
+    if (manual) showNotice(`题库更新失败：${e.message || e}`);
+    return [];
+  }
+}
+
+function applyReleaseBankUpdates(banks, release) {
+  const ids = new Set(banks.map(bank => bank.id));
+  const paths = new Set(banks.map(bank => pathKey(getBankPath(bank))).filter(Boolean));
+  state.banks = state.banks.filter(bank => !(bank.releaseManaged && (ids.has(bank.id) || paths.has(pathKey(getBankPath(bank))))));
+  for (const bank of banks) {
+    ensureLibraryPath(getBankPath(bank));
+    state.banks.push(bank);
+  }
+  saveBanks();
+  localStorage.setItem(BANK_UPDATE_META_KEY, JSON.stringify({
+    tag: release?.tag_name || release?.tagName || '',
+    checkedAt: Date.now(),
+    count: banks.length,
+    sources: banks.map(bank => bank.releaseSource).filter(Boolean),
+  }));
+  if (state.view === 'home') renderHome();
+  if (state.view === 'subjects') renderSubject();
+}
+
 function showUpdateDialog({ release, apkAsset, manual = false }) {
   closeAppDialog();
   const latestTag = release?.tag_name || release?.tagName || '';
@@ -4808,8 +4984,10 @@ function renderUpdatePanel() {
       </label>
       <div class="settings-actions storage-actions">
         <button onclick="checkForUpdates({ manual: true })">检查更新</button>
+        <button class="secondary" onclick="checkForBankUpdates({ manual: true })">检查题库更新</button>
         <button class="secondary" onclick="openExternal('${RELEASE_PAGE_URL}')">打开 Release</button>
       </div>
+      <div class="settings-notice">题库更新读取 Release 中的 <code>quizapp-bank-manifest.json</code> 或 <code>quizapp-bank-*.json</code>。同路径题库会覆盖内置显示，不删除本地数据。上次题库检查：${escapeHtml(formatBankUpdateCheckTime())}。</div>
       <div class="settings-notice">上次检查：${escapeHtml(formatUpdateCheckTime())}。覆盖安装同包名同签名 APK 不会影响本地数据；卸载旧版或清除应用数据会删除本地数据。</div>
     </div>
   `;
@@ -5736,6 +5914,7 @@ function showQuestionOverview() {
   const old = document.getElementById('questionOverview');
   if (old) old.remove();
   const stats = getQuizOverviewStats();
+  state.questionOverviewItems = buildQuestionOverviewItems(session);
 
   const wrap = document.createElement('div');
   wrap.id = 'questionOverview';
@@ -5766,19 +5945,58 @@ function renderQuestionOverviewChunk(start) {
   const session = state.activeSession;
   const grid = document.getElementById('overviewGrid');
   if (!session || !grid) return;
+  const items = Array.isArray(state.questionOverviewItems) ? state.questionOverviewItems : buildQuestionOverviewItems(session);
   const chunkSize = 240;
-  const end = Math.min(session.questions.length, start + chunkSize);
+  const end = Math.min(items.length, start + chunkSize);
   let html = '';
   for (let i = start; i < end; i++) {
-    html += `<button class="overview-num ${getQuestionStatus(i)} ${i === state.currentIndex ? 'current' : ''}" onclick="jumpToQuestion(${i})">${i + 1}</button>`;
+    const item = items[i];
+    if (item.kind === 'header') {
+      html += `<div class="overview-type-label"><span>${escapeHtml(item.label)}</span><small>${item.start + 1}-${item.end} · ${item.count}题</small></div>`;
+      continue;
+    }
+    const idx = item.index;
+    html += `<button class="overview-num ${getQuestionStatus(idx)} ${idx === state.currentIndex ? 'current' : ''}" onclick="jumpToQuestion(${idx})">${idx + 1}</button>`;
   }
   grid.insertAdjacentHTML('beforeend', html);
-  if (end < session.questions.length) requestAnimationFrame(() => renderQuestionOverviewChunk(end));
+  if (end < items.length) requestAnimationFrame(() => renderQuestionOverviewChunk(end));
+}
+
+function shouldGroupQuestionOverview(session) {
+  return Boolean(session && !session.shuffled && !state.reviewMode && !session.wrongPractice);
+}
+
+function buildQuestionOverviewItems(session) {
+  const questions = session?.questions || [];
+  if (!shouldGroupQuestionOverview(session)) {
+    return questions.map((_, index) => ({ kind: 'question', index }));
+  }
+  const items = [];
+  let i = 0;
+  while (i < questions.length) {
+    const type = getType(questions[i]);
+    let end = i + 1;
+    while (end < questions.length && getType(questions[end]) === type) end++;
+    items.push({
+      kind: 'header',
+      type,
+      label: getTypeLabel(type),
+      start: i,
+      end,
+      count: end - i,
+    });
+    for (let index = i; index < end; index++) {
+      items.push({ kind: 'question', index });
+    }
+    i = end;
+  }
+  return items;
 }
 
 function closeQuestionOverview() {
   const el = document.getElementById('questionOverview');
   if (el) el.remove();
+  state.questionOverviewItems = null;
 }
 
 function jumpToQuestion(idx) {
