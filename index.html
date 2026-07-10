@@ -1328,7 +1328,7 @@ body[data-theme="dark"] .settings-actions.top{background:var(--bar-bg)}
 <script>
 // ========== State ==========
 const STORAGE_KEY = 'quizapp_banks';
-const APP_VERSION = 'v1.0.15';
+const APP_VERSION = 'v1.0.16';
 const RELEASE_API_URL = 'https://api.github.com/repos/konwait12/QuizApp/releases/latest';
 const RELEASE_PAGE_URL = 'https://github.com/konwait12/QuizApp/releases/latest';
 const BANK_MANIFEST_ASSET_NAMES = ['quizapp-bank-manifest.json', 'QuizApp-bank-manifest.json', 'bank-manifest.json'];
@@ -1346,15 +1346,27 @@ const LIBRARY_NODES_KEY = 'quizapp_library_nodes';
 const BANK_META_KEY = 'quizapp_bank_meta';
 const RECYCLE_BIN_KEY = 'quizapp_recycle_bin';
 const UI_CONFIG_VERSION = 2;
-const ANNOUNCEMENT_ID = 'release-v1.0.15';
+const ANNOUNCEMENT_ID = 'release-v1.0.16';
 const ANNOUNCEMENT_SEEN_KEY = 'quizapp_announcement_seen';
 const ANNOUNCEMENT_SUPPRESS_KEY = 'quizapp_announcement_suppressed';
 const ANNOUNCEMENTS = [
   {
+    id: 'release-v1.0.16',
+    title: 'v1.0.16 题库更新确认弹窗',
+    date: '2026-07-10',
+    latest: true,
+    body: `
+      <ul>
+        <li>设置页“检查题库更新”改为先弹窗展示 Release 题库包，用户确认后再下载并应用。</li>
+        <li>没有可用题库更新时也会弹窗提示，不再出现点击后没有反馈的情况。</li>
+        <li>更新毛概题库，修复部分历史遗留的选择题被解析成判断题的问题。</li>
+      </ul>
+    `,
+  },
+  {
     id: 'release-v1.0.15',
     title: 'v1.0.15 题型识别与题库分发更新',
     date: '2026-07-08',
-    latest: true,
     body: `
       <ul>
         <li>重排答题页顶部区域，保留进度条，题号显示改为进度条下方信息行。</li>
@@ -4872,19 +4884,119 @@ async function checkForBankUpdates(options = {}) {
     const banks = payloads
       .map((item, index) => normalizeReleaseBankPayload(item.payload, release, item.source, index))
       .filter(bank => bank.questions.length);
-    if (!banks.length) {
-      if (manual) showNotice('当前 Release 没有可用的题库更新资产。请在 Release 中上传 quizapp-bank-manifest.json，或上传 quizapp-bank-*.json。');
-      if (state.view === 'settings' && !document.querySelector('.app-dialog-mask')) renderSettings();
-      return [];
+    if (manual) {
+      showBankUpdateDialog({ release, banks });
+    } else if (banks.length && hasNewReleaseBankUpdate(banks, release)) {
+      showBankUpdateDialog({ release, banks, automatic: true });
     }
-    applyReleaseBankUpdates(banks, release);
-    if (manual) showNotice(`题库更新完成：已拉取 ${banks.length} 个题库。`);
     if (state.view === 'settings' && !document.querySelector('.app-dialog-mask')) renderSettings();
     return banks;
   } catch(e) {
     if (manual) showNotice(`题库更新失败：${e.message || e}`);
     return [];
   }
+}
+
+function getBankUpdateMeta() {
+  try {
+    return JSON.parse(localStorage.getItem(BANK_UPDATE_META_KEY) || '{}') || {};
+  } catch(e) {
+    return {};
+  }
+}
+
+function hasNewReleaseBankUpdate(banks, release) {
+  if (!banks.length) return false;
+  const meta = getBankUpdateMeta();
+  const tag = release?.tag_name || release?.tagName || '';
+  const sources = banks.map(bank => bank.releaseSource).filter(Boolean).sort().join('|');
+  const oldSources = Array.isArray(meta.sources) ? meta.sources.slice().sort().join('|') : '';
+  return meta.tag !== tag || Number(meta.count || 0) !== banks.length || oldSources !== sources;
+}
+
+function summarizeReleaseBankGroups(banks) {
+  const groups = new Map();
+  for (const bank of banks) {
+    const subject = bank.subject || pathTitle(getBankPath(bank)) || '未分类';
+    const current = groups.get(subject) || { subject, banks: 0, questions: 0 };
+    current.banks += 1;
+    current.questions += bank.questions.length;
+    groups.set(subject, current);
+  }
+  return Array.from(groups.values()).sort((a, b) => a.subject.localeCompare(b.subject, 'zh-CN'));
+}
+
+function showBankUpdateDialog({ release, banks, automatic = false }) {
+  closeAppDialog();
+  const latestTag = release?.tag_name || release?.tagName || 'Release';
+  const releaseUrl = release?.html_url || release?.url || RELEASE_PAGE_URL;
+  const hasBanks = banks.length > 0;
+  const hasUpdate = hasNewReleaseBankUpdate(banks, release);
+  const totalQuestions = banks.reduce((sum, bank) => sum + bank.questions.length, 0);
+  const groups = summarizeReleaseBankGroups(banks);
+  const groupHtml = groups.slice(0, 8).map(group => `
+    <li><strong>${escapeHtml(group.subject)}</strong>：${group.banks} 个题库 · ${group.questions} 题</li>
+  `).join('');
+  const moreHtml = groups.length > 8 ? `<li>还有 ${groups.length - 8} 个科目未展开显示。</li>` : '';
+  const meta = getBankUpdateMeta();
+  const statusText = !hasBanks
+    ? '当前 Release 没有可用的题库更新包。'
+    : (hasUpdate ? '发现可下载的题库更新包。' : '当前本机记录显示题库已经是最新。');
+  const mask = document.createElement('div');
+  mask.className = 'app-dialog-mask';
+  const dialog = document.createElement('div');
+  dialog.className = 'app-dialog announcement-dialog';
+  dialog.innerHTML = `
+    <h3>题库更新检查</h3>
+    <div class="announcement-body">
+      <p>${escapeHtml(statusText)}</p>
+      <p>Release：<strong>${escapeHtml(latestTag)}</strong></p>
+      ${meta.tag ? `<p>本机上次题库版本：${escapeHtml(meta.tag)} · ${Number(meta.count || 0)} 个题库</p>` : '<p>本机还没有题库更新记录。</p>'}
+      ${hasBanks ? `
+        <p>可用题库包：<strong>${banks.length}</strong> 个题库，合计 <strong>${totalQuestions}</strong> 题。</p>
+        <ul>${groupHtml}${moreHtml}</ul>
+        <p>点击“下载题库”后才会写入本地题库区；同路径的 Release 题库会覆盖旧的 Release 题库显示，不会清除本地做题进度、错题集和用户手动导入的其他题库。</p>
+      ` : '<p>请确认 Release 中存在 quizapp-bank-manifest.json，或上传 quizapp-bank-*.json。</p>'}
+    </div>
+    <div class="update-progress" id="bankUpdateProgress" hidden>
+      <div class="update-progress-track"><div class="update-progress-fill" id="bankUpdateProgressFill"></div></div>
+      <div class="update-progress-text" id="bankUpdateProgressText">等待下载</div>
+    </div>
+    <div class="app-dialog-actions ${hasBanks ? 'triple' : ''}">
+      <button class="secondary" type="button">${automatic ? '稍后' : '关闭'}</button>
+      ${hasBanks ? '<button class="secondary" type="button">Release</button><button type="button">下载题库</button>' : '<button type="button">查看 Release</button>'}
+    </div>
+  `;
+  mask.appendChild(dialog);
+  document.body.appendChild(mask);
+  const buttons = dialog.querySelectorAll('button');
+  const closeBtn = buttons[0];
+  const releaseBtn = hasBanks ? buttons[1] : buttons[1];
+  const downloadBtn = hasBanks ? buttons[2] : null;
+  closeBtn.onclick = closeAppDialog;
+  releaseBtn.onclick = () => openExternal(releaseUrl);
+  if (downloadBtn) {
+    downloadBtn.onclick = () => {
+      const progress = document.getElementById('bankUpdateProgress');
+      const fill = document.getElementById('bankUpdateProgressFill');
+      const text = document.getElementById('bankUpdateProgressText');
+      progress.hidden = false;
+      fill.style.width = '100%';
+      text.textContent = '正在写入本地题库';
+      downloadBtn.disabled = true;
+      window.setTimeout(() => {
+        applyReleaseBankUpdates(banks, release);
+        text.textContent = `题库更新完成：${banks.length} 个题库`;
+        showToast(`题库更新完成：${banks.length} 个题库`);
+        window.setTimeout(() => {
+          closeAppDialog();
+          if (state.view === 'settings') renderSettings();
+        }, 520);
+      }, 80);
+    };
+  }
+  mask.onclick = e => { if (e.target === mask) closeAppDialog(); };
+  (downloadBtn || closeBtn).focus();
 }
 
 function applyReleaseBankUpdates(banks, release) {

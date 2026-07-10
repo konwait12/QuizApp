@@ -92,7 +92,7 @@
 
 ## Release 题库分发
 
-题库更新同样不需要服务器。设置页里的“检查题库更新”会读取 GitHub Releases Latest，并按下面规则拉取题库：
+题库更新同样不需要服务器。设置页里的“检查题库更新”会读取 GitHub Releases Latest，先弹窗展示可用题库包，用户确认“下载题库”后再写入本机，并按下面规则拉取题库：
 
 1. 优先读取 Release asset 里的 `quizapp-bank-manifest.json`、`QuizApp-bank-manifest.json` 或 `bank-manifest.json`。
 2. 清单可以直接放题库对象，也可以写 `banks` 数组；每项可以是完整题库 JSON，也可以用 `file` / `asset` / `name` 指向同一个 Release 里的题库 JSON。
