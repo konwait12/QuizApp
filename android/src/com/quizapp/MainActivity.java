@@ -17,6 +17,7 @@ import android.os.Environment;
 import android.provider.DocumentsContract;
 import android.view.View;
 import android.webkit.WebSettings;
+import android.webkit.WebChromeClient;
 import android.webkit.ValueCallback;
 import android.webkit.WebView;
 import android.widget.Toast;
@@ -24,6 +25,7 @@ import android.widget.Toast;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStream;
+import java.util.ArrayList;
 
 public class MainActivity extends Activity {
     static final int FILE_CHOOSER_REQUEST = 1001;
@@ -254,7 +256,7 @@ public class MainActivity extends Activity {
         return "'" + text + "'";
     }
 
-    void openFileChooser(ValueCallback<Uri[]> callback) {
+    void openFileChooser(ValueCallback<Uri[]> callback, WebChromeClient.FileChooserParams params) {
         if (fileCallback != null) {
             fileCallback.onReceiveValue(null);
         }
@@ -262,13 +264,28 @@ public class MainActivity extends Activity {
 
         Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
         intent.addCategory(Intent.CATEGORY_OPENABLE);
-        intent.setType("*/*");
-        intent.putExtra(Intent.EXTRA_MIME_TYPES, new String[] {
-            "application/json",
-            "text/json",
-            "text/plain",
-            "application/octet-stream"
-        });
+        ArrayList<String> mimeTypes = new ArrayList<>();
+        if (params != null && params.getAcceptTypes() != null) {
+            for (String acceptGroup : params.getAcceptTypes()) {
+                if (acceptGroup == null) continue;
+                for (String accept : acceptGroup.split(",")) {
+                    String value = accept.trim();
+                    if (value.contains("/") && !mimeTypes.contains(value)) {
+                        mimeTypes.add(value);
+                    }
+                }
+            }
+        }
+        if (mimeTypes.isEmpty()) {
+            mimeTypes.add("application/json");
+            mimeTypes.add("text/plain");
+            mimeTypes.add("image/*");
+            mimeTypes.add("application/pdf");
+        }
+        intent.setType(mimeTypes.size() == 1 ? mimeTypes.get(0) : "*/*");
+        intent.putExtra(Intent.EXTRA_MIME_TYPES, mimeTypes.toArray(new String[0]));
+        intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE,
+            params != null && params.getMode() == WebChromeClient.FileChooserParams.MODE_OPEN_MULTIPLE);
 
         try {
             startActivityForResult(intent, FILE_CHOOSER_REQUEST);
