@@ -9,6 +9,8 @@ param(
     [string]$AndroidNdkRoot = $env:ANDROID_NDK_ROOT,
     [string]$JavaHome = $env:QUIZAPP_JAVA_HOME,
     [string]$CargoExecutable = $env:QUIZAPP_CARGO,
+    [string]$AndroidPackageName = 'com.quizapp',
+    [string]$AndroidAppName = 'QuizApp',
     [switch]$Clean,
     [switch]$SkipTests
 )
@@ -318,6 +320,8 @@ try {
                 "-DANDROID_NDK_ROOT=$AndroidNdkRoot",
                 '-DANDROID_ABI=arm64-v8a',
                 '-DANDROID_PLATFORM=android-26',
+                "-DQUIZAPP_ANDROID_PACKAGE_NAME=$AndroidPackageName",
+                "-DQUIZAPP_ANDROID_APP_NAME=$AndroidAppName",
                 "-DCMAKE_BUILD_TYPE=$Configuration",
                 "-DQUIZAPP_CARGO_EXECUTABLE=$CargoExecutable",
                 "-DQUIZAPP_CARGO_TARGET_DIR=$cargoTargetDir",
@@ -344,8 +348,8 @@ try {
             throw 'Android aapt2 was not found; APK package identity cannot be verified.'
         }
         $badging = & (Join-Path $buildTools.FullName 'aapt2.exe') dump badging $apkPath
-        if ($LASTEXITCODE -ne 0 -or -not ($badging | Select-String "package: name='com.quizapp'")) {
-            throw 'Generated APK does not declare the expected com.quizapp package.'
+        if ($LASTEXITCODE -ne 0 -or -not ($badging | Select-String "package: name='$AndroidPackageName'")) {
+            throw "Generated APK does not declare the expected $AndroidPackageName package."
         }
 
         $artifactRoot = Join-Path $projectRoot 'output\native-build'

@@ -2,6 +2,11 @@ cmake_minimum_required(VERSION 3.24)
 
 project(QuizAppNative VERSION 2.0.0 LANGUAGES CXX)
 
+set(QUIZAPP_ANDROID_PACKAGE_NAME "com.quizapp" CACHE STRING
+    "Android application package name")
+set(QUIZAPP_ANDROID_APP_NAME "QuizApp" CACHE STRING
+    "Android application label")
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -215,8 +220,8 @@ quizapp_copy_fsrs_runtime(quizapp_native_app)
 
 if(ANDROID)
     set_target_properties(quizapp_native_app PROPERTIES
-        QT_ANDROID_PACKAGE_NAME "com.quizapp"
-        QT_ANDROID_APP_NAME "QuizApp"
+        QT_ANDROID_PACKAGE_NAME "${QUIZAPP_ANDROID_PACKAGE_NAME}"
+        QT_ANDROID_APP_NAME "${QUIZAPP_ANDROID_APP_NAME}"
         QT_ANDROID_PACKAGE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/android"
         QT_ANDROID_VERSION_CODE 20001
         QT_ANDROID_VERSION_NAME "2.0.0-alpha.1"
