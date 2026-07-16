@@ -123,7 +123,7 @@ static byte[]? ReadAsset(string path, string bankDirectory)
     var assembly = Assembly.GetExecutingAssembly();
     var resourceName = $"assets/{path}";
     var resource = assembly.GetManifestResourceNames()
-        .FirstOrDefault(name => string.Equals(name, resourceName, StringComparison.OrdinalIgnoreCase));
+        .FirstOrDefault(name => string.Equals(name.Replace('\\', '/'), resourceName, StringComparison.OrdinalIgnoreCase));
     if (resource is null)
     {
         return null;

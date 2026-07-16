@@ -5,6 +5,14 @@ data/
 output/
 desktop/**/bin/
 desktop/**/obj/
+native/build/
+native/out/
+native/.qt/
+native/.toolchains/
+native/.venv-toolchain/
+native/third_party/fsrs-bridge/target/
+CMakeUserPresets.json
+aqtinstall.log
 
 # Images/assets (large binary files)
 *.assets/

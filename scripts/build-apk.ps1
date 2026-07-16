@@ -1,5 +1,5 @@
 param(
-    [string]$Version = "v1.0.19",
+    [string]$Version = "v1.0.20",
   [string]$AppVersion = "",
   [int]$VersionCode = 0,
   [string]$BuildCommit = ""
@@ -89,6 +89,38 @@ if (Test-Path -LiteralPath $buildDir) { Remove-Item -LiteralPath $buildDir -Recu
 New-Item -ItemType Directory -Force -Path $assetDir, $classesDir, $dexDir | Out-Null
 
 Copy-Item -LiteralPath (Join-Path $projectRoot "index.html") -Destination (Join-Path $assetDir "index.html")
+$sourceVendorDir = Join-Path $projectRoot "vendor"
+if (Test-Path -LiteralPath $sourceVendorDir) {
+  Copy-Item -LiteralPath $sourceVendorDir -Destination (Join-Path $assetDir "vendor") -Recurse -Force
+}
+$sourceNotebookDir = Join-Path $projectRoot "notebook"
+if (Test-Path -LiteralPath $sourceNotebookDir) {
+  Copy-Item -LiteralPath $sourceNotebookDir -Destination (Join-Path $assetDir "notebook") -Recurse -Force
+}
+$sourceShellDir = Join-Path $projectRoot "shell"
+if (Test-Path -LiteralPath $sourceShellDir) {
+  Copy-Item -LiteralPath $sourceShellDir -Destination (Join-Path $assetDir "shell") -Recurse -Force
+}
+$sourceReviewDir = Join-Path $projectRoot "review"
+if (Test-Path -LiteralPath $sourceReviewDir) {
+  Copy-Item -LiteralPath $sourceReviewDir -Destination (Join-Path $assetDir "review") -Recurse -Force
+}
+$sourceExamDir = Join-Path $projectRoot "exam"
+if (Test-Path -LiteralPath $sourceExamDir) {
+  Copy-Item -LiteralPath $sourceExamDir -Destination (Join-Path $assetDir "exam") -Recurse -Force
+}
+$sourceAiDir = Join-Path $projectRoot "ai"
+if (Test-Path -LiteralPath $sourceAiDir) {
+  Copy-Item -LiteralPath $sourceAiDir -Destination (Join-Path $assetDir "ai") -Recurse -Force
+}
+$sourceBackupDir = Join-Path $projectRoot "backup"
+if (Test-Path -LiteralPath $sourceBackupDir) {
+  Copy-Item -LiteralPath $sourceBackupDir -Destination (Join-Path $assetDir "backup") -Recurse -Force
+}
+$sourceDistributionDir = Join-Path $projectRoot "distribution"
+if (Test-Path -LiteralPath $sourceDistributionDir) {
+  Copy-Item -LiteralPath $sourceDistributionDir -Destination (Join-Path $assetDir "distribution") -Recurse -Force
+}
 $assetDataDir = Join-Path $assetDir "data"
 New-Item -ItemType Directory -Force -Path $assetDataDir | Out-Null
 $assetBankFiles = @()

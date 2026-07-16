@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://quizapp.local/schema/quizbackup-v2-manifest.json",
+  "title": "QuizApp Backup Manifest v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "format",
+    "schemaVersion",
+    "appVersion",
+    "createdAt",
+    "database",
+    "entries",
+    "totals"
+  ],
+  "properties": {
+    "format": { "const": "quizbackup" },
+    "schemaVersion": { "const": 2 },
+    "appVersion": { "type": "string", "minLength": 1 },
+    "buildCommit": { "type": "string" },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "includesSecrets": { "const": false },
+    "database": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "byteSize"],
+      "properties": {
+        "path": { "const": "database/quizapp.sqlite" },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "byteSize": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "path", "sha256", "byteSize"],
+        "properties": {
+          "kind": { "enum": ["blob", "notebook", "attachment"] },
+          "path": { "type": "string", "pattern": "^(blobs|notebooks|attachments)/" },
+          "sha256": { "$ref": "#/$defs/sha256" },
+          "byteSize": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "totals": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["subjects", "banks", "questions", "notebooks", "blobs", "byteSize"],
+      "properties": {
+        "subjects": { "type": "integer", "minimum": 0 },
+        "banks": { "type": "integer", "minimum": 0 },
+        "questions": { "type": "integer", "minimum": 0 },
+        "notebooks": { "type": "integer", "minimum": 0 },
+        "blobs": { "type": "integer", "minimum": 0 },
+        "byteSize": { "type": "integer", "minimum": 0 }
+      }
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    }
+  }
+}

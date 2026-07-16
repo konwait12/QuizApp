@@ -5,10 +5,19 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <AssemblyName>QuizApp</AssemblyName>
+    <QuizAppIndex Condition="'$(QuizAppIndex)' == ''">..\..\index.html</QuizAppIndex>
   </PropertyGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="..\..\index.html" LogicalName="assets/index.html" />
+    <EmbeddedResource Include="$(QuizAppIndex)" LogicalName="assets/index.html" />
     <EmbeddedResource Include="..\..\data\**\*.json" LogicalName="assets/data/%(RecursiveDir)%(Filename)%(Extension)" />
+    <EmbeddedResource Include="..\..\vendor\**\*" LogicalName="assets/vendor/%(RecursiveDir)%(Filename)%(Extension)" />
+    <EmbeddedResource Include="..\..\notebook\**\*" LogicalName="assets/notebook/%(RecursiveDir)%(Filename)%(Extension)" />
+    <EmbeddedResource Include="..\..\shell\**\*" LogicalName="assets/shell/%(RecursiveDir)%(Filename)%(Extension)" />
+    <EmbeddedResource Include="..\..\review\**\*" LogicalName="assets/review/%(RecursiveDir)%(Filename)%(Extension)" />
+    <EmbeddedResource Include="..\..\exam\**\*" LogicalName="assets/exam/%(RecursiveDir)%(Filename)%(Extension)" />
+    <EmbeddedResource Include="..\..\ai\**\*" LogicalName="assets/ai/%(RecursiveDir)%(Filename)%(Extension)" />
+    <EmbeddedResource Include="..\..\backup\**\*" LogicalName="assets/backup/%(RecursiveDir)%(Filename)%(Extension)" />
+    <EmbeddedResource Include="..\..\distribution\**\*.json" LogicalName="assets/distribution/%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
 </Project>

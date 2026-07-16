@@ -15,6 +15,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.DocumentsContract;
+import android.util.Base64;
 import android.view.View;
 import android.webkit.WebSettings;
 import android.webkit.WebChromeClient;
@@ -25,13 +26,19 @@ import android.widget.Toast;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 
 public class MainActivity extends Activity {
     static final int FILE_CHOOSER_REQUEST = 1001;
+    static final int BACKUP_EXPORT_REQUEST = 1002;
+    static final int DOCUMENT_EXPORT_REQUEST = 1003;
     private WebView webView;
     private ValueCallback<Uri[]> fileCallback;
     private long pendingApkDownloadId = -1L;
+    private OutputStream pendingBackupOutput;
+    private OutputStream pendingDocumentOutput;
 
     @SuppressLint("SetJavaScriptEnabled")
     @Override
@@ -126,6 +133,120 @@ public class MainActivity extends Activity {
 
     void reportBankDirectoryResult(boolean ok, String message) {
         evaluateJavascript("window.onNativeBankDirectoryResult && window.onNativeBankDirectoryResult(" + (ok ? "true" : "false") + "," + jsString(message) + ");");
+    }
+
+    void reportBackupDestinationResult(boolean ok, String message) {
+        evaluateJavascript("window.onNativeBackupDestinationReady && window.onNativeBackupDestinationReady(" + (ok ? "true" : "false") + "," + jsString(message) + ");");
+    }
+
+    void reportDocumentDestinationResult(boolean ok, String message) {
+        evaluateJavascript("window.onNativeNotebookExportDestinationReady && window.onNativeNotebookExportDestinationReady(" + (ok ? "true" : "false") + "," + jsString(message) + ");");
+    }
+
+    void chooseBackupDestination(String fileName) {
+        cancelBackupExport();
+        Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("application/json");
+        intent.putExtra(Intent.EXTRA_TITLE, fileName == null || fileName.trim().isEmpty() ? "QuizApp-backup.quizbackup" : fileName);
+        try {
+            startActivityForResult(intent, BACKUP_EXPORT_REQUEST);
+        } catch (ActivityNotFoundException e) {
+            reportBackupDestinationResult(false, "当前系统没有可用的文件保存器");
+        }
+    }
+
+    synchronized boolean appendBackupChunk(String text) {
+        if (pendingBackupOutput == null) {
+            return false;
+        }
+        try {
+            pendingBackupOutput.write((text == null ? "" : text).getBytes(StandardCharsets.UTF_8));
+            return true;
+        } catch (Exception e) {
+            cancelBackupExport();
+            return false;
+        }
+    }
+
+    synchronized boolean finishBackupExport() {
+        if (pendingBackupOutput == null) {
+            return false;
+        }
+        try {
+            pendingBackupOutput.flush();
+            pendingBackupOutput.close();
+            pendingBackupOutput = null;
+            return true;
+        } catch (Exception e) {
+            cancelBackupExport();
+            return false;
+        }
+    }
+
+    synchronized void cancelBackupExport() {
+        if (pendingBackupOutput == null) {
+            return;
+        }
+        try {
+            pendingBackupOutput.close();
+        } catch (Exception ignored) {
+        }
+        pendingBackupOutput = null;
+    }
+
+    void chooseDocumentDestination(String fileName, String mimeType) {
+        cancelDocumentExport();
+        Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        String resolvedType = mimeType == null || mimeType.trim().isEmpty() ? "application/octet-stream" : mimeType.trim();
+        intent.setType(resolvedType);
+        intent.putExtra(Intent.EXTRA_TITLE, fileName == null || fileName.trim().isEmpty() ? "QuizApp-export.pdf" : fileName);
+        try {
+            startActivityForResult(intent, DOCUMENT_EXPORT_REQUEST);
+        } catch (ActivityNotFoundException e) {
+            reportDocumentDestinationResult(false, "当前系统没有可用的文件保存器");
+        }
+    }
+
+    synchronized boolean appendDocumentBase64Chunk(String encoded) {
+        if (pendingDocumentOutput == null) {
+            return false;
+        }
+        try {
+            byte[] bytes = Base64.decode(encoded == null ? "" : encoded, Base64.NO_WRAP);
+            pendingDocumentOutput.write(bytes);
+            return true;
+        } catch (Exception e) {
+            cancelDocumentExport();
+            return false;
+        }
+    }
+
+    synchronized boolean finishDocumentExport() {
+        if (pendingDocumentOutput == null) {
+            return false;
+        }
+        try {
+            pendingDocumentOutput.flush();
+            pendingDocumentOutput.close();
+            pendingDocumentOutput = null;
+            return true;
+        } catch (Exception e) {
+            cancelDocumentExport();
+            return false;
+        }
+    }
+
+    synchronized void cancelDocumentExport() {
+        if (pendingDocumentOutput == null) {
+            return;
+        }
+        try {
+            pendingDocumentOutput.close();
+        } catch (Exception ignored) {
+        }
+        pendingDocumentOutput = null;
     }
 
     void openBankDirectory() {
@@ -297,6 +418,44 @@ public class MainActivity extends Activity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == DOCUMENT_EXPORT_REQUEST) {
+            if (resultCode != RESULT_OK || data == null || data.getData() == null) {
+                cancelDocumentExport();
+                reportDocumentDestinationResult(false, "已取消保存");
+                return;
+            }
+            try {
+                pendingDocumentOutput = getContentResolver().openOutputStream(data.getData(), "w");
+                if (pendingDocumentOutput == null) {
+                    reportDocumentDestinationResult(false, "无法打开所选保存位置");
+                    return;
+                }
+                reportDocumentDestinationResult(true, "已选择保存位置");
+            } catch (Exception e) {
+                cancelDocumentExport();
+                reportDocumentDestinationResult(false, "无法创建导出文件");
+            }
+            return;
+        }
+        if (requestCode == BACKUP_EXPORT_REQUEST) {
+            if (resultCode != RESULT_OK || data == null || data.getData() == null) {
+                cancelBackupExport();
+                reportBackupDestinationResult(false, "已取消保存");
+                return;
+            }
+            try {
+                pendingBackupOutput = getContentResolver().openOutputStream(data.getData(), "w");
+                if (pendingBackupOutput == null) {
+                    reportBackupDestinationResult(false, "无法打开所选保存位置");
+                    return;
+                }
+                reportBackupDestinationResult(true, "已选择保存位置");
+            } catch (Exception e) {
+                cancelBackupExport();
+                reportBackupDestinationResult(false, "无法创建备份文件");
+            }
+            return;
+        }
         if (requestCode != FILE_CHOOSER_REQUEST || fileCallback == null) {
             return;
         }

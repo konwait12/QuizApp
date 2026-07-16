@@ -1,0 +1,26 @@
+<RCC>
+  <qresource prefix="/quizapp">
+    <file alias="icons/arrow_back.svg">icons/arrow_back.svg</file>
+    <file alias="icons/add.svg">icons/add.svg</file>
+    <file alias="icons/chevron_left.svg">icons/chevron_left.svg</file>
+    <file alias="icons/chevron_right.svg">icons/chevron_right.svg</file>
+    <file alias="icons/download.svg">icons/download.svg</file>
+    <file alias="icons/fit_screen.svg">icons/fit_screen.svg</file>
+    <file alias="icons/home.svg">icons/home.svg</file>
+    <file alias="icons/grid_view.svg">icons/grid_view.svg</file>
+    <file alias="icons/ink_eraser.svg">icons/ink_eraser.svg</file>
+    <file alias="icons/library_books.svg">icons/library_books.svg</file>
+    <file alias="icons/pan_tool.svg">icons/pan_tool.svg</file>
+    <file alias="icons/redo.svg">icons/redo.svg</file>
+    <file alias="icons/save.svg">icons/save.svg</file>
+    <file alias="icons/school.svg">icons/school.svg</file>
+    <file alias="icons/settings.svg">icons/settings.svg</file>
+    <file alias="icons/stylus.svg">icons/stylus.svg</file>
+    <file alias="icons/undo.svg">icons/undo.svg</file>
+    <file alias="icons/zoom_in.svg">icons/zoom_in.svg</file>
+    <file alias="icons/zoom_out.svg">icons/zoom_out.svg</file>
+    <file alias="schema/001_initial.sql">schema/001_initial.sql</file>
+    <file alias="schema/002_question_paths.sql">schema/002_question_paths.sql</file>
+    <file alias="schema/003_review_history.sql">schema/003_review_history.sql</file>
+  </qresource>
+</RCC>
