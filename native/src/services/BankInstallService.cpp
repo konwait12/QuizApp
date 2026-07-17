@@ -23,7 +23,7 @@ BankInstallResult BankInstallService::installJson(
     }
     if (!requiredSourceProvider.isEmpty()
         && result.import.package->bank.sourceProvider != requiredSourceProvider) {
-        result.error = QStringLiteral("题库来源不是允许的小易公开题库");
+        result.error = QStringLiteral("题库来源不符合 27考研题库包的校验规则");
         return result;
     }
     if (!blobStore.materialize(

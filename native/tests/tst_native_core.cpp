@@ -4,6 +4,7 @@
 #include "services/BankInstallService.h"
 #include "services/BankDirectorySyncService.h"
 #include "services/BlobStore.h"
+#include "services/DefaultBankBundleBootstrapService.h"
 #include "services/LegacyBankImporter.h"
 #include "services/PracticeService.h"
 #include "services/ReviewService.h"
@@ -24,6 +25,8 @@
 #include <QDirIterator>
 #include <QFile>
 #include <QFileInfo>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QSqlQuery>
 #include <QSqlError>
 #include <QTemporaryDir>
@@ -83,6 +86,52 @@ QString uniqueConnectionName(const QString &prefix)
     return prefix + QUuid::createUuid().toString(QUuid::WithoutBraces);
 }
 
+bool createDefaultBankBundle(
+    const QString &rootPath,
+    qsizetype manifestQuestionCount = 2)
+{
+    if (!QDir().mkpath(QDir(rootPath).filePath(QStringLiteral("blobs")))) {
+        return false;
+    }
+    const QString databasePath = QDir(rootPath).filePath(QStringLiteral("quizapp.sqlite"));
+    {
+        quizapp::storage::Database database(uniqueConnectionName(QStringLiteral("bundle-fixture-")));
+        QString error;
+        if (!database.open(databasePath, &error) || !database.migrate(&error)) {
+            return false;
+        }
+        auto package = sampleBankPackage();
+        package.bank.sourceProvider = QStringLiteral("xiaoyivip");
+        package.bank.sourceId = QStringLiteral("27-postgraduate-test-bank");
+        for (auto &question : package.bank.questions) {
+            question.sourceProvider = package.bank.sourceProvider;
+        }
+        quizapp::storage::SqliteQuestionRepository repository(database.connection());
+        if (!repository.replaceBank(package, &error)) {
+            return false;
+        }
+    }
+
+    const QJsonObject manifest{
+        {QStringLiteral("schemaVersion"), 1},
+        {QStringLiteral("displayName"), QStringLiteral("27考研题库包")},
+        {QStringLiteral("provider"), QStringLiteral("xiaoyivip")},
+        {QStringLiteral("sectionCount"), 1},
+        {QStringLiteral("questionCount"), static_cast<qint64>(manifestQuestionCount)},
+        {QStringLiteral("blobCount"), 0},
+        {QStringLiteral("blobBytes"), 0},
+    };
+    QFile manifestFile(QDir(rootPath).filePath(QStringLiteral("manifest.json")));
+    if (!manifestFile.open(QIODevice::WriteOnly)
+        || manifestFile.write(QJsonDocument(manifest).toJson()) < 0) {
+        return false;
+    }
+    manifestFile.close();
+    QFile fileIndex(QDir(rootPath).filePath(QStringLiteral("files.txt")));
+    return fileIndex.open(QIODevice::WriteOnly)
+        && fileIndex.write("manifest.json\nquizapp.sqlite\n") > 0;
+}
+
 } // namespace
 
 class NativeCoreTests final : public QObject {
@@ -114,6 +163,11 @@ private slots:
     void sharedBankHierarchyComesFromRelativePath();
     void sharedBankSyncTracksUpdatesAndMissingFiles();
     void sharedStorageFileOperationsStayInsideManagedRoot();
+    void defaultBankBundleInstallsOnFreshDatabase();
+    void defaultBankBundleReplacesOnlyEmptyDatabase();
+    void defaultBankBundleProtectsNonEmptyDatabase();
+    void defaultBankBundleRollsBackInterruptedCopy();
+    void defaultBankBundleRejectsCountMismatch();
 };
 
 void NativeCoreTests::stableQuestionIdentity()
@@ -974,6 +1028,132 @@ void NativeCoreTests::sharedStorageFileOperationsStayInsideManagedRoot()
     QVERIFY2(deleted.completed, qPrintable(deleted.error));
     QVERIFY(!QFileInfo::exists(recycledAgain.destinationPath));
     QVERIFY(!fileService.permanentlyDelete(layout, sourcePath).completed);
+}
+
+void NativeCoreTests::defaultBankBundleInstallsOnFreshDatabase()
+{
+    QTemporaryDir root;
+    QVERIFY(root.isValid());
+    const QString bundleRoot = QDir(root.path()).filePath(QStringLiteral("bundle"));
+    const QString dataRoot = QDir(root.path()).filePath(QStringLiteral("data"));
+    QVERIFY(createDefaultBankBundle(bundleRoot));
+
+    quizapp::services::DefaultBankBundleBootstrapService service;
+    const QString databasePath = QDir(dataRoot).filePath(QStringLiteral("quizapp.sqlite"));
+    const auto result = service.install(bundleRoot, dataRoot, databasePath);
+    QCOMPARE(
+        result.status,
+        quizapp::services::DefaultBankBundleBootstrapStatus::Installed);
+    QCOMPARE(result.displayName, QStringLiteral("27考研题库包"));
+    QCOMPARE(result.questionCount, 2);
+    QVERIFY(QFileInfo::exists(databasePath));
+
+    quizapp::storage::Database database(uniqueConnectionName(QStringLiteral("bundle-result-")));
+    QString error;
+    QVERIFY2(database.open(databasePath, &error), qPrintable(error));
+    QVERIFY2(database.migrate(&error), qPrintable(error));
+    quizapp::storage::SqliteLibraryRepository repository(database.connection());
+    const auto stats = repository.stats(&error);
+    QCOMPARE(stats.bankCount, 1);
+    QCOMPARE(stats.questionCount, 2);
+}
+
+void NativeCoreTests::defaultBankBundleReplacesOnlyEmptyDatabase()
+{
+    QTemporaryDir root;
+    QVERIFY(root.isValid());
+    const QString bundleRoot = QDir(root.path()).filePath(QStringLiteral("bundle"));
+    const QString dataRoot = QDir(root.path()).filePath(QStringLiteral("data"));
+    const QString databasePath = QDir(dataRoot).filePath(QStringLiteral("quizapp.sqlite"));
+    QVERIFY(createDefaultBankBundle(bundleRoot));
+    QVERIFY(QDir().mkpath(dataRoot));
+    {
+        quizapp::storage::Database database(uniqueConnectionName(QStringLiteral("empty-alpha-")));
+        QString error;
+        QVERIFY2(database.open(databasePath, &error), qPrintable(error));
+        QVERIFY2(database.migrate(&error), qPrintable(error));
+    }
+
+    quizapp::services::DefaultBankBundleBootstrapService service;
+    const auto result = service.install(bundleRoot, dataRoot, databasePath);
+    QCOMPARE(
+        result.status,
+        quizapp::services::DefaultBankBundleBootstrapStatus::Installed);
+    const QDir backupRoot(QDir(dataRoot).filePath(QStringLiteral("bootstrap-backups")));
+    QCOMPARE(backupRoot.entryList({QStringLiteral("*.sqlite")}, QDir::Files).size(), 1);
+}
+
+void NativeCoreTests::defaultBankBundleProtectsNonEmptyDatabase()
+{
+    QTemporaryDir root;
+    QVERIFY(root.isValid());
+    const QString bundleRoot = QDir(root.path()).filePath(QStringLiteral("bundle"));
+    const QString dataRoot = QDir(root.path()).filePath(QStringLiteral("data"));
+    const QString databasePath = QDir(dataRoot).filePath(QStringLiteral("quizapp.sqlite"));
+    QVERIFY(createDefaultBankBundle(bundleRoot));
+    QVERIFY(QDir().mkpath(dataRoot));
+    {
+        quizapp::storage::Database database(uniqueConnectionName(QStringLiteral("nonempty-alpha-")));
+        QString error;
+        QVERIFY2(database.open(databasePath, &error), qPrintable(error));
+        QVERIFY2(database.migrate(&error), qPrintable(error));
+        quizapp::storage::SqliteQuestionRepository repository(database.connection());
+        QVERIFY2(repository.replaceBank(sampleBankPackage(), &error), qPrintable(error));
+    }
+
+    quizapp::services::DefaultBankBundleBootstrapService service;
+    const auto result = service.install(bundleRoot, dataRoot, databasePath);
+    QCOMPARE(
+        result.status,
+        quizapp::services::DefaultBankBundleBootstrapStatus::SkippedNonEmpty);
+
+    quizapp::storage::Database database(uniqueConnectionName(QStringLiteral("protected-result-")));
+    QString error;
+    QVERIFY2(database.open(databasePath, &error), qPrintable(error));
+    quizapp::storage::SqliteQuestionRepository repository(database.connection());
+    const auto banks = repository.listInstalledBanks(&error);
+    QCOMPARE(banks.size(), 1);
+    QSqlQuery provider(database.connection());
+    QVERIFY(provider.exec(QStringLiteral("SELECT source_provider FROM banks")));
+    QVERIFY(provider.next());
+    QCOMPARE(provider.value(0).toString(), QStringLiteral("test-provider"));
+}
+
+void NativeCoreTests::defaultBankBundleRollsBackInterruptedCopy()
+{
+    QTemporaryDir root;
+    QVERIFY(root.isValid());
+    const QString bundleRoot = QDir(root.path()).filePath(QStringLiteral("bundle"));
+    const QString dataRoot = QDir(root.path()).filePath(QStringLiteral("data"));
+    const QString databasePath = QDir(dataRoot).filePath(QStringLiteral("quizapp.sqlite"));
+    QVERIFY(createDefaultBankBundle(bundleRoot));
+
+    quizapp::services::DefaultBankBundleBootstrapService service;
+    const auto result = service.install(
+        bundleRoot,
+        dataRoot,
+        databasePath,
+        [](const QString &relativePath) {
+            return relativePath != QStringLiteral("quizapp.sqlite");
+        });
+    QCOMPARE(result.status, quizapp::services::DefaultBankBundleBootstrapStatus::Failed);
+    QVERIFY(!QFileInfo::exists(databasePath));
+}
+
+void NativeCoreTests::defaultBankBundleRejectsCountMismatch()
+{
+    QTemporaryDir root;
+    QVERIFY(root.isValid());
+    const QString bundleRoot = QDir(root.path()).filePath(QStringLiteral("bundle"));
+    const QString dataRoot = QDir(root.path()).filePath(QStringLiteral("data"));
+    const QString databasePath = QDir(dataRoot).filePath(QStringLiteral("quizapp.sqlite"));
+    QVERIFY(createDefaultBankBundle(bundleRoot, 3));
+
+    quizapp::services::DefaultBankBundleBootstrapService service;
+    const auto result = service.install(bundleRoot, dataRoot, databasePath);
+    QCOMPARE(result.status, quizapp::services::DefaultBankBundleBootstrapStatus::Failed);
+    QVERIFY(result.error.contains(QStringLiteral("计数")));
+    QVERIFY(!QFileInfo::exists(databasePath));
 }
 
 QTEST_MAIN(NativeCoreTests)

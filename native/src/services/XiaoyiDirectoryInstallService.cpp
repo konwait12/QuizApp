@@ -43,7 +43,7 @@ DirectoryInstallResult XiaoyiDirectoryInstallService::install(
     std::sort(files.begin(), files.end());
     result.discoveredSections = files.size();
     if (files.isEmpty()) {
-        result.error = QStringLiteral("所选目录没有小易公开题库 JSON");
+        result.error = QStringLiteral("所选目录没有 27考研题库包 JSON");
         return result;
     }
 

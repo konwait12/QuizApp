@@ -6,6 +6,8 @@ set(QUIZAPP_ANDROID_PACKAGE_NAME "com.quizapp" CACHE STRING
     "Android application package name")
 set(QUIZAPP_ANDROID_APP_NAME "QuizApp" CACHE STRING
     "Android application label")
+set(QUIZAPP_DEFAULT_BANK_BUNDLE_DIR "" CACHE PATH
+    "Optional validated 27 postgraduate exam bank bundle to package in Android assets")
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -144,6 +146,7 @@ add_library(quizapp_native_core STATIC
     src/services/BankInstallService.cpp
     src/services/BankDirectorySyncService.cpp
     src/services/BlobStore.cpp
+    src/services/DefaultBankBundleBootstrapService.cpp
     src/services/FsrsScheduler.cpp
     src/services/LegacyBankImporter.cpp
     src/services/PracticeService.cpp
@@ -225,12 +228,61 @@ set_target_properties(quizapp_native_app PROPERTIES OUTPUT_NAME QuizApp)
 quizapp_copy_fsrs_runtime(quizapp_native_app)
 
 if(ANDROID)
+    set(quizapp_android_package_source_dir "${CMAKE_CURRENT_SOURCE_DIR}/android")
+    if(QUIZAPP_DEFAULT_BANK_BUNDLE_DIR)
+        cmake_path(ABSOLUTE_PATH QUIZAPP_DEFAULT_BANK_BUNDLE_DIR
+            NORMALIZE OUTPUT_VARIABLE quizapp_default_bank_bundle_dir)
+        if(NOT EXISTS "${quizapp_default_bank_bundle_dir}/manifest.json"
+            OR NOT EXISTS "${quizapp_default_bank_bundle_dir}/quizapp.sqlite"
+            OR NOT IS_DIRECTORY "${quizapp_default_bank_bundle_dir}/blobs")
+            message(FATAL_ERROR
+                "QUIZAPP_DEFAULT_BANK_BUNDLE_DIR is not a complete bank bundle")
+        endif()
+
+        file(READ "${quizapp_default_bank_bundle_dir}/manifest.json"
+            quizapp_default_bank_manifest)
+        string(JSON quizapp_default_bank_display_name ERROR_VARIABLE manifest_error
+            GET "${quizapp_default_bank_manifest}" displayName)
+        if(manifest_error OR NOT quizapp_default_bank_display_name STREQUAL "27考研题库包")
+            message(FATAL_ERROR
+                "Default bank bundle displayName must be 27考研题库包")
+        endif()
+
+        set(quizapp_android_package_source_dir
+            "${CMAKE_BINARY_DIR}/android-package")
+        file(REMOVE_RECURSE "${quizapp_android_package_source_dir}")
+        file(MAKE_DIRECTORY "${quizapp_android_package_source_dir}")
+        file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/android/"
+            DESTINATION "${quizapp_android_package_source_dir}")
+        set(quizapp_android_bank_assets
+            "${quizapp_android_package_source_dir}/assets/quizapp/27-postgraduate-bank-bundle")
+        file(MAKE_DIRECTORY "${quizapp_android_bank_assets}")
+        file(COPY "${quizapp_default_bank_bundle_dir}/"
+            DESTINATION "${quizapp_android_bank_assets}")
+        file(GLOB_RECURSE quizapp_default_bank_files
+            LIST_DIRECTORIES FALSE
+            RELATIVE "${quizapp_default_bank_bundle_dir}"
+            "${quizapp_default_bank_bundle_dir}/*")
+        list(SORT quizapp_default_bank_files)
+        file(WRITE "${quizapp_android_bank_assets}/files.txt" "")
+        foreach(bundle_file IN LISTS quizapp_default_bank_files)
+            string(REPLACE "\\" "/" bundle_file "${bundle_file}")
+            if(NOT bundle_file STREQUAL "files.txt")
+                file(APPEND "${quizapp_android_bank_assets}/files.txt"
+                    "${bundle_file}\n")
+            endif()
+        endforeach()
+        target_compile_definitions(quizapp_native_app PRIVATE
+            QUIZAPP_HAS_DEFAULT_BANK_BUNDLE=1)
+        message(STATUS
+            "Packaging Android default bank bundle: ${quizapp_default_bank_display_name}")
+    endif()
     set_target_properties(quizapp_native_app PROPERTIES
         QT_ANDROID_PACKAGE_NAME "${QUIZAPP_ANDROID_PACKAGE_NAME}"
         QT_ANDROID_APP_NAME "${QUIZAPP_ANDROID_APP_NAME}"
-        QT_ANDROID_PACKAGE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/android"
-        QT_ANDROID_VERSION_CODE 20002
-        QT_ANDROID_VERSION_NAME "2.0.0-alpha.2"
+        QT_ANDROID_PACKAGE_SOURCE_DIR "${quizapp_android_package_source_dir}"
+        QT_ANDROID_VERSION_CODE 20003
+        QT_ANDROID_VERSION_NAME "2.0.0-alpha.3"
         QT_ANDROID_MIN_SDK_VERSION 26
         QT_ANDROID_TARGET_SDK_VERSION 35
         QT_ANDROID_EXTRA_LIBS "${fsrs_bridge_library}"

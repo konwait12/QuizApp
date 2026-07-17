@@ -11,6 +11,7 @@ param(
     [string]$CargoExecutable = $env:QUIZAPP_CARGO,
     [string]$AndroidPackageName = 'com.quizapp',
     [string]$AndroidAppName = 'QuizApp',
+    [string]$DefaultBankBundleDir = $env:QUIZAPP_DEFAULT_BANK_BUNDLE_DIR,
     [switch]$Clean,
     [switch]$SkipTests
 )
@@ -82,6 +83,7 @@ function Reset-BuildIfSourceMappingChanged {
 function Invoke-Checked {
     param([string]$Executable, [string[]]$Arguments)
 
+    Write-Host "Running: $Executable $($Arguments -join ' ')"
     & $Executable @Arguments
     if ($LASTEXITCODE -ne 0) {
         throw "$Executable failed with exit code $LASTEXITCODE"
@@ -175,7 +177,14 @@ $substDrive = $null
 $substOutput = @(& subst)
 if ($projectRoot -match '[^\x00-\x7F]') {
     foreach ($letter in @('Q:', 'R:', 'S:', 'T:', 'U:')) {
-        $line = $substOutput | Where-Object { $_.StartsWith("$letter\", [StringComparison]::OrdinalIgnoreCase) } |
+        $mappedProjectMarker = Join-Path "$letter\" 'native\CMakeLists.txt'
+        if ((Test-Path -LiteralPath $mappedProjectMarker) -and
+            (Get-FileHash -LiteralPath $mappedProjectMarker -Algorithm SHA256).Hash -eq
+            (Get-FileHash -LiteralPath (Join-Path $nativeRoot 'CMakeLists.txt') -Algorithm SHA256).Hash) {
+            $substDrive = $letter
+            break
+        }
+        $line = $substOutput | Where-Object { $_.StartsWith("${letter}\:", [StringComparison]::OrdinalIgnoreCase) } |
             Select-Object -First 1
         if ($line) {
             $mappedTarget = ($line -split '=>', 2)[-1].Trim()
@@ -248,7 +257,7 @@ try {
             $env:CARGO_HOME = $cargoHome
             $env:RUSTUP_HOME = Join-Path $rustRoot 'rustup'
             $env:PATH = "$(Join-Path $MinGWHome 'bin');$mappedQtHost\bin;$oldPath"
-            Invoke-Checked $cmake @(
+            $windowsCmakeArguments = @(
                 '-S', $mappedNative,
                 '-B', $mappedWindowsBuild,
                 '-G', 'Ninja',
@@ -260,12 +269,15 @@ try {
                 "-DQUIZAPP_CARGO_TARGET_DIR=$cargoTargetDir",
                 '-DBUILD_TESTING=ON'
             )
-            Invoke-Checked $cmake @('--build', $mappedWindowsBuild, '--parallel')
+            Invoke-Checked -Executable $cmake -Arguments $windowsCmakeArguments
+            $windowsBuildArguments = @('--build', $mappedWindowsBuild, '--parallel')
+            Invoke-Checked -Executable $cmake -Arguments $windowsBuildArguments
             if (-not $SkipTests) {
-                Invoke-Checked $ctest @(
+                $windowsTestArguments = @(
                     '--test-dir', $mappedWindowsBuild,
                     '--output-on-failure'
                 )
+                Invoke-Checked -Executable $ctest -Arguments $windowsTestArguments
             }
         }
         finally {
@@ -309,7 +321,8 @@ try {
             $env:RUSTUP_HOME = Join-Path $rustRoot 'rustup'
             $env:PATH = "$(Join-Path $JavaHome 'bin');$oldPath"
             Write-Host "Android Java runtime: $JavaHome"
-            Invoke-Checked $cmake @(
+            Write-Host "Default bank bundle: $DefaultBankBundleDir"
+            $androidCmakeArguments = @(
                 '-S', $mappedNative,
                 '-B', $mappedAndroidBuild,
                 '-G', 'Ninja',
@@ -327,7 +340,17 @@ try {
                 "-DQUIZAPP_CARGO_TARGET_DIR=$cargoTargetDir",
                 '-DBUILD_TESTING=OFF'
             )
-            Invoke-Checked $cmake @('--build', $mappedAndroidBuild, '--parallel')
+            if ($DefaultBankBundleDir) {
+                $DefaultBankBundleDir = Assert-ExistingDirectory `
+                    $DefaultBankBundleDir 'Default bank bundle'
+                $mappedDefaultBankBundle = Convert-ToMappedPath $DefaultBankBundleDir
+                $androidCmakeArguments += "-DQUIZAPP_DEFAULT_BANK_BUNDLE_DIR=$mappedDefaultBankBundle"
+            }
+            Invoke-Checked -Executable $cmake -Arguments $androidCmakeArguments
+            $androidBuildArguments = @(
+                '--build', $mappedAndroidBuild, '--parallel'
+            )
+            Invoke-Checked -Executable $cmake -Arguments $androidBuildArguments
         }
         finally {
             $env:JAVA_HOME = $oldJavaHome

@@ -30,6 +30,7 @@ bool writeManifest(
 {
     const QJsonObject manifest{
         {QStringLiteral("schemaVersion"), 1},
+        {QStringLiteral("displayName"), QStringLiteral("27考研题库包")},
         {QStringLiteral("provider"), QStringLiteral("xiaoyivip")},
         {QStringLiteral("sectionCount"), sectionCount},
         {QStringLiteral("questionCount"), static_cast<qint64>(questionCount)},
@@ -62,7 +63,7 @@ int main(int argc, char *argv[])
     parser.addHelpOption();
     parser.addOptions({
         {{QStringLiteral("i"), QStringLiteral("input")},
-         QStringLiteral("Directory containing exported Xiaoyi JSON files"),
+         QStringLiteral("Directory containing exported 27 postgraduate exam bank JSON files"),
          QStringLiteral("directory")},
         {{QStringLiteral("o"), QStringLiteral("output")},
          QStringLiteral("New directory for the native bundle"),

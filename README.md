@@ -100,7 +100,7 @@ AI 题目分析不写入题库 JSON，始终与 `explanations.builtin` 分开保
 
 笔迹平滑使用 vendored `perfect-freehand 1.2.3`，PDF 导入使用 `pdfjs-dist 3.11.174`，PDF 导出使用 `pdf-lib 1.17.1`，富文本使用 `marked 15.0.12` + `KaTeX 0.16.22` + `html2canvas 1.4.1`，知识图谱使用 `Cytoscape.js 3.33.1`。APK 和 EXE 构建会同时打包 `notebook/` 与 `vendor/`，不依赖 CDN。
 
-小易考研题库公开数据导出、来源边界、开源手写项目对比和后续路线见 [题库来源与手写学习平台路线图](docs/题库来源与手写学习平台路线图.md)。
+27考研题库包的公开数据来源、边界、开源手写项目对比和后续路线见 [题库来源与手写学习平台路线图](docs/题库来源与手写学习平台路线图.md)。
 
 ## 本地编辑与回收站
 

@@ -204,7 +204,7 @@ async function main() {
   }
 
   await fs.writeFile(path.join(args.output, 'export-report.json'), `${JSON.stringify(report, null, 2)}\n`, 'utf8');
-  await fs.writeFile(path.join(args.output, 'README.md'), `# 小易考研题库公开数据导出\n\n来源：${SOURCE_PAGE}\n\n- 只包含来源站点标记为公开、无需激活的题库。\n- 标记为 \`requires_activation\` 的题库不会尝试访问或导出。\n- \`explanations.builtin\` 是来源题库自带答案/解析。\n- AI 分析不写入这些 JSON，仍由 QuizApp 单独保存在本机。\n- 导出统计和受限题库列表见 \`export-report.json\`。\n`, 'utf8');
+  await fs.writeFile(path.join(args.output, 'README.md'), `# 27考研题库包\n\n公开数据来源：${SOURCE_PAGE}\n\n- 只包含来源站点标记为公开、无需激活的题库。\n- 内部来源标识仍为 \`xiaoyivip\`，用于更新兼容和数据校验。\n- 标记为 \`requires_activation\` 的题库不会尝试访问或导出。\n- \`explanations.builtin\` 是来源题库自带答案/解析。\n- AI 分析不写入这些 JSON，仍由 QuizApp 单独保存在本机。\n- 导出统计和受限题库列表见 \`export-report.json\`。\n`, 'utf8');
   console.log(`完成：${report.totals.banks} 个公开题库，${report.totals.questions} 题，${(report.totals.bytes / 1024 / 1024).toFixed(1)} MB`);
   console.log(`目录：${args.output}`);
 }

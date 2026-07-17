@@ -23,7 +23,7 @@ optional backlog.
 
 ## Current native scope
 
-- Install and browse public Xiaoyi postgraduate banks by subject, collection,
+- Install and browse the 27 Postgraduate Exam Bank Bundle by subject, collection,
   chapter and section without flattening every JSON file into the home list.
 - Start sequential, random, memorize, answer-table and wrong-book sessions from
   any directory level. Session progress remains isolated by scope and mode.
@@ -104,7 +104,8 @@ powershell -ExecutionPolicy Bypass -File scripts/build-native.ps1 `
   -Target Windows -Configuration Debug
 
 powershell -ExecutionPolicy Bypass -File scripts/build-native.ps1 `
-  -Target Android -Configuration Debug
+  -Target Android -Configuration Debug `
+  -DefaultBankBundleDir <validated-bundle-directory>
 ```
 
 The script maps a non-ASCII project path to a temporary drive for MinGW/Ninja,
@@ -112,3 +113,6 @@ keeps Cargo outputs in an ASCII-only cache derived from the toolchain root,
 validates the pinned SpeedyNote source contract during CMake configuration, and
 runs Windows Qt Test unless `-SkipTests` is supplied. Android builds package an
 arm64 debug APK at `output/native-build/QuizApp-native-debug-arm64-v8a.apk`.
+`-DefaultBankBundleDir` is optional for developer builds. Release builds pass
+the generated `27考研题库包` directory explicitly; its SQLite database and media
+remain ignored build inputs rather than committed source files.
