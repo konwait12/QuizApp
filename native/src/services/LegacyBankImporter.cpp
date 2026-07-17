@@ -445,7 +445,8 @@ QStringList explanationImageSources(const QJsonObject &question)
 
 domain::BankImportResult LegacyBankImporter::importJson(
     const QByteArray &json,
-    const QString &sourceKey) const
+    const QString &sourceKey,
+    const QStringList &pathOverride) const
 {
     domain::BankImportResult result;
     const QString canonicalSourceKey = QString(sourceKey).replace(u'\\', u'/').trimmed();
@@ -478,7 +479,7 @@ domain::BankImportResult LegacyBankImporter::importJson(
     if (title.isEmpty()) {
         title = fallbackName;
     }
-    const QStringList path = bankPath(root, title);
+    const QStringList path = pathOverride.isEmpty() ? bankPath(root, title) : pathOverride;
     const QJsonArray rawQuestions = questionArray(document, root);
     result.sourceQuestionCount = rawQuestions.size();
     if (rawQuestions.isEmpty()) {

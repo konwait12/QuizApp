@@ -22,5 +22,6 @@
     <file alias="schema/001_initial.sql">schema/001_initial.sql</file>
     <file alias="schema/002_question_paths.sql">schema/002_question_paths.sql</file>
     <file alias="schema/003_review_history.sql">schema/003_review_history.sql</file>
+    <file alias="schema/004_managed_bank_sources.sql">schema/004_managed_bank_sources.sql</file>
   </qresource>
 </RCC>

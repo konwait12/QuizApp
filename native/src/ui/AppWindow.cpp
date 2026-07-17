@@ -8,10 +8,13 @@
 #include "ui/ReviewPage.h"
 #include "ui/StudyHubPage.h"
 #include "ui/ThemePreview.h"
+#include "ui/ThemePalette.h"
 
 #include "domain/QuestionOrdering.h"
+#include "platform/SharedStoragePlatform.h"
 
 #include "storage/Database.h"
+#include "storage/SqliteBankSourceRepository.h"
 #include "storage/SqliteLibraryRepository.h"
 #include "storage/SqlitePracticeRepository.h"
 #include "storage/SqliteQuestionRepository.h"
@@ -19,6 +22,7 @@
 #include "storage/SqliteStudyRepository.h"
 #include "storage/SqliteWrongBookRepository.h"
 #include "services/ReviewService.h"
+#include "services/SharedStorageFileService.h"
 #include "services/StudyService.h"
 #include "services/WrongBookService.h"
 
@@ -28,15 +32,20 @@
 #include <QCheckBox>
 #include <QComboBox>
 #include <QCryptographicHash>
+#include <QDir>
 #include <QFrame>
 #include <QFileDialog>
+#include <QFileInfo>
 #include <QFutureWatcher>
 #include <QGridLayout>
 #include <QGuiApplication>
+#include <QHeaderView>
 #include <QHBoxLayout>
+#include <QInputDialog>
 #include <QKeyEvent>
 #include <QLabel>
 #include <QLayoutItem>
+#include <QLineEdit>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QMap>
@@ -47,10 +56,13 @@
 #include <QResizeEvent>
 #include <QScrollArea>
 #include <QSettings>
+#include <QSlider>
 #include <QSizePolicy>
 #include <QStackedWidget>
 #include <QStyleHints>
 #include <QToolButton>
+#include <QTreeWidget>
+#include <QTreeWidgetItem>
 #include <QTimer>
 #include <QUuid>
 #include <QVBoxLayout>
@@ -65,6 +77,8 @@ namespace quizapp::ui {
 namespace {
 
 constexpr int kTabletNavigationBreakpoint = 840;
+constexpr int kStoragePathRole = Qt::UserRole + 1;
+constexpr int kStorageDirectoryRole = Qt::UserRole + 2;
 
 QString sectionTitle(AppWindow::Section section)
 {
@@ -132,6 +146,7 @@ QWidget *centeredPage(QWidget *content)
     scroll->setObjectName(QStringLiteral("pageScroll"));
     scroll->setWidgetResizable(true);
     scroll->setFrameShape(QFrame::NoFrame);
+    scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     scroll->setWidget(container);
     return scroll;
 }
@@ -163,6 +178,13 @@ QString scopeIdForPath(const QStringList &path)
         QCryptographicHash::hash(serialized, QCryptographicHash::Sha256).toHex()));
 }
 
+QString absoluteCleanPath(const QString &path)
+{
+    return path.trimmed().isEmpty()
+        ? QString()
+        : QDir::cleanPath(QFileInfo(path).absoluteFilePath());
+}
+
 void clearLayoutItems(QLayout *layout)
 {
     while (layout && layout->count() > 0) {
@@ -189,6 +211,40 @@ domain::StudyActivity studyActivityForMode(domain::PracticeMode mode)
     return domain::StudyActivity::Sequential;
 }
 
+QString componentRadiusStyleSheet(int radius)
+{
+    const int bounded = std::clamp(radius, 0, 18);
+    const int compact = std::max(0, bounded - 2);
+    const int tiny = std::max(0, bounded - 4);
+    return QStringLiteral(R"CSS(
+        #summaryCard, #homeSummarySurface, #homeActionsSurface,
+        #settingsSurface, #librarySurface, #libraryBrowserHeader,
+        #libraryPathNodeCard, #practiceOptionsSurface, #practiceAnswerSurface,
+        #studySummaryCard, #reviewOptionsSurface, #reviewAnswerSurface,
+        #studyDueList, #answerTableView, #sharedStorageFileTree {
+            border-radius: %1px;
+        }
+        QPushButton, QToolButton, QComboBox, QLineEdit,
+        QTreeWidget, QListWidget, QTableView {
+            border-radius: %2px;
+        }
+        #brandMark, #railBrand, #practiceImage,
+        #questionOverviewStat, #questionOverviewNumberButton {
+            border-radius: %3px;
+        }
+    )CSS").arg(bounded).arg(compact).arg(tiny);
+}
+
+QString blendedColor(const QColor &foreground, const QColor &background, qreal amount)
+{
+    const qreal bounded = std::clamp(amount, 0.0, 1.0);
+    return QColor::fromRgbF(
+        background.redF() + (foreground.redF() - background.redF()) * bounded,
+        background.greenF() + (foreground.greenF() - background.greenF()) * bounded,
+        background.blueF() + (foreground.blueF() - background.blueF()) * bounded)
+        .name();
+}
+
 } // namespace
 
 AppWindow::AppWindow(QWidget *parent)
@@ -202,6 +258,7 @@ AppWindow::AppWindow(QString databasePath, QString dataRoot, QWidget *parent)
     , dataRoot_(std::move(dataRoot))
 {
     configureApplicationFont();
+    sharedStorageRoot_ = platform::SharedStoragePlatform::defaultRootPath(dataRoot_);
     setObjectName(QStringLiteral("appWindow"));
     setWindowTitle(QStringLiteral("题库"));
     setMinimumSize(360, 600);
@@ -263,15 +320,34 @@ AppWindow::AppWindow(QString databasePath, QString dataRoot, QWidget *parent)
 
     buildNavigation();
     QSettings settings;
-    const QString theme = settings.value(QStringLiteral("ui/theme"), QStringLiteral("system"))
-                              .toString();
+    QString theme = settings.value(QStringLiteral("ui/theme"), QStringLiteral("light"))
+                        .toString();
+    if (theme == QStringLiteral("endfield")) {
+        theme = QStringLiteral("dark");
+    }
     applyTheme(theme);
     applyResponsiveLayout();
     navigateTo(Section::Home);
     refreshLibraryStats();
     refreshInstalledBankList();
+    refreshSharedStorageState();
     refreshReviewData();
     initializeStudyTracking();
+    connect(qApp, &QGuiApplication::applicationStateChanged, this,
+            [this](Qt::ApplicationState state) {
+                if (state != Qt::ApplicationActive) {
+                    return;
+                }
+                refreshSharedStorageState();
+                if (platform::SharedStoragePlatform::hasDirectAccess()) {
+                    startSharedBankSync(false);
+                }
+            });
+    QTimer::singleShot(0, this, [this] {
+        if (platform::SharedStoragePlatform::hasDirectAccess()) {
+            startSharedBankSync(false);
+        }
+    });
 }
 
 AppWindow::~AppWindow()
@@ -530,26 +606,43 @@ QWidget *AppWindow::createLibraryPage()
     surfaceLayout->setContentsMargins(18, 18, 18, 18);
     surfaceLayout->setSpacing(12);
     libraryEmptyTitle_ = heading(
-        QStringLiteral("暂无已安装题库"), QStringLiteral("emptyStateTitle"));
+        QStringLiteral("共享题库目录"), QStringLiteral("emptyStateTitle"));
     librarySummaryText_ = heading(QString(), QStringLiteral("pageSupportingText"));
     surfaceLayout->addWidget(libraryEmptyTitle_);
     surfaceLayout->addWidget(librarySummaryText_);
+    libraryStoragePath_ = heading(sharedStorageRoot_, QStringLiteral("storagePathText"));
+    libraryStoragePath_->setTextInteractionFlags(Qt::TextSelectableByMouse);
+    surfaceLayout->addWidget(libraryStoragePath_);
 
-    auto *actions = new QHBoxLayout;
-    actions->setSpacing(10);
-    libraryImportButton_ = new QPushButton(QStringLiteral("安装小易公开题库"), surface);
+    auto *actions = new QGridLayout;
+    actions->setHorizontalSpacing(8);
+    actions->setVerticalSpacing(8);
+    libraryImportButton_ = new QPushButton(QStringLiteral("扫描题库"), surface);
     libraryImportButton_->setObjectName(QStringLiteral("installXiaoyiButton"));
     libraryImportButton_->setMinimumHeight(44);
     assignMaterialIcon(libraryImportButton_, QStringLiteral("download"));
     connect(libraryImportButton_, &QPushButton::clicked,
             this, &AppWindow::startXiaoyiDirectoryInstall);
+    libraryOpenStorageButton_ = new QPushButton(QStringLiteral("打开目录"), surface);
+    libraryOpenStorageButton_->setObjectName(QStringLiteral("openSharedStorageButton"));
+    libraryOpenStorageButton_->setMinimumHeight(44);
+    assignMaterialIcon(libraryOpenStorageButton_, QStringLiteral("library_books"));
+    connect(libraryOpenStorageButton_, &QPushButton::clicked,
+            this, &AppWindow::openSharedStorageDirectory);
+    libraryStorageAccessButton_ = new QPushButton(QStringLiteral("授权访问"), surface);
+    libraryStorageAccessButton_->setObjectName(QStringLiteral("sharedStorageAccessButton"));
+    libraryStorageAccessButton_->setMinimumHeight(44);
+    assignMaterialIcon(libraryStorageAccessButton_, QStringLiteral("settings"));
+    connect(libraryStorageAccessButton_, &QPushButton::clicked,
+            this, &AppWindow::requestSharedStorageAccess);
     libraryCancelButton_ = new QPushButton(QStringLiteral("取消"), surface);
     libraryCancelButton_->setObjectName(QStringLiteral("cancelXiaoyiInstallButton"));
     libraryCancelButton_->setMinimumHeight(44);
     libraryCancelButton_->hide();
-    actions->addWidget(libraryImportButton_);
-    actions->addWidget(libraryCancelButton_);
-    actions->addStretch();
+    actions->addWidget(libraryImportButton_, 0, 0);
+    actions->addWidget(libraryOpenStorageButton_, 0, 1);
+    actions->addWidget(libraryStorageAccessButton_, 1, 0);
+    actions->addWidget(libraryCancelButton_, 1, 1);
     surfaceLayout->addLayout(actions);
 
     libraryImportProgress_ = new QProgressBar(surface);
@@ -558,7 +651,54 @@ QWidget *AppWindow::createLibraryPage()
     libraryImportProgress_->hide();
     surfaceLayout->addWidget(libraryImportProgress_);
     libraryImportStatus_ = heading(QString(), QStringLiteral("pageSupportingText"));
+    libraryImportStatus_->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
+    libraryImportStatus_->setAlignment(Qt::AlignLeft | Qt::AlignTop);
     surfaceLayout->addWidget(libraryImportStatus_);
+    surfaceLayout->addWidget(heading(QStringLiteral("存储文件"), QStringLiteral("sectionHeading")));
+    libraryFilesTree_ = new QTreeWidget(surface);
+    libraryFilesTree_->setObjectName(QStringLiteral("sharedStorageFileTree"));
+    libraryFilesTree_->setHeaderLabels({QStringLiteral("名称"), QStringLiteral("状态")});
+    libraryFilesTree_->setRootIsDecorated(true);
+    libraryFilesTree_->setAnimated(true);
+    libraryFilesTree_->setMinimumHeight(220);
+    libraryFilesTree_->setMaximumHeight(340);
+    libraryFilesTree_->header()->setSectionResizeMode(0, QHeaderView::Stretch);
+    libraryFilesTree_->header()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
+    surfaceLayout->addWidget(libraryFilesTree_);
+    connect(libraryFilesTree_, &QTreeWidget::itemSelectionChanged,
+            this, &AppWindow::updateSharedFileActions);
+
+    libraryFileActionsLayout_ = new QGridLayout;
+    libraryFileActionsLayout_->setHorizontalSpacing(6);
+    libraryFileActionsLayout_->setVerticalSpacing(6);
+    libraryNewFolderButton_ = new QPushButton(QStringLiteral("新建层级"), surface);
+    libraryNewFolderButton_->setObjectName(QStringLiteral("sharedStorageNewFolderButton"));
+    connect(libraryNewFolderButton_, &QPushButton::clicked,
+            this, &AppWindow::createSharedBankFolder);
+    libraryImportJsonButton_ = new QPushButton(QStringLiteral("导入 JSON"), surface);
+    libraryImportJsonButton_->setObjectName(QStringLiteral("sharedStorageImportJsonButton"));
+    connect(libraryImportJsonButton_, &QPushButton::clicked,
+            this, &AppWindow::importSharedBankJson);
+    libraryRecycleButton_ = new QPushButton(QStringLiteral("移入回收站"), surface);
+    libraryRecycleButton_->setObjectName(QStringLiteral("sharedStorageRecycleButton"));
+    connect(libraryRecycleButton_, &QPushButton::clicked,
+            this, &AppWindow::recycleSelectedSharedEntry);
+    libraryRestoreButton_ = new QPushButton(QStringLiteral("恢复"), surface);
+    libraryRestoreButton_->setObjectName(QStringLiteral("sharedStorageRestoreButton"));
+    connect(libraryRestoreButton_, &QPushButton::clicked,
+            this, &AppWindow::restoreSelectedSharedEntry);
+    libraryPermanentDeleteButton_ = new QPushButton(QStringLiteral("彻底删除"), surface);
+    libraryPermanentDeleteButton_->setObjectName(
+        QStringLiteral("sharedStoragePermanentDeleteButton"));
+    connect(libraryPermanentDeleteButton_, &QPushButton::clicked,
+            this, &AppWindow::permanentlyDeleteSelectedSharedEntry);
+    libraryFileActionsLayout_->addWidget(libraryNewFolderButton_, 0, 0);
+    libraryFileActionsLayout_->addWidget(libraryImportJsonButton_, 0, 1);
+    libraryFileActionsLayout_->addWidget(libraryRecycleButton_, 0, 2);
+    libraryFileActionsLayout_->addWidget(libraryRestoreButton_, 1, 0);
+    libraryFileActionsLayout_->addWidget(libraryPermanentDeleteButton_, 1, 1, 1, 2);
+    surfaceLayout->addLayout(libraryFileActionsLayout_);
+    surface->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
     sourceColumnLayout->addWidget(surface);
     sourceColumnLayout->addStretch();
 
@@ -647,7 +787,7 @@ QWidget *AppWindow::createLibraryPage()
     libraryResponsiveLayout_->addWidget(libraryBrowserColumn_, 1, 0);
     layout->addLayout(libraryResponsiveLayout_, 1);
 
-    libraryImportWatcher_ = new QFutureWatcher<services::DirectoryInstallResult>(this);
+    libraryImportWatcher_ = new QFutureWatcher<services::BankDirectorySyncResult>(this);
     connect(libraryImportWatcher_, &QFutureWatcherBase::progressRangeChanged,
             libraryImportProgress_, &QProgressBar::setRange);
     connect(libraryImportWatcher_, &QFutureWatcherBase::progressValueChanged,
@@ -782,22 +922,93 @@ QWidget *AppWindow::createSettingsPage()
     themeChoice_->addItem(QStringLiteral("跟随系统"), QStringLiteral("system"));
     themeChoice_->addItem(QStringLiteral("浅色"), QStringLiteral("light"));
     themeChoice_->addItem(QStringLiteral("深色"), QStringLiteral("dark"));
-    themeChoice_->addItem(
-        QStringLiteral("终末地风格（高级）"), QStringLiteral("endfield"));
     themeChoice_->setMinimumHeight(42);
 
     QSettings settings;
-    const QString theme = settings.value(QStringLiteral("ui/theme"), QStringLiteral("system"))
-                              .toString();
+    QString theme = settings.value(QStringLiteral("ui/theme"), QStringLiteral("light"))
+                        .toString();
+    QString paletteId = settings.value(QStringLiteral("ui/palette"), QStringLiteral("forest"))
+                            .toString();
+    if (theme == QStringLiteral("endfield")) {
+        theme = QStringLiteral("dark");
+        paletteId = QStringLiteral("endfield");
+    }
     const int themeIndex = themeChoice_->findData(theme);
     themeChoice_->setCurrentIndex(themeIndex >= 0 ? themeIndex : 0);
+
+    auto *paletteLabel = new QLabel(QStringLiteral("颜色主题"), surface);
+    paletteLabel->setObjectName(QStringLiteral("settingsFieldLabel"));
+    paletteChoice_ = new QComboBox(surface);
+    paletteChoice_->setObjectName(QStringLiteral("paletteChoice"));
+    for (const ThemePalette &preset : ThemePalettes::legacyPresets()) {
+        paletteChoice_->addItem(preset.name, preset.id);
+    }
+    paletteChoice_->addItem(
+        QStringLiteral("终末地风格（高级）"), QStringLiteral("endfield"));
+    paletteChoice_->setMinimumHeight(42);
+    const int paletteIndex = paletteChoice_->findData(paletteId);
+    paletteChoice_->setCurrentIndex(paletteIndex >= 0 ? paletteIndex : 1);
 
     auto *previewLabel = new QLabel(QStringLiteral("主题预览"), surface);
     previewLabel->setObjectName(QStringLiteral("settingsFieldLabel"));
     themePreview_ = new ThemePreview(surface);
     themePreview_->setThemeId(themeChoice_->currentData().toString());
+    themePreview_->setPaletteId(paletteChoice_->currentData().toString());
     connect(themeChoice_, &QComboBox::currentIndexChanged, this, [this] {
         themePreview_->setThemeId(themeChoice_->currentData().toString());
+    });
+    connect(paletteChoice_, &QComboBox::currentIndexChanged, this, [this] {
+        themePreview_->setPaletteId(paletteChoice_->currentData().toString());
+        const bool endfield = paletteChoice_->currentData().toString()
+            == QStringLiteral("endfield");
+        if (endfield) {
+            if (themeChoice_->isEnabled()) {
+                themeChoice_->setProperty(
+                    "modeBeforeEndfield", themeChoice_->currentData().toString());
+            }
+            const int darkIndex = themeChoice_->findData(QStringLiteral("dark"));
+            themeChoice_->setCurrentIndex(darkIndex);
+            themeChoice_->setEnabled(false);
+        } else if (!themeChoice_->isEnabled()) {
+            themeChoice_->setEnabled(true);
+            const int previousIndex = themeChoice_->findData(
+                themeChoice_->property("modeBeforeEndfield").toString());
+            if (previousIndex >= 0) {
+                themeChoice_->setCurrentIndex(previousIndex);
+            }
+        }
+    });
+    if (paletteChoice_->currentData().toString() == QStringLiteral("endfield")) {
+        const int darkIndex = themeChoice_->findData(QStringLiteral("dark"));
+        themeChoice_->setCurrentIndex(darkIndex);
+        themeChoice_->setEnabled(false);
+    }
+
+    auto *cornerRadiusLabel = new QLabel(QStringLiteral("组件圆角"), surface);
+    cornerRadiusLabel->setObjectName(QStringLiteral("settingsFieldLabel"));
+    auto *cornerRadiusControl = new QWidget(surface);
+    auto *cornerRadiusLayout = new QHBoxLayout(cornerRadiusControl);
+    cornerRadiusLayout->setContentsMargins(0, 0, 0, 0);
+    cornerRadiusLayout->setSpacing(10);
+    cornerRadiusChoice_ = new QSlider(Qt::Horizontal, cornerRadiusControl);
+    cornerRadiusChoice_->setObjectName(QStringLiteral("cornerRadiusChoice"));
+    cornerRadiusChoice_->setRange(0, 18);
+    cornerRadiusChoice_->setSingleStep(1);
+    cornerRadiusChoice_->setPageStep(2);
+    cornerRadiusChoice_->setValue(
+        std::clamp(settings.value(QStringLiteral("ui/cornerRadius"), 7).toInt(), 0, 18));
+    themePreview_->setCornerRadius(cornerRadiusChoice_->value());
+    cornerRadiusValue_ = new QLabel(
+        QStringLiteral("%1 px").arg(cornerRadiusChoice_->value()), cornerRadiusControl);
+    cornerRadiusValue_->setObjectName(QStringLiteral("cornerRadiusValue"));
+    cornerRadiusValue_->setMinimumWidth(42);
+    cornerRadiusValue_->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+    cornerRadiusLayout->addWidget(cornerRadiusChoice_, 1);
+    cornerRadiusLayout->addWidget(cornerRadiusValue_);
+    connect(cornerRadiusChoice_, &QSlider::valueChanged, this, [this](int value) {
+        cornerRadiusValue_->setText(QStringLiteral("%1 px").arg(value));
+        themePreview_->setCornerRadius(value);
+        applyTheme(themeChoice_->currentData().toString());
     });
 
     reduceMotionChoice_ = new QCheckBox(QStringLiteral("减少界面动画"), surface);
@@ -823,10 +1034,14 @@ QWidget *AppWindow::createSettingsPage()
     surfaceLayout->addWidget(sectionTitle, 0, 0, 1, 2);
     surfaceLayout->addWidget(themeLabel, 1, 0);
     surfaceLayout->addWidget(themeChoice_, 1, 1);
-    surfaceLayout->addWidget(previewLabel, 2, 0, 1, 2);
-    surfaceLayout->addWidget(themePreview_, 3, 0, 1, 2);
-    surfaceLayout->addWidget(reduceMotionChoice_, 4, 0, 1, 2);
-    surfaceLayout->addLayout(saveRow, 5, 0, 1, 2);
+    surfaceLayout->addWidget(paletteLabel, 2, 0);
+    surfaceLayout->addWidget(paletteChoice_, 2, 1);
+    surfaceLayout->addWidget(previewLabel, 3, 0, 1, 2);
+    surfaceLayout->addWidget(themePreview_, 4, 0, 1, 2);
+    surfaceLayout->addWidget(cornerRadiusLabel, 5, 0);
+    surfaceLayout->addWidget(cornerRadiusControl, 5, 1);
+    surfaceLayout->addWidget(reduceMotionChoice_, 6, 0, 1, 2);
+    surfaceLayout->addLayout(saveRow, 7, 0, 1, 2);
     surfaceLayout->setColumnStretch(1, 1);
     layout->addWidget(surface, 0, Qt::AlignLeft);
     layout->addStretch();
@@ -978,8 +1193,8 @@ void AppWindow::applyResponsiveLayout()
     }
     if (libraryResponsiveLayout_ && librarySourceColumn_ && libraryBrowserColumn_) {
         clearLayoutItems(libraryResponsiveLayout_);
-        librarySourceColumn_->setMinimumWidth(tablet ? 320 : 0);
-        librarySourceColumn_->setMaximumWidth(tablet ? 360 : QWIDGETSIZE_MAX);
+        librarySourceColumn_->setMinimumWidth(tablet ? 360 : 0);
+        librarySourceColumn_->setMaximumWidth(tablet ? 420 : QWIDGETSIZE_MAX);
         if (tablet) {
             libraryResponsiveLayout_->addWidget(librarySourceColumn_, 0, 0, Qt::AlignTop);
             libraryResponsiveLayout_->addWidget(libraryBrowserColumn_, 0, 1);
@@ -995,6 +1210,30 @@ void AppWindow::applyResponsiveLayout()
             libraryResponsiveLayout_->setRowStretch(1, 1);
         }
     }
+    if (libraryFileActionsLayout_) {
+        clearLayoutItems(libraryFileActionsLayout_);
+        if (tablet) {
+            libraryFileActionsLayout_->addWidget(libraryNewFolderButton_, 0, 0);
+            libraryFileActionsLayout_->addWidget(libraryImportJsonButton_, 0, 1);
+            libraryFileActionsLayout_->addWidget(libraryRecycleButton_, 0, 2);
+            libraryFileActionsLayout_->addWidget(libraryRestoreButton_, 1, 0);
+            libraryFileActionsLayout_->addWidget(
+                libraryPermanentDeleteButton_, 1, 1, 1, 2);
+            for (int column = 0; column < 3; ++column) {
+                libraryFileActionsLayout_->setColumnStretch(column, 1);
+            }
+        } else {
+            libraryFileActionsLayout_->addWidget(libraryNewFolderButton_, 0, 0);
+            libraryFileActionsLayout_->addWidget(libraryImportJsonButton_, 0, 1);
+            libraryFileActionsLayout_->addWidget(libraryRecycleButton_, 1, 0, 1, 2);
+            libraryFileActionsLayout_->addWidget(libraryRestoreButton_, 0, 0);
+            libraryFileActionsLayout_->addWidget(
+                libraryPermanentDeleteButton_, 0, 1);
+            libraryFileActionsLayout_->setColumnStretch(0, 1);
+            libraryFileActionsLayout_->setColumnStretch(1, 1);
+            libraryFileActionsLayout_->setColumnStretch(2, 0);
+        }
+    }
 }
 
 QString AppWindow::resolvedTheme(const QString &theme) const
@@ -1008,23 +1247,42 @@ QString AppWindow::resolvedTheme(const QString &theme) const
 
 void AppWindow::applyTheme(const QString &theme)
 {
+    QSettings settings;
+    const int componentRadius = std::clamp(
+        cornerRadiusChoice_
+            ? cornerRadiusChoice_->value()
+            : settings.value(QStringLiteral("ui/cornerRadius"), 7).toInt(),
+        0,
+        18);
+    QString paletteId = paletteChoice_
+        ? paletteChoice_->currentData().toString()
+        : settings.value(QStringLiteral("ui/palette"), QStringLiteral("forest")).toString();
     if (theme == QStringLiteral("endfield")) {
-        setStyleSheet(EndfieldTheme::styleSheet());
-        refreshIconsForTheme(theme);
+        paletteId = QStringLiteral("endfield");
+    }
+    if (paletteId == QStringLiteral("endfield")) {
+        setStyleSheet(EndfieldTheme::styleSheet()
+            + componentRadiusStyleSheet(componentRadius));
+        refreshIconsForTheme(QStringLiteral("endfield"));
         return;
     }
 
     const bool dark = resolvedTheme(theme) == QStringLiteral("dark");
-    const QString background = dark ? QStringLiteral("#151a17") : QStringLiteral("#f4f7f2");
-    const QString surface = dark ? QStringLiteral("#202722") : QStringLiteral("#ffffff");
-    const QString surfaceMuted = dark ? QStringLiteral("#29322c") : QStringLiteral("#eef3ec");
-    const QString text = dark ? QStringLiteral("#f0f4f1") : QStringLiteral("#172019");
-    const QString muted = dark ? QStringLiteral("#aeb9b1") : QStringLiteral("#657168");
-    const QString line = dark ? QStringLiteral("#3b473f") : QStringLiteral("#d9e1d8");
-    const QString primary = dark ? QStringLiteral("#55c997") : QStringLiteral("#1d9367");
-    const QString primarySoft = dark ? QStringLiteral("#173c2d") : QStringLiteral("#dff2e9");
-    const QString wrong = dark ? QStringLiteral("#ff8a8a") : QStringLiteral("#c93c3c");
-    const QString wrongSoft = dark ? QStringLiteral("#482525") : QStringLiteral("#fde8e8");
+    const ThemePalette &palette = ThemePalettes::find(paletteId);
+    const QColor backgroundColor = dark ? palette.darkBackground : palette.lightBackground;
+    const QColor surfaceColor = dark ? palette.darkSurface : palette.lightSurface;
+    const QString background = backgroundColor.name();
+    const QString surface = surfaceColor.name();
+    const QString surfaceMuted = (dark ? palette.darkLine : palette.lightBackground).name();
+    const QString text = (dark ? palette.darkText : palette.lightText).name();
+    const QString muted = (dark ? palette.darkMuted : palette.lightMuted).name();
+    const QString line = (dark ? palette.darkLine : palette.lightLine).name();
+    const QString primary = palette.primary.name();
+    const QString primarySoft = blendedColor(
+        palette.primary, surfaceColor, dark ? 0.24 : 0.13);
+    const QString wrong = palette.danger.name();
+    const QString wrongSoft = blendedColor(
+        palette.danger, surfaceColor, dark ? 0.24 : 0.13);
 
     setStyleSheet(QStringLiteral(R"CSS(
         #appWindow { background: %1; color: %4; }
@@ -1219,6 +1477,7 @@ void AppWindow::applyTheme(const QString &theme)
             padding: 8px 14px; font-weight: 650;
         }
         QPushButton:hover { border-color: %7; }
+        QPushButton:disabled { background: %3; border-color: %6; color: %5; }
         #saveSettingsButton { background: %7; color: white; border-color: %7; }
         QComboBox {
             background: %2; border: 1px solid %6; border-radius: 6px;
@@ -1250,30 +1509,33 @@ void AppWindow::applyTheme(const QString &theme)
         QScrollArea, QScrollArea > QWidget > QWidget { background: %1; }
     )CSS")
         .arg(background, surface, surfaceMuted, text, muted, line, primary, primarySoft,
-             wrong, wrongSoft));
-    refreshIcons(dark);
+             wrong, wrongSoft)
+        + componentRadiusStyleSheet(componentRadius));
+    refreshIcons(QColor(muted), palette.primary, QColor(QStringLiteral("#ffffff")));
 }
 
 void AppWindow::refreshIconsForTheme(const QString &theme)
 {
+    QSettings settings;
+    QString paletteId = paletteChoice_
+        ? paletteChoice_->currentData().toString()
+        : settings.value(QStringLiteral("ui/palette"), QStringLiteral("forest")).toString();
     if (theme == QStringLiteral("endfield")) {
+        paletteId = QStringLiteral("endfield");
+    }
+    if (paletteId == QStringLiteral("endfield")) {
         refreshIcons(
             EndfieldTheme::iconNormal(),
             EndfieldTheme::iconEmphasis(),
             EndfieldTheme::iconOnPrimary());
         return;
     }
-    refreshIcons(resolvedTheme(theme) == QStringLiteral("dark"));
-}
-
-void AppWindow::refreshIcons(bool dark)
-{
-    const QColor normal = dark ? QColor(QStringLiteral("#aeb9b1"))
-                               : QColor(QStringLiteral("#657168"));
-    const QColor emphasis = dark ? QColor(QStringLiteral("#55c997"))
-                                 : QColor(QStringLiteral("#1d9367"));
-    const QColor onPrimary(QStringLiteral("#ffffff"));
-    refreshIcons(normal, emphasis, onPrimary);
+    const bool dark = resolvedTheme(theme) == QStringLiteral("dark");
+    const ThemePalette &palette = ThemePalettes::find(paletteId);
+    refreshIcons(
+        dark ? palette.darkMuted : palette.lightMuted,
+        palette.primary,
+        QColor(QStringLiteral("#ffffff")));
 }
 
 void AppWindow::refreshIcons(
@@ -1325,29 +1587,35 @@ void AppWindow::refreshLibraryStats()
     if (!libraryEmptyTitle_ || !librarySummaryText_) {
         return;
     }
+    libraryEmptyTitle_->setText(QStringLiteral("共享题库目录"));
     if (stats.bankCount == 0) {
-        libraryEmptyTitle_->setText(QStringLiteral("暂无已安装题库"));
-        librarySummaryText_->setText(QStringLiteral("可从已下载目录安装小易公开考研题库"));
-        libraryImportButton_->setText(QStringLiteral("安装小易公开题库"));
+        librarySummaryText_->setText(QStringLiteral("尚未安装题库。把 JSON 放入下方目录后扫描。"));
     } else {
-        libraryEmptyTitle_->setText(QStringLiteral("小易公开考研题库"));
         librarySummaryText_->setText(
-            QStringLiteral("%1 个分区 · %2 道题 · %3 个媒体资源")
+            QStringLiteral("已安装 %1 个分区 · %2 道题 · %3 个媒体资源")
                 .arg(stats.bankCount)
                 .arg(stats.questionCount)
                 .arg(stats.blobCount));
-        libraryImportButton_->setText(QStringLiteral("添加或更新小易题库"));
     }
 }
 
 void AppWindow::startXiaoyiDirectoryInstall()
 {
+    startSharedBankSync(true);
+}
+
+void AppWindow::startSharedBankSync(bool force)
+{
     if (!libraryImportWatcher_ || libraryImportWatcher_->isRunning()) {
         return;
     }
-    const QString inputDirectory = QFileDialog::getExistingDirectory(
-        this, QStringLiteral("选择小易公开题库导出目录"));
-    if (inputDirectory.isEmpty()) {
+    refreshSharedStorageState();
+    if (!platform::SharedStoragePlatform::hasDirectAccess()) {
+        libraryImportStatus_->setText(QStringLiteral("请先授权访问安卓根目录，再返回软件扫描"));
+        return;
+    }
+    if (!sharedStorageLayout_.ready()) {
+        libraryImportStatus_->setText(sharedStorageLayout_.error);
         return;
     }
 
@@ -1355,24 +1623,29 @@ void AppWindow::startXiaoyiDirectoryInstall()
     libraryCancelButton_->show();
     libraryImportProgress_->setRange(0, 0);
     libraryImportProgress_->show();
-    libraryImportStatus_->setText(QStringLiteral("正在扫描题库目录"));
+    libraryImportStatus_->setText(QStringLiteral("正在检查共享题库目录"));
+    const QString inputDirectory = sharedStorageLayout_.questionBanks;
     const QString databasePath = databasePath_;
     const QString dataRoot = dataRoot_;
     auto future = QtConcurrent::run(
-        [inputDirectory, databasePath, dataRoot](
-            QPromise<services::DirectoryInstallResult> &promise) {
-            services::XiaoyiDirectoryInstallService service;
-            const services::DirectoryInstallResult result = service.install(
+        [inputDirectory, databasePath, dataRoot, force](
+            QPromise<services::BankDirectorySyncResult> &promise) {
+            services::BankDirectorySyncService service;
+            const services::BankDirectorySyncResult result = service.synchronize(
                 inputDirectory,
                 databasePath,
                 dataRoot,
+                force,
                 [&promise](int current, int total, const QString &sourceKey) {
                     promise.setProgressRange(0, total);
                     promise.setProgressValueAndText(
                         current,
                         sourceKey.isEmpty()
-                            ? QStringLiteral("正在完成题库安装")
-                            : QStringLiteral("%1/%2  %3").arg(current).arg(total).arg(sourceKey));
+                            ? QStringLiteral("正在完成题库同步")
+                            : QStringLiteral("%1/%2  %3")
+                                  .arg(current)
+                                  .arg(total)
+                                  .arg(sourceKey));
                     return !promise.isCanceled();
                 });
             promise.addResult(result);
@@ -1386,27 +1659,394 @@ void AppWindow::finishXiaoyiDirectoryInstall()
     libraryCancelButton_->hide();
     libraryImportProgress_->hide();
     if (libraryImportWatcher_->future().resultCount() == 0) {
-        libraryImportStatus_->setText(QStringLiteral("安装已取消，已完成的分区仍可继续使用"));
+        libraryImportStatus_->setText(QStringLiteral("扫描已取消，已完成的文件仍可使用"));
         refreshLibraryStats();
         refreshInstalledBankList();
+        refreshSharedFileTree();
         return;
     }
-    const services::DirectoryInstallResult result = libraryImportWatcher_->result();
+    const services::BankDirectorySyncResult result = libraryImportWatcher_->result();
     if (result.canceled) {
-        libraryImportStatus_->setText(
-            QStringLiteral("安装已取消，已完成 %1/%2 个分区")
-                .arg(result.installedSections)
-                .arg(result.discoveredSections));
+        libraryImportStatus_->setText(QStringLiteral("题库扫描已取消"));
     } else if (!result.error.isEmpty()) {
-        libraryImportStatus_->setText(QStringLiteral("安装失败：%1").arg(result.error));
+        libraryImportStatus_->setText(QStringLiteral("同步失败：%1").arg(result.error));
     } else {
         libraryImportStatus_->setText(
-            QStringLiteral("安装完成：%1 个分区，%2 道题")
-                .arg(result.installedSections)
-                .arg(result.installedQuestions));
+            QStringLiteral("扫描完成：%1 个文件 · 新增 %2 · 更新 %3 · 未变 %4 · 异常 %5")
+                .arg(result.discoveredFiles)
+                .arg(result.installedFiles)
+                .arg(result.updatedFiles)
+                .arg(result.unchangedFiles)
+                .arg(result.issues.size()));
     }
     refreshLibraryStats();
     refreshInstalledBankList();
+    refreshSharedFileTree();
+}
+
+void AppWindow::refreshSharedStorageState()
+{
+    if (!libraryImportButton_) {
+        return;
+    }
+    const bool hasAccess = platform::SharedStoragePlatform::hasDirectAccess();
+    const bool needsPermission = platform::SharedStoragePlatform::requiresDirectAccessPermission();
+    libraryStorageAccessButton_->setVisible(needsPermission && !hasAccess);
+    libraryImportButton_->setEnabled(hasAccess && !databasePath_.isEmpty() && !dataRoot_.isEmpty());
+    libraryOpenStorageButton_->setEnabled(!sharedStorageRoot_.isEmpty());
+    libraryStoragePath_->setText(sharedStorageRoot_);
+    if (!hasAccess) {
+        sharedStorageLayout_ = {};
+        libraryImportStatus_->setText(
+            QStringLiteral("需要“所有文件访问”权限，才能自动读取安卓根目录下的题库"));
+        refreshSharedFileTree();
+        return;
+    }
+    services::SharedStorageService service;
+    sharedStorageLayout_ = service.prepare(sharedStorageRoot_);
+    if (!sharedStorageLayout_.ready()) {
+        libraryImportStatus_->setText(sharedStorageLayout_.error);
+        libraryImportButton_->setEnabled(false);
+    } else if (!libraryImportWatcher_ || !libraryImportWatcher_->isRunning()) {
+        libraryImportStatus_->setText(QStringLiteral("共享目录已就绪，可手动放入 JSON 或文件夹"));
+    }
+    refreshSharedFileTree();
+}
+
+void AppWindow::refreshSharedFileTree()
+{
+    if (!libraryFilesTree_) {
+        return;
+    }
+    libraryFilesTree_->clear();
+    auto *rootItem = new QTreeWidgetItem(
+        libraryFilesTree_, {QStringLiteral("QuizApp"), QStringLiteral("共享存储")});
+    rootItem->setData(0, kStoragePathRole, sharedStorageRoot_);
+    rootItem->setData(0, kStorageDirectoryRole, true);
+    rootItem->setExpanded(true);
+    if (!sharedStorageLayout_.ready()) {
+        new QTreeWidgetItem(
+            rootItem, {QStringLiteral("目录暂不可访问"), QStringLiteral("等待授权")});
+        libraryFilesTree_->setFixedHeight(180);
+        updateSharedFileActions();
+        return;
+    }
+
+    QHash<QString, domain::ManagedBankSource> sourceStates;
+    if (!databasePath_.isEmpty()) {
+        storage::Database database(
+            QStringLiteral("shared-tree-%1")
+                .arg(QUuid::createUuid().toString(QUuid::WithoutBraces)));
+        QString error;
+        if (database.open(databasePath_, &error) && database.migrate(&error)) {
+            const storage::SqliteBankSourceRepository repository(database.connection());
+            const auto sources = repository.listByRoot(
+                QStringLiteral("primary-shared-storage"), &error);
+            for (const domain::ManagedBankSource &source : sources) {
+                sourceStates.insert(source.sourceKey, source);
+            }
+        }
+    }
+
+    int visibleEntries = 0;
+    const auto addDirectory = [&](auto &&self,
+                                  QTreeWidgetItem *parent,
+                                  const QString &absolutePath,
+                                  const QString &bankRoot,
+                                  int depth) -> void {
+        if (depth > 8 || visibleEntries >= 800) {
+            return;
+        }
+        QDir directory(absolutePath);
+        const QFileInfoList entries = directory.entryInfoList(
+            QDir::Dirs | QDir::Files | QDir::NoDotAndDotDot,
+            QDir::DirsFirst | QDir::Name | QDir::IgnoreCase);
+        for (const QFileInfo &entry : entries) {
+            if (entry.fileName().startsWith(u'.') || visibleEntries >= 800) {
+                continue;
+            }
+            ++visibleEntries;
+            QString status;
+            QString statusTooltip;
+            if (entry.isFile() && entry.suffix().compare(
+                    QStringLiteral("json"), Qt::CaseInsensitive) == 0
+                && !bankRoot.isEmpty()) {
+                const QString relative = QDir(bankRoot)
+                    .relativeFilePath(entry.absoluteFilePath())
+                    .replace(u'\\', u'/');
+                const auto found = sourceStates.constFind(
+                    QStringLiteral("shared:%1").arg(relative));
+                if (found == sourceStates.cend()) {
+                    status = QStringLiteral("待扫描");
+                } else if (!found->lastError.isEmpty()) {
+                    status = QStringLiteral("异常");
+                } else if (!found->available) {
+                    status = QStringLiteral("已移除");
+                } else {
+                    status = QStringLiteral("已同步");
+                }
+                if (found != sourceStates.cend() && !found->lastError.isEmpty()) {
+                    statusTooltip = found->lastError;
+                }
+            }
+            auto *item = new QTreeWidgetItem(parent, {entry.fileName(), status});
+            item->setToolTip(0, entry.absoluteFilePath());
+            item->setToolTip(1, statusTooltip);
+            item->setData(0, kStoragePathRole, entry.absoluteFilePath());
+            item->setData(0, kStorageDirectoryRole, entry.isDir());
+            if (entry.isDir()) {
+                self(self, item, entry.absoluteFilePath(), bankRoot, depth + 1);
+            }
+        }
+    };
+
+    const std::array<std::pair<QString, QString>, 5> directories{{
+        {QStringLiteral("QuestionBanks"), sharedStorageLayout_.questionBanks},
+        {QStringLiteral("Backups"), sharedStorageLayout_.backups},
+        {QStringLiteral("Exports"), sharedStorageLayout_.exports},
+        {QStringLiteral("Notes"), sharedStorageLayout_.notes},
+        {QStringLiteral("RecycleBin"), sharedStorageLayout_.recycleBin},
+    }};
+    for (const auto &[name, path] : directories) {
+        auto *item = new QTreeWidgetItem(rootItem, {name, QStringLiteral("目录")});
+        item->setToolTip(0, path);
+        item->setData(0, kStoragePathRole, path);
+        item->setData(0, kStorageDirectoryRole, true);
+        addDirectory(
+            addDirectory,
+            item,
+            path,
+            name == QStringLiteral("QuestionBanks")
+                ? sharedStorageLayout_.questionBanks : QString(),
+            0);
+        item->setExpanded(name == QStringLiteral("QuestionBanks"));
+    }
+    if (visibleEntries >= 800) {
+        new QTreeWidgetItem(
+            rootItem, {QStringLiteral("其余文件未展开"), QStringLiteral("达到显示上限")});
+    }
+    libraryFilesTree_->setFixedHeight(
+        std::clamp(38 + (visibleEntries + 6) * 26, 180, 340));
+    updateSharedFileActions();
+}
+
+void AppWindow::requestSharedStorageAccess()
+{
+    QString error;
+    if (!platform::SharedStoragePlatform::requestDirectAccess(&error)) {
+        libraryImportStatus_->setText(error);
+        return;
+    }
+    libraryImportStatus_->setText(QStringLiteral("完成系统授权后返回 QuizApp，软件会自动扫描"));
+}
+
+void AppWindow::openSharedStorageDirectory()
+{
+    QString error;
+    if (!platform::SharedStoragePlatform::openInSystemFileManager(
+            sharedStorageRoot_, &error)) {
+        libraryImportStatus_->setText(error);
+    }
+}
+
+void AppWindow::updateSharedFileActions()
+{
+    if (!libraryNewFolderButton_) {
+        return;
+    }
+    const QTreeWidgetItem *item = libraryFilesTree_ ? libraryFilesTree_->currentItem() : nullptr;
+    const QString path = item ? item->data(0, kStoragePathRole).toString() : QString();
+    const bool isDirectory = item && item->data(0, kStorageDirectoryRole).toBool();
+    const bool ready = sharedStorageLayout_.ready();
+    const bool inQuestionBanks = ready && !path.isEmpty()
+        && services::SharedStorageFileService::isPathInside(
+            path, sharedStorageLayout_.questionBanks);
+    const bool inRecycleBin = ready && !path.isEmpty()
+        && services::SharedStorageFileService::isPathInside(
+            path, sharedStorageLayout_.recycleBin);
+    const QStringList managedRoots{
+        sharedStorageLayout_.questionBanks,
+        sharedStorageLayout_.backups,
+        sharedStorageLayout_.exports,
+        sharedStorageLayout_.notes,
+    };
+    const bool inManagedArea = std::any_of(
+        managedRoots.cbegin(), managedRoots.cend(), [&path](const QString &root) {
+            return services::SharedStorageFileService::isPathInside(path, root);
+        });
+    const bool fixedManagedRoot = std::any_of(
+        managedRoots.cbegin(), managedRoots.cend(), [&path](const QString &root) {
+            return absoluteCleanPath(path) == absoluteCleanPath(root);
+        });
+    const bool fixedRecycleRoot = absoluteCleanPath(path)
+        == absoluteCleanPath(sharedStorageLayout_.recycleBin);
+    const int recyclePathDepth = inRecycleBin
+        ? QDir(sharedStorageLayout_.recycleBin)
+              .relativeFilePath(path)
+              .replace(u'\\', u'/')
+              .split(u'/', Qt::SkipEmptyParts)
+              .size()
+        : 0;
+
+    libraryNewFolderButton_->setVisible(!inRecycleBin);
+    libraryImportJsonButton_->setVisible(!inRecycleBin);
+    libraryRecycleButton_->setVisible(!inRecycleBin);
+    libraryRestoreButton_->setVisible(inRecycleBin);
+    libraryPermanentDeleteButton_->setVisible(inRecycleBin);
+    libraryNewFolderButton_->setEnabled(
+        ready && (!item || (isDirectory && inQuestionBanks)));
+    libraryImportJsonButton_->setEnabled(
+        ready && (!item || inQuestionBanks));
+    libraryRecycleButton_->setEnabled(
+        ready && inManagedArea && !fixedManagedRoot);
+    libraryRestoreButton_->setEnabled(inRecycleBin && recyclePathDepth >= 3);
+    libraryPermanentDeleteButton_->setEnabled(inRecycleBin && !fixedRecycleRoot);
+}
+
+void AppWindow::createSharedBankFolder()
+{
+    if (!sharedStorageLayout_.ready()) {
+        return;
+    }
+    QString parent = sharedStorageLayout_.questionBanks;
+    if (QTreeWidgetItem *item = libraryFilesTree_->currentItem()) {
+        const QString selected = item->data(0, kStoragePathRole).toString();
+        if (item->data(0, kStorageDirectoryRole).toBool()
+            && services::SharedStorageFileService::isPathInside(
+                selected, sharedStorageLayout_.questionBanks)) {
+            parent = selected;
+        }
+    }
+    bool accepted = false;
+    const QString name = QInputDialog::getText(
+        this,
+        QStringLiteral("新建题库层级"),
+        QStringLiteral("文件夹名称"),
+        QLineEdit::Normal,
+        {},
+        &accepted);
+    if (!accepted) {
+        return;
+    }
+    services::SharedStorageFileService service;
+    const auto result = service.createQuestionBankFolder(
+        sharedStorageLayout_, parent, name);
+    libraryImportStatus_->setText(result.completed
+        ? QStringLiteral("已创建层级：%1").arg(QFileInfo(result.destinationPath).fileName())
+        : result.error);
+    refreshSharedFileTree();
+}
+
+void AppWindow::importSharedBankJson()
+{
+    if (!sharedStorageLayout_.ready()) {
+        return;
+    }
+    QString destination = sharedStorageLayout_.questionBanks;
+    if (QTreeWidgetItem *item = libraryFilesTree_->currentItem()) {
+        const QString selected = item->data(0, kStoragePathRole).toString();
+        if (services::SharedStorageFileService::isPathInside(
+                selected, sharedStorageLayout_.questionBanks)) {
+            destination = item->data(0, kStorageDirectoryRole).toBool()
+                ? selected : QFileInfo(selected).absolutePath();
+        }
+    }
+    const QStringList files = QFileDialog::getOpenFileNames(
+        this,
+        QStringLiteral("选择题库 JSON"),
+        {},
+        QStringLiteral("JSON 题库 (*.json)"));
+    if (files.isEmpty()) {
+        return;
+    }
+    const auto answer = QMessageBox::question(
+        this,
+        QStringLiteral("同名文件处理"),
+        QStringLiteral("如果目标层级已有同名文件：\n选择“是”覆盖，选择“否”保留两个文件。"),
+        QMessageBox::Yes | QMessageBox::No | QMessageBox::Cancel,
+        QMessageBox::No);
+    if (answer == QMessageBox::Cancel) {
+        return;
+    }
+    const auto policy = answer == QMessageBox::Yes
+        ? services::StorageConflictPolicy::Overwrite
+        : services::StorageConflictPolicy::KeepBoth;
+    services::SharedStorageFileService service;
+    const auto result = service.importJsonFiles(
+        sharedStorageLayout_, destination, files, policy);
+    libraryImportStatus_->setText(result.completed
+        ? QStringLiteral("已导入 %1 个 JSON，正在同步题库").arg(result.affectedEntries)
+        : result.error);
+    refreshSharedFileTree();
+    if (result.completed && result.affectedEntries > 0) {
+        startSharedBankSync(true);
+    }
+}
+
+void AppWindow::recycleSelectedSharedEntry()
+{
+    QTreeWidgetItem *item = libraryFilesTree_ ? libraryFilesTree_->currentItem() : nullptr;
+    if (!item) {
+        return;
+    }
+    const QString path = item->data(0, kStoragePathRole).toString();
+    if (QMessageBox::question(
+            this,
+            QStringLiteral("移入回收站"),
+            QStringLiteral("确定将“%1”移入回收站？").arg(QFileInfo(path).fileName()),
+            QMessageBox::Yes | QMessageBox::No,
+            QMessageBox::No) != QMessageBox::Yes) {
+        return;
+    }
+    services::SharedStorageFileService service;
+    const auto result = service.moveToRecycleBin(sharedStorageLayout_, path);
+    libraryImportStatus_->setText(result.completed
+        ? QStringLiteral("已移入回收站") : result.error);
+    refreshSharedFileTree();
+    if (result.completed) {
+        startSharedBankSync(false);
+    }
+}
+
+void AppWindow::restoreSelectedSharedEntry()
+{
+    QTreeWidgetItem *item = libraryFilesTree_ ? libraryFilesTree_->currentItem() : nullptr;
+    if (!item) {
+        return;
+    }
+    services::SharedStorageFileService service;
+    const auto result = service.restoreFromRecycleBin(
+        sharedStorageLayout_,
+        item->data(0, kStoragePathRole).toString(),
+        services::StorageConflictPolicy::KeepBoth);
+    libraryImportStatus_->setText(result.completed
+        ? QStringLiteral("已恢复回收站项目") : result.error);
+    refreshSharedFileTree();
+    if (result.completed) {
+        startSharedBankSync(true);
+    }
+}
+
+void AppWindow::permanentlyDeleteSelectedSharedEntry()
+{
+    QTreeWidgetItem *item = libraryFilesTree_ ? libraryFilesTree_->currentItem() : nullptr;
+    if (!item) {
+        return;
+    }
+    const QString path = item->data(0, kStoragePathRole).toString();
+    if (QMessageBox::warning(
+            this,
+            QStringLiteral("彻底删除"),
+            QStringLiteral("彻底删除“%1”？此操作无法恢复。").arg(QFileInfo(path).fileName()),
+            QMessageBox::Yes | QMessageBox::Cancel,
+            QMessageBox::Cancel) != QMessageBox::Yes) {
+        return;
+    }
+    services::SharedStorageFileService service;
+    const auto result = service.permanentlyDelete(sharedStorageLayout_, path);
+    libraryImportStatus_->setText(result.completed
+        ? QStringLiteral("已彻底删除") : result.error);
+    refreshSharedFileTree();
 }
 
 void AppWindow::saveSettings()
@@ -1414,7 +2054,9 @@ void AppWindow::saveSettings()
     const QString theme = themeChoice_->currentData().toString();
     QSettings settings;
     settings.setValue(QStringLiteral("ui/theme"), theme);
+    settings.setValue(QStringLiteral("ui/palette"), paletteChoice_->currentData().toString());
     settings.setValue(QStringLiteral("ui/reduceMotion"), reduceMotionChoice_->isChecked());
+    settings.setValue(QStringLiteral("ui/cornerRadius"), cornerRadiusChoice_->value());
     settings.sync();
     applyTheme(theme);
     settingsStatus_->setText(settings.status() == QSettings::NoError
@@ -1586,7 +2228,7 @@ void AppWindow::refreshInstalledBankList()
     }
     QSettings settings;
     refreshIconsForTheme(
-        settings.value(QStringLiteral("ui/theme"), QStringLiteral("system")).toString());
+        settings.value(QStringLiteral("ui/theme"), QStringLiteral("light")).toString());
 }
 
 void AppWindow::startPracticeForPath(const QStringList &path, domain::PracticeMode mode)

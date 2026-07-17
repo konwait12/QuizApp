@@ -13,6 +13,7 @@
 #include "ui/ReviewPage.h"
 #include "ui/StudyHubPage.h"
 #include "ui/ThemePreview.h"
+#include "ui/ThemePalette.h"
 
 #include <QCheckBox>
 #include <QComboBox>
@@ -29,12 +30,14 @@
 #include <QRawFont>
 #include <QSettings>
 #include <QSignalSpy>
+#include <QSlider>
 #include <QScrollArea>
 #include <QScrollBar>
 #include <QStandardPaths>
 #include <QTableView>
 #include <QTemporaryDir>
 #include <QToolButton>
+#include <QTreeWidget>
 #include <QtTest>
 
 class AppShellTests final : public QObject {
@@ -286,12 +289,24 @@ void AppShellTests::libraryStatsReflectInstalledQuestions()
                 && label->text().contains(QStringLiteral("2 道题"));
         }));
     auto *install = window.findChild<QPushButton *>(QStringLiteral("installXiaoyiButton"));
+    auto *storageTree = window.findChild<QTreeWidget *>(
+        QStringLiteral("sharedStorageFileTree"));
     QVERIFY(install);
+    QVERIFY(storageTree);
     QVERIFY(install->isVisible());
+    QCOMPARE(storageTree->topLevelItemCount(), 1);
+    QCOMPARE(storageTree->topLevelItem(0)->childCount(), 5);
+    QCOMPARE(storageTree->topLevelItem(0)->child(0)->text(0), QStringLiteral("QuestionBanks"));
     saveScreenshot(window, QStringLiteral("app-shell-library-installed-tablet.png"));
     window.resize(390, 844);
     QTest::qWait(40);
     QVERIFY(sourceColumn->geometry().bottom() < browserColumn->geometry().top());
+    const auto pageScrolls = window.findChildren<QScrollArea *>(QStringLiteral("pageScroll"));
+    for (QScrollArea *scroll : pageScrolls) {
+        if (scroll->isVisible()) {
+            QCOMPARE(scroll->horizontalScrollBar()->maximum(), 0);
+        }
+    }
     saveScreenshot(window, QStringLiteral("app-shell-library-installed-phone.png"));
 }
 
@@ -852,28 +867,47 @@ void AppShellTests::settingsPersistAndApply()
     window.navigateTo(quizapp::ui::AppWindow::Section::Settings);
 
     auto *theme = window.findChild<QComboBox *>(QStringLiteral("themeChoice"));
+    auto *palette = window.findChild<QComboBox *>(QStringLiteral("paletteChoice"));
     auto *reduceMotion = window.findChild<QCheckBox *>(
         QStringLiteral("reduceMotionChoice"));
     auto *save = window.findChild<QPushButton *>(QStringLiteral("saveSettingsButton"));
+    auto *cornerRadius = window.findChild<QSlider *>(QStringLiteral("cornerRadiusChoice"));
     auto *preview = window.findChild<quizapp::ui::ThemePreview *>(
         QStringLiteral("themePreview"));
     auto *surface = window.findChild<QFrame *>(QStringLiteral("settingsSurface"));
     QVERIFY(theme);
+    QVERIFY(palette);
+    QCOMPARE(palette->count(), 7);
     QVERIFY(reduceMotion);
     QVERIFY(save);
+    QVERIFY(cornerRadius);
     QVERIFY(preview);
     QVERIFY(surface);
     QVERIFY(surface->width() <= 760);
 
     theme->setCurrentIndex(theme->findData(QStringLiteral("light")));
+    palette->setCurrentIndex(palette->findData(QStringLiteral("forest")));
+    cornerRadius->setValue(12);
     QTest::mouseClick(save, Qt::LeftButton);
+    QCOMPARE(QSettings().value(QStringLiteral("ui/cornerRadius")).toInt(), 12);
+    QVERIFY(window.styleSheet().contains(QStringLiteral("border-radius: 12px")));
     const QString classicLightStyle = window.styleSheet();
 
-    theme->setCurrentIndex(theme->findData(QStringLiteral("endfield")));
-    QCOMPARE(preview->themeId(), QStringLiteral("endfield"));
+    for (const quizapp::ui::ThemePalette &preset
+         : quizapp::ui::ThemePalettes::legacyPresets()) {
+        palette->setCurrentIndex(palette->findData(preset.id));
+        QCOMPARE(preview->paletteId(), preset.id);
+        QTest::mouseClick(save, Qt::LeftButton);
+        QVERIFY2(
+            window.styleSheet().contains(preset.primary.name()),
+            qPrintable(preset.name));
+    }
+
+    palette->setCurrentIndex(palette->findData(QStringLiteral("endfield")));
+    QCOMPARE(preview->paletteId(), QStringLiteral("endfield"));
     QTest::mouseClick(save, Qt::LeftButton);
     QCOMPARE(
-        QSettings().value(QStringLiteral("ui/theme")).toString(),
+        QSettings().value(QStringLiteral("ui/palette")).toString(),
         QStringLiteral("endfield"));
     QVERIFY(window.styleSheet().contains(QStringLiteral("#fdfc00")));
     QVERIFY(!window.styleSheet().contains(QStringLiteral("#1d9367")));
@@ -888,13 +922,21 @@ void AppShellTests::settingsPersistAndApply()
     quizapp::ui::AppWindow endfieldRestored;
     auto *endfieldRestoredTheme = endfieldRestored.findChild<QComboBox *>(
         QStringLiteral("themeChoice"));
+    auto *endfieldRestoredPalette = endfieldRestored.findChild<QComboBox *>(
+        QStringLiteral("paletteChoice"));
+    auto *endfieldRestoredRadius = endfieldRestored.findChild<QSlider *>(
+        QStringLiteral("cornerRadiusChoice"));
     QVERIFY(endfieldRestoredTheme);
+    QVERIFY(endfieldRestoredPalette);
+    QVERIFY(endfieldRestoredRadius);
     QCOMPARE(
-        endfieldRestoredTheme->currentData().toString(), QStringLiteral("endfield"));
+        endfieldRestoredPalette->currentData().toString(), QStringLiteral("endfield"));
     QVERIFY(endfieldRestored.styleSheet().contains(QStringLiteral("#fdfc00")));
+    QCOMPARE(endfieldRestoredRadius->value(), 12);
 
     window.navigateTo(quizapp::ui::AppWindow::Section::Settings);
     theme->setCurrentIndex(theme->findData(QStringLiteral("light")));
+    palette->setCurrentIndex(palette->findData(QStringLiteral("forest")));
     QTest::mouseClick(save, Qt::LeftButton);
     QCOMPARE(window.styleSheet(), classicLightStyle);
 
@@ -908,16 +950,21 @@ void AppShellTests::settingsPersistAndApply()
 
     quizapp::ui::AppWindow restored;
     auto *restoredTheme = restored.findChild<QComboBox *>(QStringLiteral("themeChoice"));
+    auto *restoredRadius = restored.findChild<QSlider *>(QStringLiteral("cornerRadiusChoice"));
     QVERIFY(restoredTheme);
+    QVERIFY(restoredRadius);
     QCOMPARE(restoredTheme->currentData().toString(), QStringLiteral("dark"));
     QVERIFY(restored.reduceMotion());
+    QCOMPARE(restoredRadius->value(), 12);
 }
 
 void AppShellTests::endfieldThemeCoversPracticeAndStudy()
 {
     QSettings settings;
     const QVariant previousTheme = settings.value(QStringLiteral("ui/theme"));
-    settings.setValue(QStringLiteral("ui/theme"), QStringLiteral("endfield"));
+    const QVariant previousPalette = settings.value(QStringLiteral("ui/palette"));
+    settings.setValue(QStringLiteral("ui/theme"), QStringLiteral("dark"));
+    settings.setValue(QStringLiteral("ui/palette"), QStringLiteral("endfield"));
 
     QTemporaryDir dataRoot;
     QVERIFY(dataRoot.isValid());
@@ -970,6 +1017,11 @@ void AppShellTests::endfieldThemeCoversPracticeAndStudy()
         settings.setValue(QStringLiteral("ui/theme"), previousTheme);
     } else {
         settings.remove(QStringLiteral("ui/theme"));
+    }
+    if (previousPalette.isValid()) {
+        settings.setValue(QStringLiteral("ui/palette"), previousPalette);
+    } else {
+        settings.remove(QStringLiteral("ui/palette"));
     }
 }
 

@@ -4,7 +4,8 @@
 #include "domain/Question.h"
 #include "domain/ReviewCard.h"
 #include "domain/StudyEvent.h"
-#include "services/XiaoyiDirectoryInstallService.h"
+#include "services/BankDirectorySyncService.h"
+#include "services/SharedStorageService.h"
 
 #include <QMainWindow>
 #include <QHash>
@@ -28,8 +29,10 @@ class QProgressBar;
 class QPushButton;
 class QKeyEvent;
 class QResizeEvent;
+class QSlider;
 class QTimer;
 class QToolButton;
+class QTreeWidget;
 
 namespace quizapp::ui {
 
@@ -88,14 +91,24 @@ private:
     void applyResponsiveLayout();
     void applyTheme(const QString &theme);
     void refreshIconsForTheme(const QString &theme);
-    void refreshIcons(bool dark);
     void refreshIcons(
         const QColor &normal,
         const QColor &emphasis,
         const QColor &onPrimary);
     void refreshLibraryStats();
     void startXiaoyiDirectoryInstall();
+    void startSharedBankSync(bool force);
     void finishXiaoyiDirectoryInstall();
+    void refreshSharedStorageState();
+    void refreshSharedFileTree();
+    void requestSharedStorageAccess();
+    void openSharedStorageDirectory();
+    void createSharedBankFolder();
+    void importSharedBankJson();
+    void recycleSelectedSharedEntry();
+    void restoreSelectedSharedEntry();
+    void permanentlyDeleteSelectedSharedEntry();
+    void updateSharedFileActions();
     void saveSettings();
     QString resolvedTheme(const QString &theme) const;
     void handleHandwritingReturn(const domain::NotebookLaunchContext &context);
@@ -147,8 +160,11 @@ private:
     QVector<QWidget *> summaryCards_;
     QVector<QLabel *> summaryValues_;
     QComboBox *themeChoice_ = nullptr;
+    QComboBox *paletteChoice_ = nullptr;
     ThemePreview *themePreview_ = nullptr;
     QCheckBox *reduceMotionChoice_ = nullptr;
+    QSlider *cornerRadiusChoice_ = nullptr;
+    QLabel *cornerRadiusValue_ = nullptr;
     QLabel *settingsStatus_ = nullptr;
     QLabel *libraryEmptyTitle_ = nullptr;
     QLabel *librarySummaryText_ = nullptr;
@@ -163,13 +179,25 @@ private:
     QGridLayout *libraryScopeModesLayout_ = nullptr;
     QVector<QPushButton *> libraryScopeModeButtons_;
     QLabel *libraryImportStatus_ = nullptr;
+    QLabel *libraryStoragePath_ = nullptr;
     QPushButton *libraryImportButton_ = nullptr;
+    QPushButton *libraryOpenStorageButton_ = nullptr;
+    QPushButton *libraryStorageAccessButton_ = nullptr;
     QPushButton *libraryCancelButton_ = nullptr;
     QProgressBar *libraryImportProgress_ = nullptr;
-    QFutureWatcher<services::DirectoryInstallResult> *libraryImportWatcher_ = nullptr;
+    QTreeWidget *libraryFilesTree_ = nullptr;
+    QGridLayout *libraryFileActionsLayout_ = nullptr;
+    QPushButton *libraryNewFolderButton_ = nullptr;
+    QPushButton *libraryImportJsonButton_ = nullptr;
+    QPushButton *libraryRecycleButton_ = nullptr;
+    QPushButton *libraryRestoreButton_ = nullptr;
+    QPushButton *libraryPermanentDeleteButton_ = nullptr;
+    QFutureWatcher<services::BankDirectorySyncResult> *libraryImportWatcher_ = nullptr;
     QTimer *practiceSaveTimer_ = nullptr;
     QString databasePath_;
     QString dataRoot_;
+    QString sharedStorageRoot_;
+    services::SharedStorageLayout sharedStorageLayout_;
     QStringList libraryPath_;
     QVector<domain::ReviewCard> dueReviewCards_;
     QHash<QUuid, domain::Question> dueReviewQuestions_;

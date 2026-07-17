@@ -18,8 +18,9 @@ domain::LibraryStats SqliteLibraryRepository::stats(QString *error) const
     domain::LibraryStats result;
     QSqlQuery query(database_);
     if (!query.exec(QStringLiteral(
-            "SELECT (SELECT COUNT(*) FROM banks), "
-            "(SELECT COUNT(*) FROM questions WHERE active=1), "
+            "SELECT (SELECT COUNT(*) FROM banks WHERE active=1), "
+            "(SELECT COUNT(*) FROM questions q JOIN banks b ON b.id=q.bank_id "
+            "WHERE q.active=1 AND b.active=1), "
             "(SELECT COUNT(*) FROM blobs)"))
         || !query.next()) {
         if (error) {

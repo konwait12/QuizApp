@@ -16,6 +16,11 @@ are completed and verified.
 The first native milestone is Android tablet. Windows reuses the same domain,
 storage and handwriting code. There is no account or cloud-sync dependency.
 
+The immutable Web-to-native acceptance inventory is maintained in
+[`docs/legacy-feature-migration-matrix.md`](docs/legacy-feature-migration-matrix.md).
+`v1.0.18` features and themes are a minimum compatibility baseline, not an
+optional backlog.
+
 ## Current native scope
 
 - Install and browse public Xiaoyi postgraduate banks by subject, collection,
@@ -34,9 +39,50 @@ storage and handwriting code. There is no account or cloud-sync dependency.
   rate Again/Hard/Good/Easy, and persist FSRS state plus immutable review logs.
 - Track foreground time for practice, review and handwriting, aggregate it by
   local calendar day, and display 7/30/90-day interactive study trends.
-- Keep the existing system/light/dark appearance intact while offering an
-  isolated Endfield-inspired advanced theme built only from original QuizApp
-  widgets and design tokens.
+- Keep system/light/dark appearance independent from all six `v1.0.18` color
+  themes, expose a global 0-18 px component-radius token, and offer Endfield as
+  an isolated seventh advanced theme built only from original QuizApp widgets
+  and design tokens.
+
+## Shared storage and bank hierarchy
+
+On Android, the native client uses this visible shared-storage layout:
+
+```text
+/storage/emulated/0/QuizApp/
+├── QuestionBanks/
+├── Backups/
+├── Exports/
+├── Notes/
+└── RecycleBin/
+```
+
+Android 11 and newer require the user to grant "all files access" before the
+app can continuously monitor this root-level folder. The permission is suited
+to sideloaded builds; Play Store publication would require a different storage
+policy. Older Android versions use the bounded legacy storage permissions.
+
+Desktop builds derive the same five-folder layout from the application data
+root. No personal absolute path is compiled into the application.
+
+Every JSON file under `QuestionBanks` is a managed bank source. Its relative
+folder path plus filename determines the in-app hierarchy:
+
+```text
+QuestionBanks/毛概/第一章/单选题.json
+              └科目 └章节 └题目分区
+```
+
+Additional folders create additional nested levels. A JSON file placed directly
+under `QuestionBanks` becomes a first-level library item. The directory path is
+authoritative even when the JSON contains older `subject`, `chapter` or `path`
+fields.
+
+The app scans on startup and when returning to the foreground. It stores file
+size, modification time and SHA-256, imports only new or changed files, and
+reactivates unchanged files that reappear. Removing a source file hides its bank
+without immediately deleting practice, wrong-book or review data. The in-app
+file tree shows the source folders and synchronization state.
 
 ## Build prerequisites
 

@@ -2,10 +2,13 @@
 #include "domain/QuestionOrdering.h"
 #include "handwriting/SpeedyNoteStrokeAdapter.h"
 #include "services/BankInstallService.h"
+#include "services/BankDirectorySyncService.h"
 #include "services/BlobStore.h"
 #include "services/LegacyBankImporter.h"
 #include "services/PracticeService.h"
 #include "services/ReviewService.h"
+#include "services/SharedStorageService.h"
+#include "services/SharedStorageFileService.h"
 #include "services/StudyService.h"
 #include "services/XiaoyiDirectoryInstallService.h"
 #include "services/WrongBookService.h"
@@ -107,6 +110,10 @@ private slots:
     void invalidEmbeddedMediaRejectsWholeInstall();
     void xiaoyiDirectoryInstallReportsProgressAndUpdatesStats();
     void bankImportRejectsUnsafeBooleanQuestion();
+    void sharedStorageCreatesNamedDirectories();
+    void sharedBankHierarchyComesFromRelativePath();
+    void sharedBankSyncTracksUpdatesAndMissingFiles();
+    void sharedStorageFileOperationsStayInsideManagedRoot();
 };
 
 void NativeCoreTests::stableQuestionIdentity()
@@ -227,7 +234,7 @@ void NativeCoreTests::databaseMigrationIsIdempotent()
     QSqlQuery version(database.connection());
     QVERIFY(version.exec(QStringLiteral("SELECT MAX(version) FROM schema_migrations")));
     QVERIFY(version.next());
-    QCOMPARE(version.value(0).toInt(), 3);
+    QCOMPARE(version.value(0).toInt(), 4);
 
     QSet<QString> columns;
     QSqlQuery tableInfo(database.connection());
@@ -796,6 +803,177 @@ void NativeCoreTests::bankImportRejectsUnsafeBooleanQuestion()
         [](const quizapp::domain::ImportDiagnostic &diagnostic) {
             return diagnostic.code == QStringLiteral("question.boolean_options_invalid");
         }));
+}
+
+void NativeCoreTests::sharedStorageCreatesNamedDirectories()
+{
+    QTemporaryDir root;
+    QVERIFY(root.isValid());
+    const QString sharedRoot = QDir(root.path()).filePath(QStringLiteral("QuizApp"));
+    quizapp::services::SharedStorageService service;
+    const auto layout = service.prepare(sharedRoot);
+    QVERIFY2(layout.ready(), qPrintable(layout.error));
+    QVERIFY(QFileInfo::exists(layout.questionBanks));
+    QVERIFY(QFileInfo::exists(layout.backups));
+    QVERIFY(QFileInfo::exists(layout.exports));
+    QVERIFY(QFileInfo::exists(layout.notes));
+    QVERIFY(QFileInfo::exists(layout.recycleBin));
+    QCOMPARE(QFileInfo(layout.questionBanks).fileName(), QStringLiteral("QuestionBanks"));
+}
+
+void NativeCoreTests::sharedBankHierarchyComesFromRelativePath()
+{
+    QCOMPARE(
+        quizapp::services::BankDirectorySyncService::hierarchyForRelativePath(
+            QStringLiteral("毛概/第一章/单选题.json")),
+        QStringList({QStringLiteral("毛概"), QStringLiteral("第一章"), QStringLiteral("单选题")}));
+    QCOMPARE(
+        quizapp::services::BankDirectorySyncService::hierarchyForRelativePath(
+            QStringLiteral("独立题库.json")),
+        QStringList({QStringLiteral("独立题库")}));
+    QVERIFY(quizapp::services::BankDirectorySyncService::hierarchyForRelativePath(
+        QStringLiteral("../越界.json")).isEmpty());
+}
+
+void NativeCoreTests::sharedBankSyncTracksUpdatesAndMissingFiles()
+{
+    QTemporaryDir root;
+    QVERIFY(root.isValid());
+    const QString dataRoot = QDir(root.path()).filePath(QStringLiteral("private"));
+    QVERIFY(QDir().mkpath(dataRoot));
+    quizapp::services::SharedStorageService storageService;
+    const auto layout = storageService.prepare(
+        QDir(root.path()).filePath(QStringLiteral("QuizApp")));
+    QVERIFY2(layout.ready(), qPrintable(layout.error));
+    const QString chapterDirectory =
+        QDir(layout.questionBanks).filePath(QStringLiteral("毛概/第一章"));
+    QVERIFY(QDir().mkpath(chapterDirectory));
+    const QString bankPath = QDir(chapterDirectory).filePath(QStringLiteral("单选题.json"));
+    const QByteArray firstJson = R"JSON({
+      "name": "JSON 内标题不控制目录",
+      "path": ["错误科目", "错误章节"],
+      "source": {"provider": "local-test"},
+      "questions": [{
+        "id": "shared-question-1",
+        "type": "single",
+        "q": "第一道共享题库题目",
+        "options": ["甲", "乙"],
+        "ans": "A"
+      }]
+    })JSON";
+    QFile bank(bankPath);
+    QVERIFY(bank.open(QIODevice::WriteOnly));
+    QCOMPARE(bank.write(firstJson), static_cast<qint64>(firstJson.size()));
+    bank.close();
+
+    const QString databasePath = QDir(dataRoot).filePath(QStringLiteral("quizapp.sqlite"));
+    quizapp::services::BankDirectorySyncService syncService;
+    const auto installed = syncService.synchronize(
+        layout.questionBanks, databasePath, dataRoot);
+    QVERIFY2(installed.error.isEmpty(), qPrintable(installed.error));
+    QCOMPARE(installed.installedFiles, 1);
+    QCOMPARE(installed.installedQuestions, 1);
+
+    quizapp::storage::Database database(uniqueConnectionName(QStringLiteral("shared-sync-")));
+    QString error;
+    QVERIFY2(database.open(databasePath, &error), qPrintable(error));
+    QVERIFY2(database.migrate(&error), qPrintable(error));
+    quizapp::storage::SqliteQuestionRepository repository(database.connection());
+    const QStringList expectedPath{
+        QStringLiteral("毛概"), QStringLiteral("第一章"), QStringLiteral("单选题")};
+    QCOMPARE(repository.listByPath(expectedPath, &error).size(), 1);
+    QVERIFY2(error.isEmpty(), qPrintable(error));
+
+    const auto unchanged = syncService.synchronize(
+        layout.questionBanks, databasePath, dataRoot);
+    QVERIFY2(unchanged.error.isEmpty(), qPrintable(unchanged.error));
+    QCOMPARE(unchanged.unchangedFiles, 1);
+
+    QVERIFY(QFile::remove(bankPath));
+    const auto missing = syncService.synchronize(
+        layout.questionBanks, databasePath, dataRoot);
+    QVERIFY2(missing.error.isEmpty(), qPrintable(missing.error));
+    QCOMPARE(missing.missingFiles, 1);
+    QCOMPARE(repository.listByPath(expectedPath, &error).size(), 0);
+
+    QVERIFY(bank.open(QIODevice::WriteOnly));
+    QCOMPARE(bank.write(firstJson), static_cast<qint64>(firstJson.size()));
+    bank.close();
+    const auto restored = syncService.synchronize(
+        layout.questionBanks, databasePath, dataRoot);
+    QVERIFY2(restored.error.isEmpty(), qPrintable(restored.error));
+    QCOMPARE(restored.restoredFiles, 1);
+    QCOMPARE(repository.listByPath(expectedPath, &error).size(), 1);
+}
+
+void NativeCoreTests::sharedStorageFileOperationsStayInsideManagedRoot()
+{
+    QTemporaryDir root;
+    QVERIFY(root.isValid());
+    quizapp::services::SharedStorageService storageService;
+    const auto layout = storageService.prepare(
+        QDir(root.path()).filePath(QStringLiteral("QuizApp")));
+    QVERIFY2(layout.ready(), qPrintable(layout.error));
+    quizapp::services::SharedStorageFileService fileService;
+
+    const auto folder = fileService.createQuestionBankFolder(
+        layout, layout.questionBanks, QStringLiteral("毛概"));
+    QVERIFY2(folder.completed, qPrintable(folder.error));
+    QVERIFY(QFileInfo(folder.destinationPath).isDir());
+    QVERIFY(!fileService.createQuestionBankFolder(
+        layout, layout.questionBanks, QStringLiteral("../越界")).completed);
+
+    const QString sourcePath = QDir(root.path()).filePath(QStringLiteral("第一章.json"));
+    QFile source(sourcePath);
+    QVERIFY(source.open(QIODevice::WriteOnly));
+    const QByteArray json = QByteArrayLiteral("{\"questions\":[]}");
+    QCOMPARE(source.write(json), static_cast<qint64>(json.size()));
+    source.close();
+
+    const auto imported = fileService.importJsonFiles(
+        layout,
+        folder.destinationPath,
+        {sourcePath},
+        quizapp::services::StorageConflictPolicy::KeepBoth);
+    QVERIFY2(imported.completed, qPrintable(imported.error));
+    QCOMPARE(imported.affectedEntries, 1);
+    QVERIFY(QFileInfo::exists(imported.destinationPath));
+
+    QVERIFY(source.open(QIODevice::WriteOnly | QIODevice::Truncate));
+    const QByteArray updatedJson = QByteArrayLiteral("{\"questions\":[1]}");
+    QCOMPARE(source.write(updatedJson), static_cast<qint64>(updatedJson.size()));
+    source.close();
+    const auto overwritten = fileService.importJsonFiles(
+        layout,
+        folder.destinationPath,
+        {sourcePath},
+        quizapp::services::StorageConflictPolicy::Overwrite);
+    QVERIFY2(overwritten.completed, qPrintable(overwritten.error));
+    QFile overwrittenFile(overwritten.destinationPath);
+    QVERIFY(overwrittenFile.open(QIODevice::ReadOnly));
+    QCOMPARE(overwrittenFile.readAll(), updatedJson);
+    overwrittenFile.close();
+
+    const auto recycled = fileService.moveToRecycleBin(layout, overwritten.destinationPath);
+    QVERIFY2(recycled.completed, qPrintable(recycled.error));
+    QVERIFY(!QFileInfo::exists(overwritten.destinationPath));
+    QVERIFY(QFileInfo::exists(recycled.destinationPath));
+    QVERIFY(quizapp::services::SharedStorageFileService::isPathInside(
+        recycled.destinationPath, layout.recycleBin));
+
+    const auto restored = fileService.restoreFromRecycleBin(
+        layout,
+        recycled.destinationPath,
+        quizapp::services::StorageConflictPolicy::KeepBoth);
+    QVERIFY2(restored.completed, qPrintable(restored.error));
+    QVERIFY(QFileInfo::exists(restored.destinationPath));
+
+    const auto recycledAgain = fileService.moveToRecycleBin(layout, restored.destinationPath);
+    QVERIFY2(recycledAgain.completed, qPrintable(recycledAgain.error));
+    const auto deleted = fileService.permanentlyDelete(layout, recycledAgain.destinationPath);
+    QVERIFY2(deleted.completed, qPrintable(deleted.error));
+    QVERIFY(!QFileInfo::exists(recycledAgain.destinationPath));
+    QVERIFY(!fileService.permanentlyDelete(layout, sourcePath).completed);
 }
 
 QTEST_MAIN(NativeCoreTests)

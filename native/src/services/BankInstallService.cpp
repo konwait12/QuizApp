@@ -11,11 +11,12 @@ BankInstallResult BankInstallService::installJson(
     const QString &sourceKey,
     const BlobStore &blobStore,
     repositories::IQuestionRepository &repository,
-    const QString &requiredSourceProvider) const
+    const QString &requiredSourceProvider,
+    const QStringList &pathOverride) const
 {
     BankInstallResult result;
     LegacyBankImporter importer;
-    result.import = importer.importJson(json, sourceKey);
+    result.import = importer.importJson(json, sourceKey, pathOverride);
     if (!result.import.succeeded()) {
         result.error = QStringLiteral("题库内容校验失败");
         return result;

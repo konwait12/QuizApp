@@ -11,7 +11,10 @@ public:
     explicit ThemePreview(QWidget *parent = nullptr);
 
     QString themeId() const;
+    QString paletteId() const;
     void setThemeId(const QString &themeId);
+    void setPaletteId(const QString &paletteId);
+    void setCornerRadius(int radius);
     QSize sizeHint() const override;
 
 protected:
@@ -19,6 +22,8 @@ protected:
 
 private:
     QString themeId_ = QStringLiteral("system");
+    QString paletteId_ = QStringLiteral("forest");
+    int cornerRadius_ = 7;
 };
 
 } // namespace quizapp::ui

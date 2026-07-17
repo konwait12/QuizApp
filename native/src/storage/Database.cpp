@@ -69,10 +69,11 @@ bool Database::migrate(QString *error)
         int version;
         const char *resourcePath;
     };
-    const std::array<Migration, 3> migrations{{
+    const std::array<Migration, 4> migrations{{
         {1, ":/quizapp/schema/001_initial.sql"},
         {2, ":/quizapp/schema/002_question_paths.sql"},
         {3, ":/quizapp/schema/003_review_history.sql"},
+        {4, ":/quizapp/schema/004_managed_bank_sources.sql"},
     }};
 
     for (const Migration &migration : migrations) {

@@ -12,7 +12,7 @@ int main(int argc, char *argv[])
     QApplication application(argc, argv);
     QCoreApplication::setOrganizationName(QStringLiteral("QuizApp"));
     QCoreApplication::setApplicationName(QStringLiteral("QuizAppNative"));
-    QCoreApplication::setApplicationVersion(QStringLiteral("2.0.0-alpha.1"));
+    QCoreApplication::setApplicationVersion(QStringLiteral("2.0.0-alpha.2"));
     quizapp::ui::configureApplicationFont();
 
     const QString dataRoot = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);

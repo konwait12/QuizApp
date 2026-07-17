@@ -4,6 +4,7 @@
 
 #include <QByteArray>
 #include <QString>
+#include <QStringList>
 
 namespace quizapp::repositories {
 class IQuestionRepository;
@@ -26,7 +27,8 @@ public:
         const QString &sourceKey,
         const BlobStore &blobStore,
         repositories::IQuestionRepository &repository,
-        const QString &requiredSourceProvider = {}) const;
+        const QString &requiredSourceProvider = {},
+        const QStringList &pathOverride = {}) const;
 };
 
 } // namespace quizapp::services

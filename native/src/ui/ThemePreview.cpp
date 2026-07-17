@@ -1,4 +1,5 @@
 #include "ui/ThemePreview.h"
+#include "ui/ThemePalette.h"
 
 #include <QGuiApplication>
 #include <QPainter>
@@ -19,29 +20,33 @@ struct PreviewPalette {
     int radius = 6;
 };
 
-PreviewPalette paletteForTheme(const QString &themeId)
+PreviewPalette paletteForTheme(
+    const QString &themeId,
+    const QString &paletteId,
+    int cornerRadius)
 {
     QString resolved = themeId;
     if (resolved == QStringLiteral("system")) {
         resolved = QGuiApplication::styleHints()->colorScheme() == Qt::ColorScheme::Dark
             ? QStringLiteral("dark") : QStringLiteral("light");
     }
-    if (resolved == QStringLiteral("endfield")) {
+    if (paletteId == QStringLiteral("endfield")) {
         return {
             QColor(QStringLiteral("#101113")), QColor(QStringLiteral("#18171a")),
             QColor(QStringLiteral("#25262b")), QColor(QStringLiteral("#414248")),
-            QColor(QStringLiteral("#f4f4f2")), QColor(QStringLiteral("#fdfc00")), 2};
+            QColor(QStringLiteral("#f4f4f2")), QColor(QStringLiteral("#fdfc00")),
+            qBound(0, cornerRadius, 18)};
     }
-    if (resolved == QStringLiteral("dark")) {
-        return {
-            QColor(QStringLiteral("#151a17")), QColor(QStringLiteral("#202722")),
-            QColor(QStringLiteral("#29322c")), QColor(QStringLiteral("#3b473f")),
-            QColor(QStringLiteral("#f0f4f1")), QColor(QStringLiteral("#55c997")), 6};
-    }
+    const ThemePalette &preset = ThemePalettes::find(paletteId);
+    const bool dark = resolved == QStringLiteral("dark");
     return {
-        QColor(QStringLiteral("#f4f7f2")), QColor(QStringLiteral("#ffffff")),
-        QColor(QStringLiteral("#eef3ec")), QColor(QStringLiteral("#d9e1d8")),
-        QColor(QStringLiteral("#172019")), QColor(QStringLiteral("#1d9367")), 6};
+        dark ? preset.darkBackground : preset.lightBackground,
+        dark ? preset.darkSurface : preset.lightSurface,
+        dark ? preset.darkLine : preset.lightBackground,
+        dark ? preset.darkLine : preset.lightLine,
+        dark ? preset.darkText : preset.lightText,
+        preset.primary,
+        qBound(0, cornerRadius, 18)};
 }
 
 } // namespace
@@ -60,12 +65,36 @@ QString ThemePreview::themeId() const
     return themeId_;
 }
 
+QString ThemePreview::paletteId() const
+{
+    return paletteId_;
+}
+
 void ThemePreview::setThemeId(const QString &themeId)
 {
     if (themeId_ == themeId) {
         return;
     }
     themeId_ = themeId;
+    update();
+}
+
+void ThemePreview::setPaletteId(const QString &paletteId)
+{
+    if (paletteId_ == paletteId) {
+        return;
+    }
+    paletteId_ = paletteId;
+    update();
+}
+
+void ThemePreview::setCornerRadius(int radius)
+{
+    const int bounded = qBound(0, radius, 18);
+    if (cornerRadius_ == bounded) {
+        return;
+    }
+    cornerRadius_ = bounded;
     update();
 }
 
@@ -77,7 +106,7 @@ QSize ThemePreview::sizeHint() const
 void ThemePreview::paintEvent(QPaintEvent *event)
 {
     Q_UNUSED(event)
-    const PreviewPalette colors = paletteForTheme(themeId_);
+    const PreviewPalette colors = paletteForTheme(themeId_, paletteId_, cornerRadius_);
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing, true);
 

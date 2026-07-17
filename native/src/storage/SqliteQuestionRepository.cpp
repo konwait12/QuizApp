@@ -490,7 +490,9 @@ std::optional<domain::Question> SqliteQuestionRepository::findById(
 {
     clearError(error);
     QSqlQuery query(database_);
-    query.prepare(QStringLiteral("SELECT %1 FROM questions q WHERE q.id=? AND q.active=1")
+    query.prepare(QStringLiteral(
+        "SELECT %1 FROM questions q JOIN banks b ON b.id=q.bank_id "
+        "WHERE q.id=? AND q.active=1 AND b.active=1")
         .arg(kQuestionColumns));
     query.addBindValue(uuidText(id));
     if (!execPrepared(query, error) || !query.next()) {
@@ -512,7 +514,7 @@ QVector<domain::InstalledBankSummary> SqliteQuestionRepository::listInstalledBan
     query.prepare(QStringLiteral(
         "SELECT b.id, b.title, COUNT(q.id) FROM banks b "
         "LEFT JOIN questions q ON q.bank_id=b.id AND q.active=1 "
-        "GROUP BY b.id, b.title ORDER BY b.updated_at DESC, b.title"));
+        "WHERE b.active=1 GROUP BY b.id, b.title ORDER BY b.updated_at DESC, b.title"));
     if (!execPrepared(query, error)) {
         return {};
     }
@@ -539,7 +541,8 @@ QVector<domain::Question> SqliteQuestionRepository::listByBankId(
     clearError(error);
     QSqlQuery query(database_);
     query.prepare(QStringLiteral(
-        "SELECT %1 FROM questions q WHERE q.bank_id=? AND q.active=1 "
+        "SELECT %1 FROM questions q JOIN banks b ON b.id=q.bank_id "
+        "WHERE q.bank_id=? AND q.active=1 AND b.active=1 "
         "ORDER BY q.source_order").arg(kQuestionColumns));
     query.addBindValue(bankId);
     if (!execPrepared(query, error)) {
@@ -565,7 +568,8 @@ QVector<domain::Question> SqliteQuestionRepository::listByPath(
     const QString serializedPath = pathJson(path);
     QSqlQuery query(database_);
     query.prepare(QStringLiteral(
-        "SELECT %1 FROM questions q WHERE q.path_json=? AND q.active=1 "
+        "SELECT %1 FROM questions q JOIN banks b ON b.id=q.bank_id "
+        "WHERE q.path_json=? AND q.active=1 AND b.active=1 "
         "ORDER BY q.source_order").arg(kQuestionColumns));
     query.addBindValue(serializedPath);
     if (!execPrepared(query, error)) {
@@ -591,7 +595,8 @@ QVector<domain::Question> SqliteQuestionRepository::listByPathPrefix(
     if (pathPrefix.isEmpty()) {
         QSqlQuery query(database_);
         query.prepare(QStringLiteral(
-            "SELECT %1 FROM questions q WHERE q.active=1 "
+            "SELECT %1 FROM questions q JOIN banks b ON b.id=q.bank_id "
+            "WHERE q.active=1 AND b.active=1 "
             "ORDER BY q.path_json, q.source_order").arg(kQuestionColumns));
         if (!execPrepared(query, error)) {
             return {};
@@ -612,7 +617,8 @@ QVector<domain::Question> SqliteQuestionRepository::listByPathPrefix(
     const QString descendantPrefix = serializedPath.left(serializedPath.size() - 1)
         + QStringLiteral(",");
     const QString whereClause = QStringLiteral(
-        "(q.path_json=? OR substr(q.path_json, 1, ?)=?) AND q.active=1");
+        "(q.path_json=? OR substr(q.path_json, 1, ?)=?) AND q.active=1 "
+        "AND EXISTS(SELECT 1 FROM banks b WHERE b.id=q.bank_id AND b.active=1)");
     const QVariantList values{
         serializedPath,
         descendantPrefix.size(),
@@ -646,7 +652,8 @@ qsizetype SqliteQuestionRepository::countByPath(
     clearError(error);
     QSqlQuery query(database_);
     query.prepare(QStringLiteral(
-        "SELECT COUNT(*) FROM questions WHERE path_json=? AND active=1"));
+        "SELECT COUNT(*) FROM questions q JOIN banks b ON b.id=q.bank_id "
+        "WHERE q.path_json=? AND q.active=1 AND b.active=1"));
     query.addBindValue(pathJson(path));
     if (!execPrepared(query, error) || !query.next()) {
         return 0;

@@ -140,16 +140,21 @@ add_library(quizapp_native_core STATIC
     resources/quizapp-native.qrc
     src/domain/QuestionIdentity.cpp
     src/domain/QuestionOrdering.cpp
+    src/platform/SharedStoragePlatform.cpp
     src/services/BankInstallService.cpp
+    src/services/BankDirectorySyncService.cpp
     src/services/BlobStore.cpp
     src/services/FsrsScheduler.cpp
     src/services/LegacyBankImporter.cpp
     src/services/PracticeService.cpp
     src/services/ReviewService.cpp
+    src/services/SharedStorageService.cpp
+    src/services/SharedStorageFileService.cpp
     src/services/StudyService.cpp
     src/services/WrongBookService.cpp
     src/services/XiaoyiDirectoryInstallService.cpp
     src/storage/Database.cpp
+    src/storage/SqliteBankSourceRepository.cpp
     src/storage/SqliteLibraryRepository.cpp
     src/storage/SqlitePracticeRepository.cpp
     src/storage/SqliteQuestionRepository.cpp
@@ -190,6 +195,7 @@ add_library(quizapp_native_ui STATIC
     src/ui/StudyHubPage.cpp
     src/ui/StudyTrendChart.cpp
     src/ui/ThemePreview.cpp
+    src/ui/ThemePalette.cpp
 )
 target_include_directories(quizapp_native_ui PUBLIC src)
 target_link_libraries(quizapp_native_ui PUBLIC
@@ -223,8 +229,8 @@ if(ANDROID)
         QT_ANDROID_PACKAGE_NAME "${QUIZAPP_ANDROID_PACKAGE_NAME}"
         QT_ANDROID_APP_NAME "${QUIZAPP_ANDROID_APP_NAME}"
         QT_ANDROID_PACKAGE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/android"
-        QT_ANDROID_VERSION_CODE 20001
-        QT_ANDROID_VERSION_NAME "2.0.0-alpha.1"
+        QT_ANDROID_VERSION_CODE 20002
+        QT_ANDROID_VERSION_NAME "2.0.0-alpha.2"
         QT_ANDROID_MIN_SDK_VERSION 26
         QT_ANDROID_TARGET_SDK_VERSION 35
         QT_ANDROID_EXTRA_LIBS "${fsrs_bridge_library}"
