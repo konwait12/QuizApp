@@ -2,7 +2,8 @@ param(
     [string]$Version = "v1.0.20",
   [string]$AppVersion = "",
   [int]$VersionCode = 0,
-  [string]$BuildCommit = ""
+  [string]$BuildCommit = "",
+  [switch]$IncludePostgraduateBanks
 )
 
 $ErrorActionPreference = "Stop"
@@ -127,14 +128,32 @@ $assetBankFiles = @()
 $sourceDataRoot = Join-Path $projectRoot "data"
 $sourceDataRootFull = (Resolve-Path -LiteralPath $sourceDataRoot).Path.TrimEnd("\", "/")
 $sourceBankFiles = Get-ChildItem -LiteralPath $sourceDataRoot -Filter "*.json" -Recurse | Sort-Object FullName
-for ($i = 0; $i -lt $sourceBankFiles.Count; $i++) {
-  $relativePath = $sourceBankFiles[$i].FullName.Substring($sourceDataRootFull.Length).TrimStart("\", "/").Replace("\", "/")
+$bankAssetSources = @($sourceBankFiles | ForEach-Object {
+  [pscustomobject]@{
+    File = $_
+    RelativePath = $_.FullName.Substring($sourceDataRootFull.Length).TrimStart("\", "/").Replace("\", "/")
+  }
+})
+$postgraduateRoot = Join-Path $projectRoot "output\xiaoyi-question-banks"
+$postgraduateReport = Join-Path $postgraduateRoot "export-report.json"
+if ($IncludePostgraduateBanks -and (Test-Path -LiteralPath $postgraduateReport)) {
+  $postgraduateRootFull = (Resolve-Path -LiteralPath $postgraduateRoot).Path.TrimEnd("\", "/")
+  $postgraduateFiles = Get-ChildItem -LiteralPath $postgraduateRoot -Filter "*.json" -Recurse -File |
+    Where-Object { $_.Name -ne "export-report.json" } |
+    Sort-Object FullName
+  $bankAssetSources += @($postgraduateFiles | ForEach-Object {
+    $relative = $_.FullName.Substring($postgraduateRootFull.Length).TrimStart("\", "/").Replace("\", "/")
+    [pscustomobject]@{ File = $_; RelativePath = "postgraduate/$relative" }
+  })
+}
+for ($i = 0; $i -lt $bankAssetSources.Count; $i++) {
+  $relativePath = $bankAssetSources[$i].RelativePath
   $assetTarget = Join-Path $assetDataDir ($relativePath.Replace("/", [System.IO.Path]::DirectorySeparatorChar))
   $assetTargetDir = Split-Path -Parent $assetTarget
   if (-not (Test-Path -LiteralPath $assetTargetDir)) {
     New-Item -ItemType Directory -Force -Path $assetTargetDir | Out-Null
   }
-  Copy-Item -LiteralPath $sourceBankFiles[$i].FullName -Destination $assetTarget
+  Copy-Item -LiteralPath $bankAssetSources[$i].File.FullName -Destination $assetTarget
   $assetBankFiles += $relativePath
 }
 
@@ -160,6 +179,18 @@ $indexText = $indexText.Replace("window.__QUIZAPP_EMBEDDED_BANKS__ = null;", "wi
 $indexText = [regex]::Replace($indexText, "const APP_VERSION = 'v[^']+';", "const APP_VERSION = '$resolvedAppVersion';")
 $indexText = [regex]::Replace($indexText, "const APP_BUILD_COMMIT = '[^']*';", "const APP_BUILD_COMMIT = '$buildCommit';")
 [System.IO.File]::WriteAllText($assetIndex, $indexText, [System.Text.UTF8Encoding]::new($false))
+
+$copiedBankCount = (Get-ChildItem -LiteralPath $assetDataDir -Filter "*.json" -Recurse -File).Count
+if ($bankAssetSources.Count -lt 1 -or $copiedBankCount -ne $bankAssetSources.Count) {
+  throw "Bundled bank verification failed: source=$($bankAssetSources.Count), assets=$copiedBankCount"
+}
+if ($indexText.Contains("window.__QUIZAPP_EMBEDDED_BANKS__ = null;")) {
+  throw "Embedded bank fallback was not written to packaged index.html"
+}
+$assetAnnouncement = Join-Path $assetDir "distribution\quizapp-announcements.json"
+if (-not (Test-Path -LiteralPath $assetAnnouncement)) {
+  throw "Bundled announcement feed is missing"
+}
 
 $manifestText = [System.IO.File]::ReadAllText((Join-Path $androidDir "AndroidManifest.xml"), [System.Text.Encoding]::UTF8)
 $manifestText = [regex]::Replace($manifestText, 'android:versionCode="\d+"', "android:versionCode=`"$VersionCode`"")
@@ -231,12 +262,22 @@ if ($LASTEXITCODE -ne 0) { throw "apksigner failed" }
 & $apksigner verify --verbose --print-certs $finalApk
 if ($LASTEXITCODE -ne 0) { throw "apksigner verify failed" }
 
+$packagedEntries = @(& $jar tf $finalApk)
+$packagedBankCount = @($packagedEntries | Where-Object { $_ -match '^assets/data/.+\.json$' }).Count
+if ($packagedBankCount -ne $bankAssetSources.Count) {
+  throw "APK bank verification failed: expected=$($bankAssetSources.Count), packaged=$packagedBankCount"
+}
+if (-not ($packagedEntries -contains "assets/distribution/quizapp-announcements.json")) {
+  throw "APK announcement feed verification failed"
+}
+
 $apk = Get-Item -LiteralPath $finalApk
 Write-Host "APK=$($apk.FullName)"
 Write-Host "SIZE=$($apk.Length)"
 Write-Host "APP_VERSION=$resolvedAppVersion"
 Write-Host "BUILD_COMMIT=$buildCommit"
 Write-Host "VERSION_CODE=$VersionCode"
+Write-Host "BANK_COUNT=$packagedBankCount"
 
 if ($substCreated) {
   & subst $substDrive /D | Out-Null

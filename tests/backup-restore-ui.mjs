@@ -22,6 +22,7 @@ try {
     localStorage.setItem('quizapp_ui_config', JSON.stringify({
       autoUpdateCheck: false,
       autoAnnouncementCheck: false,
+      autoBankUpdateCheck: false,
     }));
     localStorage.setItem('quizapp_announcement_suppressed', '1');
   });

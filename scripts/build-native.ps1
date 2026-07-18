@@ -9,9 +9,14 @@ param(
     [string]$AndroidNdkRoot = $env:ANDROID_NDK_ROOT,
     [string]$JavaHome = $env:QUIZAPP_JAVA_HOME,
     [string]$CargoExecutable = $env:QUIZAPP_CARGO,
+    [ValidateSet('arm64-v8a', 'x86_64')]
+    [string]$AndroidAbi = 'arm64-v8a',
     [string]$AndroidPackageName = 'com.quizapp',
     [string]$AndroidAppName = 'QuizApp',
     [string]$DefaultBankBundleDir = $env:QUIZAPP_DEFAULT_BANK_BUNDLE_DIR,
+    [string]$AndroidKeystore = $env:QUIZAPP_ANDROID_KEYSTORE,
+    [string]$AndroidKeyAlias = 'androiddebugkey',
+    [string]$AndroidKeystorePassword = 'android',
     [switch]$Clean,
     [switch]$SkipTests
 )
@@ -55,7 +60,12 @@ function Remove-ProjectBuildDirectory {
         throw "Refusing to remove a directory outside native/build: $resolved"
     }
     if (Test-Path -LiteralPath $resolved) {
-        Remove-Item -LiteralPath $resolved -Recurse -Force
+        $longPath = if ($resolved.StartsWith('\\')) {
+            '\\?\UNC\' + $resolved.TrimStart('\')
+        } else {
+            '\\?\' + $resolved
+        }
+        Remove-Item -LiteralPath $longPath -Recurse -Force
     }
 }
 
@@ -169,7 +179,8 @@ if (-not $QtRoot) {
 }
 $QtRoot = Assert-ExistingDirectory $QtRoot 'Qt root'
 $qtHost = Assert-ExistingDirectory (Join-Path $QtRoot '6.9.3\mingw_64') 'Qt 6.9.3 host'
-$qtAndroid = Join-Path $QtRoot '6.9.3\android_arm64_v8a'
+$qtAndroidArch = if ($AndroidAbi -eq 'x86_64') { 'android_x86_64' } else { 'android_arm64_v8a' }
+$qtAndroid = Join-Path $QtRoot ("6.9.3\$qtAndroidArch")
 
 $mappedRoot = $projectRoot
 $createdSubst = $false
@@ -177,7 +188,7 @@ $substDrive = $null
 $substOutput = @(& subst)
 if ($projectRoot -match '[^\x00-\x7F]') {
     foreach ($letter in @('Q:', 'R:', 'S:', 'T:', 'U:')) {
-        $mappedProjectMarker = Join-Path "$letter\" 'native\CMakeLists.txt'
+        $mappedProjectMarker = "$letter\native\CMakeLists.txt"
         if ((Test-Path -LiteralPath $mappedProjectMarker) -and
             (Get-FileHash -LiteralPath $mappedProjectMarker -Algorithm SHA256).Hash -eq
             (Get-FileHash -LiteralPath (Join-Path $nativeRoot 'CMakeLists.txt') -Algorithm SHA256).Hash) {
@@ -288,7 +299,7 @@ try {
     }
 
     if ($Target -in @('Android', 'All')) {
-        $qtAndroid = Assert-ExistingDirectory $qtAndroid 'Qt 6.9.3 Android arm64'
+        $qtAndroid = Assert-ExistingDirectory $qtAndroid ("Qt 6.9.3 Android $AndroidAbi")
         if (-not $AndroidSdkRoot) {
             $AndroidSdkRoot = $env:ANDROID_HOME
         }
@@ -305,7 +316,8 @@ try {
             throw "Qt Android toolchain not found: $androidToolchain"
         }
 
-        $androidBuild = Join-Path $nativeRoot ("build\android-arm64-{0}" -f $Configuration.ToLowerInvariant())
+        $androidBuildPrefix = if ($AndroidAbi -eq 'x86_64') { 'android-x86_64' } else { 'android-arm64' }
+        $androidBuild = Join-Path $nativeRoot ("build\$androidBuildPrefix-{0}" -f $Configuration.ToLowerInvariant())
         if ($Clean) {
             Remove-ProjectBuildDirectory $androidBuild
         }
@@ -331,7 +343,7 @@ try {
                 "-DQT_HOST_PATH=$mappedQtHost",
                 "-DANDROID_SDK_ROOT=$AndroidSdkRoot",
                 "-DANDROID_NDK_ROOT=$AndroidNdkRoot",
-                '-DANDROID_ABI=arm64-v8a',
+                "-DANDROID_ABI=$AndroidAbi",
                 '-DANDROID_PLATFORM=android-26',
                 "-DQUIZAPP_ANDROID_PACKAGE_NAME=$AndroidPackageName",
                 "-DQUIZAPP_ANDROID_APP_NAME=$AndroidAppName",
@@ -347,6 +359,10 @@ try {
                 $androidCmakeArguments += "-DQUIZAPP_DEFAULT_BANK_BUNDLE_DIR=$mappedDefaultBankBundle"
             }
             Invoke-Checked -Executable $cmake -Arguments $androidCmakeArguments
+            # Qt does not track package-source Java and asset files as direct APK
+            # dependencies. Recreate only the generated deployment directory so
+            # every build packages the current bridge code and complete bank bundle.
+            Remove-ProjectBuildDirectory (Join-Path $androidBuild 'android-build')
             $androidBuildArguments = @(
                 '--build', $mappedAndroidBuild, '--parallel'
             )
@@ -377,11 +393,44 @@ try {
 
         $artifactRoot = Join-Path $projectRoot 'output\native-build'
         New-Item -ItemType Directory -Force -Path $artifactRoot | Out-Null
-        $artifactName = "QuizApp-native-{0}-arm64-v8a.apk" -f $Configuration.ToLowerInvariant()
+        $artifactName = "QuizApp-native-{0}-$AndroidAbi.apk" -f $Configuration.ToLowerInvariant()
         $artifactPath = Join-Path $artifactRoot $artifactName
         Copy-Item -LiteralPath $apkPath -Destination $artifactPath -Force
+        if (-not $AndroidKeystore) {
+            $AndroidKeystore = Join-Path $projectRoot 'output\quizapp-debug.keystore'
+        }
+        if (-not (Test-Path -LiteralPath $AndroidKeystore -PathType Leaf)) {
+            throw "Android signing keystore not found: $AndroidKeystore"
+        }
+        $apksigner = Join-Path $buildTools.FullName 'apksigner.bat'
+        if (-not (Test-Path -LiteralPath $apksigner -PathType Leaf)) {
+            throw "Android apksigner not found: $apksigner"
+        }
+        $signingArguments = @(
+            'sign',
+            '--ks', [IO.Path]::GetFullPath($AndroidKeystore),
+            '--ks-key-alias', $AndroidKeyAlias,
+            '--ks-pass', "pass:$AndroidKeystorePassword",
+            '--key-pass', "pass:$AndroidKeystorePassword",
+            $artifactPath
+        )
+        & $apksigner @signingArguments
+        if ($LASTEXITCODE -ne 0) {
+            throw 'Android APK signing failed.'
+        }
+        $certificateOutput = & $apksigner verify --print-certs $artifactPath
+        if ($LASTEXITCODE -ne 0) {
+            throw 'Signed Android APK verification failed.'
+        }
+        $certificateDigest = $certificateOutput |
+            Select-String 'Signer #1 certificate SHA-256 digest:' |
+            Select-Object -First 1
+        if (-not $certificateDigest) {
+            throw 'Signed Android APK certificate digest was not reported.'
+        }
         $artifactHash = (Get-FileHash -LiteralPath $artifactPath -Algorithm SHA256).Hash
         Write-Host "Android APK: $artifactPath"
+        Write-Host $certificateDigest.Line
         Write-Host "Android APK SHA256: $artifactHash"
     }
 

@@ -4,12 +4,23 @@
     <file alias="icons/add.svg">icons/add.svg</file>
     <file alias="icons/chevron_left.svg">icons/chevron_left.svg</file>
     <file alias="icons/chevron_right.svg">icons/chevron_right.svg</file>
+    <file alias="icons/combo_chevron_dark.svg">icons/combo_chevron_dark.svg</file>
+    <file alias="icons/combo_chevron_light.svg">icons/combo_chevron_light.svg</file>
+    <file alias="icons/combo_chevron_endfield.svg">icons/combo_chevron_endfield.svg</file>
+    <file alias="icons/tree_chevron_right_dark.svg">icons/tree_chevron_right_dark.svg</file>
+    <file alias="icons/tree_chevron_right_light.svg">icons/tree_chevron_right_light.svg</file>
+    <file alias="icons/tree_chevron_right_endfield.svg">icons/tree_chevron_right_endfield.svg</file>
+    <file alias="icons/check_white.svg">icons/check_white.svg</file>
+    <file alias="icons/minus_white.svg">icons/minus_white.svg</file>
+    <file alias="icons/check_black.svg">icons/check_black.svg</file>
+    <file alias="icons/minus_black.svg">icons/minus_black.svg</file>
     <file alias="icons/download.svg">icons/download.svg</file>
     <file alias="icons/fit_screen.svg">icons/fit_screen.svg</file>
     <file alias="icons/home.svg">icons/home.svg</file>
     <file alias="icons/grid_view.svg">icons/grid_view.svg</file>
     <file alias="icons/ink_eraser.svg">icons/ink_eraser.svg</file>
     <file alias="icons/library_books.svg">icons/library_books.svg</file>
+    <file alias="icons/mail.svg">icons/mail.svg</file>
     <file alias="icons/pan_tool.svg">icons/pan_tool.svg</file>
     <file alias="icons/redo.svg">icons/redo.svg</file>
     <file alias="icons/save.svg">icons/save.svg</file>
@@ -23,5 +34,12 @@
     <file alias="schema/002_question_paths.sql">schema/002_question_paths.sql</file>
     <file alias="schema/003_review_history.sql">schema/003_review_history.sql</file>
     <file alias="schema/004_managed_bank_sources.sql">schema/004_managed_bank_sources.sql</file>
+    <file alias="schema/005_legacy_migration_staging.sql">schema/005_legacy_migration_staging.sql</file>
+    <file alias="schema/006_question_answer_state.sql">schema/006_question_answer_state.sql</file>
+    <file alias="schema/007_library_node_order.sql">schema/007_library_node_order.sql</file>
+    <file alias="schema/008_library_hidden_banks.sql">schema/008_library_hidden_banks.sql</file>
+    <file alias="schema/009_managed_bank_overrides.sql">schema/009_managed_bank_overrides.sql</file>
+    <file alias="schema/010_exam_completion.sql">schema/010_exam_completion.sql</file>
+    <file alias="schema/011_notebook_recycle.sql">schema/011_notebook_recycle.sql</file>
   </qresource>
 </RCC>

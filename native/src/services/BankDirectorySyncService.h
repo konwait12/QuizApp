@@ -36,6 +36,7 @@ struct BankDirectorySyncResult {
     int updatedFiles = 0;
     int unchangedFiles = 0;
     int restoredFiles = 0;
+    int relocatedFiles = 0;
     int missingFiles = 0;
     qsizetype installedQuestions = 0;
     bool canceled = false;

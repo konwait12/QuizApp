@@ -53,9 +53,12 @@
     }));
   }
 
-  function objectiveQuestions(subject = '') {
+  async function objectiveQuestions(subject = '') {
     const banks = subject ? getBanksBySubject(subject) : getVisibleBanks();
-    return buildQuestionSet(banks).filter(question => ['single', 'multi', 'bool'].includes(getType(question)));
+    const hydrated = await ensureBanksHydrated(banks);
+    const questions = buildQuestionSet(hydrated).filter(question => ['single', 'multi', 'bool'].includes(getType(question)));
+    releaseHydratedLargeBanks();
+    return questions;
   }
 
   function sampleQuestions(questions, count) {
@@ -121,9 +124,18 @@
         ${active ? '<button class="exam-resume" onclick="resumeActiveExam()"><strong>继续未完成考试</strong><small>恢复剩余时间、题号和已选答案</small><span>›</span></button>' : ''}
         <div class="analysis-panel">
           <div class="section-title">考试范围</div>
-          <label class="exam-field"><span>科目</span><select id="examSubject"><option value="">全部科目</option>${subjects.map(group => `<option value="${escapeAttr(group.subject)}">${escapeHtml(group.subject)} · ${group.questionCount} 题</option>`).join('')}</select></label>
-          <label class="exam-field"><span>题量</span><select id="examCount"><option value="10">10 题</option><option value="20" selected>20 题</option><option value="50">50 题</option><option value="100">100 题</option></select></label>
-          <label class="exam-field"><span>时长</span><select id="examDuration"><option value="10">10 分钟</option><option value="30" selected>30 分钟</option><option value="60">60 分钟</option><option value="120">120 分钟</option></select></label>
+          <label class="exam-field"><span>科目</span>${global.renderChoiceSelect('examSubject', '', [
+            { value: '', label: '全部科目' },
+            ...subjects.map(group => ({ value: group.subject, label: `${group.subject} · ${group.questionCount} 题` })),
+          ])}</label>
+          <label class="exam-field"><span>题量</span>${global.renderChoiceSelect('examCount', '20', [
+            { value: '10', label: '10 题' }, { value: '20', label: '20 题' },
+            { value: '50', label: '50 题' }, { value: '100', label: '100 题' },
+          ])}</label>
+          <label class="exam-field"><span>时长</span>${global.renderChoiceSelect('examDuration', '30', [
+            { value: '10', label: '10 分钟' }, { value: '30', label: '30 分钟' },
+            { value: '60', label: '60 分钟' }, { value: '120', label: '120 分钟' },
+          ])}</label>
           <div class="settings-notice">模拟考试只抽取可自动判分的单选、多选和判断题。作答过程中不显示正确答案，交卷后统一评分。</div>
           <button class="btn-submit exam-start" onclick="startConfiguredExam()">开始考试</button>
         </div>
@@ -216,11 +228,11 @@
     renderSetup();
   };
 
-  global.startConfiguredExam = function startConfiguredExam() {
+  global.startConfiguredExam = async function startConfiguredExam() {
     const subject = document.getElementById('examSubject')?.value || '';
     const count = Number(document.getElementById('examCount')?.value || 20);
     const durationMinutes = Number(document.getElementById('examDuration')?.value || 30);
-    const available = objectiveQuestions(subject);
+    const available = await objectiveQuestions(subject);
     if (!available.length) return showNotice('当前范围没有可自动判分的题目');
     const questions = sampleQuestions(available, count);
     state.examSession = {
@@ -354,11 +366,13 @@
     });
   };
 
-  global.resumeActiveExam = function resumeActiveExam() {
+  global.resumeActiveExam = async function resumeActiveExam() {
     let saved;
     try { saved = JSON.parse(localStorage.getItem(ACTIVE_KEY) || 'null'); } catch(e) {}
     if (!saved?.questionKeys?.length) return showNotice('没有可恢复的考试');
-    const map = new Map(buildQuestionSet(getVisibleBanks()).map(question => [questionKey(question), question]));
+    const banks = await ensureBanksHydrated(getVisibleBanks());
+    const map = new Map(buildQuestionSet(banks).map(question => [questionKey(question), question]));
+    releaseHydratedLargeBanks();
     const questions = saved.questionKeys.map(key => map.get(key)).filter(Boolean);
     if (questions.length !== saved.questionKeys.length) return showNotice('部分考试题目已不在当前题库，无法恢复');
     state.examSession = {

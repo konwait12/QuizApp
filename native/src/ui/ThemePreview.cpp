@@ -23,6 +23,7 @@ struct PreviewPalette {
 PreviewPalette paletteForTheme(
     const QString &themeId,
     const QString &paletteId,
+    const QColor &primaryColor,
     int cornerRadius)
 {
     QString resolved = themeId;
@@ -45,7 +46,7 @@ PreviewPalette paletteForTheme(
         dark ? preset.darkLine : preset.lightBackground,
         dark ? preset.darkLine : preset.lightLine,
         dark ? preset.darkText : preset.lightText,
-        preset.primary,
+        primaryColor.isValid() ? primaryColor : preset.primary,
         qBound(0, cornerRadius, 18)};
 }
 
@@ -88,6 +89,15 @@ void ThemePreview::setPaletteId(const QString &paletteId)
     update();
 }
 
+void ThemePreview::setPrimaryColor(const QColor &color)
+{
+    if (primaryColor_ == color) {
+        return;
+    }
+    primaryColor_ = color;
+    update();
+}
+
 void ThemePreview::setCornerRadius(int radius)
 {
     const int bounded = qBound(0, radius, 18);
@@ -106,7 +116,8 @@ QSize ThemePreview::sizeHint() const
 void ThemePreview::paintEvent(QPaintEvent *event)
 {
     Q_UNUSED(event)
-    const PreviewPalette colors = paletteForTheme(themeId_, paletteId_, cornerRadius_);
+    const PreviewPalette colors = paletteForTheme(
+        themeId_, paletteId_, primaryColor_, cornerRadius_);
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing, true);
 

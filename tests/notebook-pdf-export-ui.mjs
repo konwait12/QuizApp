@@ -24,7 +24,7 @@ page.on('pageerror', error => pageErrors.push(error.message));
 
 try {
   await page.addInitScript(() => {
-    localStorage.setItem('quizapp_ui_config', JSON.stringify({ autoUpdateCheck: false, autoAnnouncementCheck: false }));
+    localStorage.setItem('quizapp_ui_config', JSON.stringify({ autoUpdateCheck: false, autoAnnouncementCheck: false, autoBankUpdateCheck: false }));
     localStorage.setItem('quizapp_announcement_suppressed', '1');
   });
   await page.goto(appUrl, { waitUntil: 'domcontentloaded' });
@@ -119,7 +119,7 @@ try {
   assert.ok(exportResult.greenPixels < 15, 'hidden green layer should not be exported');
   assert.ok(exportResult.darkPixels > 50, 'PDF background/text should remain visible');
 
-  await page.getByRole('button', { name: '导出' }).click();
+  await page.getByRole('button', { name: '导出', exact: true }).click();
   await page.getByRole('heading', { name: '导出笔记' }).waitFor({ state: 'visible' });
   await page.screenshot({ path: path.join(outputDirectory, 'notebook-export-desktop.png'), fullPage: true });
   const downloadPromise = page.waitForEvent('download', { timeout: 60000 });

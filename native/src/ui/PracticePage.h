@@ -1,6 +1,7 @@
 #pragma once
 
 #include "domain/PracticeSession.h"
+#include "domain/AiRecord.h"
 #include "domain/Question.h"
 #include "domain/QuestionBank.h"
 #include "services/PracticeService.h"
@@ -22,6 +23,8 @@ class QVBoxLayout;
 
 namespace quizapp::ui {
 
+class QuestionAiPanel;
+
 class PracticePage final : public QWidget {
     Q_OBJECT
 
@@ -42,6 +45,14 @@ public:
     void setWrongBookMembership(const QUuid &questionId, bool included);
     void setReviewQuestionIds(const QSet<QUuid> &questionIds);
     void setReviewMembership(const QUuid &questionId, bool included);
+    void applyPersistedAnswers(const QHash<QUuid, QString> &answers);
+    void applyMergedProgress(const domain::PracticeSession &progress);
+    void resetSession(bool reshuffleRandom);
+    void showSaveStatus(const QString &message, bool error = false);
+    void setAiRecord(const domain::AiRecord &record);
+    void setAiLoading(const QUuid &questionId);
+    void setAiError(const QUuid &questionId, const QString &message);
+    void setAiCancelled(const QUuid &questionId);
     bool selectQuestion(qsizetype questionIndex, bool renderPage = true);
     domain::NotebookLaunchContext notebookContext() const;
 
@@ -49,8 +60,13 @@ signals:
     void backRequested();
     void handwritingRequested(const domain::NotebookLaunchContext &context);
     void sessionChanged();
+    void manualSaveRequested();
+    void resetRequested();
     void wrongBookToggleRequested(const QUuid &questionId, bool included);
     void reviewToggleRequested(const QUuid &questionId, bool included);
+    void currentQuestionChanged(const domain::Question &question);
+    void aiAnalysisRequested(const domain::Question &question, bool replaceCached);
+    void aiAnalysisCancelRequested();
 
 protected:
     void resizeEvent(QResizeEvent *event) override;
@@ -98,6 +114,9 @@ private:
     QPushButton *backButton_ = nullptr;
     QWidget *headerActions_ = nullptr;
     QLabel *progressLabel_ = nullptr;
+    QLabel *saveStatusLabel_ = nullptr;
+    QToolButton *resetButton_ = nullptr;
+    QToolButton *saveButton_ = nullptr;
     QToolButton *overviewButton_ = nullptr;
     QLabel *typeLabel_ = nullptr;
     QLabel *promptLabel_ = nullptr;
@@ -106,6 +125,7 @@ private:
     QLabel *explanationLabel_ = nullptr;
     QVBoxLayout *explanationImagesLayout_ = nullptr;
     QFrame *answerSurface_ = nullptr;
+    QuestionAiPanel *aiPanel_ = nullptr;
     QPushButton *wrongBookButton_ = nullptr;
     QPushButton *reviewButton_ = nullptr;
     QVBoxLayout *optionsLayout_ = nullptr;
@@ -113,6 +133,7 @@ private:
     QPushButton *nextButton_ = nullptr;
     QPushButton *revealButton_ = nullptr;
     QPushButton *handwritingButton_ = nullptr;
+    QPushButton *aiButton_ = nullptr;
 };
 
 } // namespace quizapp::ui

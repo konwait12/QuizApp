@@ -13,6 +13,8 @@
 #include <QScrollBar>
 #include <QSortFilterProxyModel>
 #include <QTableView>
+#include <QToolButton>
+#include <QToolTip>
 #include <QVBoxLayout>
 
 namespace quizapp::ui {
@@ -170,6 +172,14 @@ AnswerTablePage::AnswerTablePage(QWidget *parent)
     summary_->setObjectName(QStringLiteral("answerTableSummary"));
     titles->addWidget(title_);
     titles->addWidget(summary_);
+    saveButton_ = new QToolButton(header);
+    saveButton_->setObjectName(QStringLiteral("answerTableSaveButton"));
+    saveButton_->setProperty("quizappIcon", QStringLiteral("save"));
+    saveButton_->setToolTip(QStringLiteral("保存答案表位置"));
+    saveButton_->setAccessibleName(QStringLiteral("保存答案表位置"));
+    saveButton_->setFixedSize(42, 42);
+    connect(saveButton_, &QToolButton::clicked,
+            this, &AnswerTablePage::manualSaveRequested);
     detailButton_ = new QPushButton(QStringLiteral("查看详情"), header);
     detailButton_->setObjectName(QStringLiteral("answerTableDetailButton"));
     detailButton_->setProperty("quizappIcon", QStringLiteral("grid_view"));
@@ -277,6 +287,14 @@ bool AnswerTablePage::hasContent() const
     return model_->rowCount() > 0;
 }
 
+void AnswerTablePage::showSaveStatus(const QString &message)
+{
+    QToolTip::showText(
+        saveButton_->mapToGlobal(QPoint(0, saveButton_->height())),
+        message,
+        saveButton_);
+}
+
 void AnswerTablePage::resizeEvent(QResizeEvent *event)
 {
     QWidget::resizeEvent(event);
@@ -292,8 +310,9 @@ void AnswerTablePage::updateResponsiveColumns()
         detailButton_->setText(QStringLiteral("详情"));
         headerLayout_->addWidget(backButton_, 0, 0);
         headerLayout_->addWidget(titleContainer_, 0, 1);
+        headerLayout_->addWidget(saveButton_, 0, 2);
         headerLayout_->addWidget(detailButton_, 1, 0);
-        headerLayout_->addWidget(handwritingButton_, 1, 1);
+        headerLayout_->addWidget(handwritingButton_, 1, 1, 1, 2);
         headerLayout_->setColumnStretch(0, 1);
         headerLayout_->setColumnStretch(1, 1);
         headerLayout_->setColumnStretch(2, 0);
@@ -303,12 +322,14 @@ void AnswerTablePage::updateResponsiveColumns()
         detailButton_->setText(QStringLiteral("查看详情"));
         headerLayout_->addWidget(backButton_, 0, 0);
         headerLayout_->addWidget(titleContainer_, 0, 1);
-        headerLayout_->addWidget(detailButton_, 0, 2);
-        headerLayout_->addWidget(handwritingButton_, 0, 3);
+        headerLayout_->addWidget(saveButton_, 0, 2);
+        headerLayout_->addWidget(detailButton_, 0, 3);
+        headerLayout_->addWidget(handwritingButton_, 0, 4);
         headerLayout_->setColumnStretch(0, 0);
         headerLayout_->setColumnStretch(1, 1);
         headerLayout_->setColumnStretch(2, 0);
         headerLayout_->setColumnStretch(3, 0);
+        headerLayout_->setColumnStretch(4, 0);
     }
     table_->setColumnHidden(1, compact);
     table_->setColumnWidth(0, compact ? 54 : 70);

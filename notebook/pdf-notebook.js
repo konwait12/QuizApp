@@ -149,13 +149,73 @@
     const data = new Uint8Array(await file.arrayBuffer());
     const loadingTask = global.pdfjsLib.getDocument({ data });
     const document = await loadingTask.promise;
+    const outline = await extractPdfOutline(document);
     return {
       document,
       loadingTask,
       fileName: String(file.name || '未命名 PDF'),
       fileSize: Number(file.size || data.byteLength),
       totalPages: document.numPages,
+      outline,
     };
+  }
+
+  async function resolveDestinationPage(pdf, destination) {
+    try {
+      const resolved = typeof destination === 'string' ? await pdf.getDestination(destination) : destination;
+      const reference = Array.isArray(resolved) ? resolved[0] : null;
+      if (Number.isInteger(reference)) return reference + 1;
+      if (reference) return (await pdf.getPageIndex(reference)) + 1;
+    } catch(e) {}
+    return 0;
+  }
+
+  async function extractPdfOutline(pdf) {
+    try {
+      const root = await pdf.getOutline();
+      const entries = [];
+      const visit = async (items, depth) => {
+        for (const item of items || []) {
+          const pageNumber = await resolveDestinationPage(pdf, item.dest);
+          if (pageNumber) entries.push({ title: String(item.title || `第 ${pageNumber} 页`), pageNumber, depth });
+          await visit(item.items, depth + 1);
+        }
+      };
+      await visit(root, 0);
+      return entries;
+    } catch(e) {
+      return [];
+    }
+  }
+
+  async function extractPageLinks(pdf, page, viewport, notebookWidth, notebookHeight) {
+    try {
+      const annotations = await page.getAnnotations({ intent: 'display' });
+      const links = [];
+      for (const annotation of annotations || []) {
+        if (annotation.subtype !== 'Link' || !Array.isArray(annotation.rect)) continue;
+        const converted = viewport.convertToViewportRectangle(annotation.rect);
+        const x1 = Math.min(converted[0], converted[2]);
+        const y1 = Math.min(converted[1], converted[3]);
+        const x2 = Math.max(converted[0], converted[2]);
+        const y2 = Math.max(converted[1], converted[3]);
+        const targetPage = await resolveDestinationPage(pdf, annotation.dest);
+        links.push({
+          rect: {
+            x: x1 / viewport.width * notebookWidth,
+            y: y1 / viewport.height * notebookHeight,
+            width: (x2 - x1) / viewport.width * notebookWidth,
+            height: (y2 - y1) / viewport.height * notebookHeight,
+          },
+          targetPage,
+          url: String(annotation.url || annotation.unsafeUrl || ''),
+          label: String(annotation.title || annotation.contents || annotation.url || (targetPage ? `跳转到第 ${targetPage} 页` : 'PDF 链接')),
+        });
+      }
+      return links.filter(link => link.targetPage || link.url);
+    } catch(e) {
+      return [];
+    }
   }
 
   async function extractPageText(page) {
@@ -186,12 +246,13 @@
     context.fillRect(0, 0, canvas.width, canvas.height);
     await page.render({ canvasContext: context, viewport, background: '#ffffff' }).promise;
     const searchText = await extractPageText(page);
+    const notebookWidth = 1200;
+    const notebookHeight = Math.max(200, Math.round(notebookWidth * base.height / Math.max(1, base.width)));
+    const links = await extractPageLinks(pdf, page, viewport, notebookWidth, notebookHeight);
     const dataUrl = canvas.toDataURL('image/jpeg', Number(options.quality || .9));
     canvas.width = 1;
     canvas.height = 1;
     page.cleanup();
-    const notebookWidth = 1200;
-    const notebookHeight = Math.max(200, Math.round(notebookWidth * base.height / Math.max(1, base.width)));
     const assetId = uid('pdf-page');
     const notebookPage = global.QuizNotebook.createPage({
       name: `${options.sourceName || 'PDF'} · 第 ${pageNumber} 页`,
@@ -202,6 +263,7 @@
       sourceName: options.sourceName || '',
       sourcePage: pageNumber,
       searchText,
+      backgroundLinks: links,
     });
     return {
       page: notebookPage,
@@ -268,6 +330,8 @@
     loadPdf,
     renderPdfPage,
     renderPdfPages,
+    extractPdfOutline,
+    extractPageLinks,
     documentSearchText,
   };
 })(window);

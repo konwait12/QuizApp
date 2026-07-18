@@ -1,6 +1,7 @@
 #pragma once
 
 #include "domain/PracticeSession.h"
+#include "domain/Notebook.h"
 
 #include <QString>
 #include <QVector>
@@ -30,6 +31,7 @@ public:
     ~HandwritingPage() override;
 
     void openNotebook(const domain::NotebookLaunchContext &context);
+    bool openFreeNotebook(const domain::NotebookRecord &record);
     bool hasNotebookOpen() const;
     domain::NotebookLaunchContext currentContext() const;
     QString currentBundlePath() const;
@@ -40,6 +42,7 @@ public slots:
 
 signals:
     void returnToPractice(const domain::NotebookLaunchContext &context);
+    void returnToNotebookLibrary(const QUuid &notebookId);
 
 protected:
     void keyPressEvent(QKeyEvent *event) override;
@@ -51,6 +54,7 @@ private:
     QString questionNotesDirectory() const;
     QString bundlePathForCurrentQuestion() const;
     QString viewportStatePathForCurrentQuestion() const;
+    bool setFreeNotebookPath(const QString &relativePath);
     void restoreViewportState();
     bool saveDocument(QString *errorMessage = nullptr);
     bool saveViewportState(QString *errorMessage = nullptr) const;
@@ -83,6 +87,9 @@ private:
     DocumentViewport *viewport_ = nullptr;
     QLabel *statusLabel_ = nullptr;
     QString currentBundlePath_;
+    QUuid freeNotebookId_;
+    QString freeNotebookTitle_;
+    bool freeNotebookOpen_ = false;
     bool returning_ = false;
 };
 

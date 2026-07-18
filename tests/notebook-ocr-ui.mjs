@@ -22,7 +22,7 @@ page.on('pageerror', error => errors.push(error.message));
 
 try {
   await page.addInitScript(() => {
-    localStorage.setItem('quizapp_ui_config', JSON.stringify({ autoUpdateCheck: false, autoAnnouncementCheck: false }));
+    localStorage.setItem('quizapp_ui_config', JSON.stringify({ autoUpdateCheck: false, autoAnnouncementCheck: false, autoBankUpdateCheck: false }));
     localStorage.setItem('quizapp_announcement_suppressed', '1');
     localStorage.setItem('quizapp_ocr_config', JSON.stringify({ language: 'chi_sim+eng', pageSegMode: 'AUTO', modelSource: 'auto', confirmedModelDownload: true }));
   });
@@ -87,8 +87,10 @@ try {
 
   await page.evaluate(() => renderSettings());
   await page.getByText('笔记与 OCR 识别', { exact: true }).waitFor({ state: 'visible' });
-  await page.selectOption('#ocrLanguage', 'eng');
-  await page.selectOption('#ocrModelSource', 'custom');
+  await page.locator('[data-choice-id="ocrLanguage"] .choice-trigger').click();
+  await page.locator('[data-choice-id="ocrLanguage"] .choice-option[data-choice-value="eng"]').click();
+  await page.locator('[data-choice-id="ocrModelSource"] .choice-trigger').click();
+  await page.locator('[data-choice-id="ocrModelSource"] .choice-option[data-choice-value="custom"]').click();
   await page.locator('#ocrCustomLangPath').fill('https://example.com/tessdata');
   await page.getByRole('button', { name: '保存设置' }).click();
   await page.waitForFunction(() => JSON.parse(localStorage.getItem('quizapp_ocr_config')).language === 'eng');

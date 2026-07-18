@@ -25,6 +25,8 @@ QString activityText(domain::StudyActivity activity)
         return QStringLiteral("review");
     case domain::StudyActivity::Handwriting:
         return QStringLiteral("handwriting");
+    case domain::StudyActivity::Exam:
+        return QStringLiteral("exam");
     }
     return {};
 }
@@ -38,6 +40,7 @@ std::optional<domain::StudyActivity> parseActivity(const QString &value)
     if (value == QStringLiteral("wrong_book")) return domain::StudyActivity::WrongBook;
     if (value == QStringLiteral("review")) return domain::StudyActivity::Review;
     if (value == QStringLiteral("handwriting")) return domain::StudyActivity::Handwriting;
+    if (value == QStringLiteral("exam")) return domain::StudyActivity::Exam;
     return std::nullopt;
 }
 
@@ -120,4 +123,3 @@ QVector<domain::StudyEvent> SqliteStudyRepository::listStartedBetween(
 }
 
 } // namespace quizapp::storage
-

@@ -45,6 +45,10 @@ await page.route('https://mock.ai/**', async route => {
 });
 
 try {
+  await page.addInitScript(() => {
+    localStorage.setItem('quizapp_ui_config', JSON.stringify({ autoUpdateCheck: false, autoAnnouncementCheck: false, autoBankUpdateCheck: false }));
+    localStorage.setItem('quizapp_announcement_suppressed', '1');
+  });
   await page.goto(appUrl, { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => Boolean(window.QuizAiLearning && getVisibleBanks().length));
   await page.evaluate(() => {

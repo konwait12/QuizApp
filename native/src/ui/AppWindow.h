@@ -1,6 +1,7 @@
 #pragma once
 
 #include "domain/PracticeSession.h"
+#include "domain/Notebook.h"
 #include "domain/Question.h"
 #include "domain/ReviewCard.h"
 #include "domain/StudyEvent.h"
@@ -27,12 +28,17 @@ template <typename T> class QFutureWatcher;
 class QLabel;
 class QProgressBar;
 class QPushButton;
+class QScrollArea;
 class QKeyEvent;
 class QResizeEvent;
 class QSlider;
 class QTimer;
 class QToolButton;
 class QTreeWidget;
+
+namespace quizapp::services {
+class AiQuestionAnalysisService;
+}
 
 namespace quizapp::ui {
 
@@ -41,7 +47,10 @@ class AnswerTablePage;
 class PracticePage;
 class ReviewPage;
 class StudyHubPage;
+class ExamPage;
 class ThemePreview;
+class AiSettingsPanel;
+class NotebookLibraryPage;
 
 class AppWindow final : public QMainWindow {
     Q_OBJECT
@@ -103,15 +112,38 @@ private:
     void refreshSharedFileTree();
     void requestSharedStorageAccess();
     void openSharedStorageDirectory();
+    void openBankReleaseDialog(bool automatic = false);
+    void scheduleAutomaticBankReleaseCheck();
+    void openAppUpdateDialog(bool automatic = false);
+    void scheduleAutomaticAppUpdateCheck();
+    void openAnnouncementBoard();
+    void checkAnnouncements(bool automatic);
+    void scheduleAutomaticAnnouncementCheck();
+    void updateAnnouncementUnreadState();
     void createSharedBankFolder();
     void importSharedBankJson();
+    void renameSelectedSharedEntry();
+    void moveSelectedSharedEntry();
     void recycleSelectedSharedEntry();
     void restoreSelectedSharedEntry();
     void permanentlyDeleteSelectedSharedEntry();
     void updateSharedFileActions();
     void saveSettings();
+    void refreshLibraryIconPickers();
+    int detectedLibraryHierarchyDepth() const;
+    void choosePrimaryColor();
+    void resetPrimaryColorToPalette();
+    void updatePrimaryColorControl();
+    bool automaticPracticePersistenceEnabled(domain::PracticeMode mode) const;
+    bool mergedPracticeProgressEnabled() const;
+    domain::PracticeMode answerStateStorageMode(domain::PracticeMode mode) const;
+    void savePracticeManually();
+    void resetActivePractice();
     QString resolvedTheme(const QString &theme) const;
     void handleHandwritingReturn(const domain::NotebookLaunchContext &context);
+    void navigateLibraryPath(const QStringList &path);
+    void saveLibraryNodeOrder(const QVector<QStringList> &orderedPaths);
+    void removeLibraryNode(const QStringList &path);
     void refreshInstalledBankList();
     void startPracticeForBank(const QString &bankId, domain::PracticeMode mode);
     void startPracticeForPath(const QStringList &path, domain::PracticeMode mode);
@@ -132,6 +164,14 @@ private:
     void reloadTodayStudyTotal();
     void refreshTodayStudyTime();
     void refreshStudyHistory(int days = -1);
+    void openExamPage();
+    void showNotebookLibrary();
+    void openFreeNotebook(const domain::NotebookRecord &record);
+    void handleFreeNotebookReturn(const QUuid &notebookId);
+    void refreshExamQuestions();
+    void refreshSavedProgressWidget();
+    void updateSavedProgressWidgetSize();
+    void resumeSavedProgress();
     void schedulePracticeSessionSave();
     bool saveActivePracticeSession(QString *error = nullptr);
 
@@ -143,12 +183,17 @@ private:
     PracticePage *practicePage_ = nullptr;
     ReviewPage *reviewPage_ = nullptr;
     StudyHubPage *studyHubPage_ = nullptr;
+    ExamPage *examPage_ = nullptr;
+    NotebookLibraryPage *notebookLibraryPage_ = nullptr;
     QStackedWidget *studyStack_ = nullptr;
     QFrame *rail_ = nullptr;
     QFrame *bottomBar_ = nullptr;
     QStackedWidget *pages_ = nullptr;
     QLabel *brandMark_ = nullptr;
     QLabel *pageTitle_ = nullptr;
+    QWidget *announcementButtonContainer_ = nullptr;
+    QToolButton *announcementButton_ = nullptr;
+    QLabel *announcementUnreadDot_ = nullptr;
     QButtonGroup *railButtons_ = nullptr;
     QButtonGroup *bottomButtons_ = nullptr;
     QGridLayout *homeResponsiveLayout_ = nullptr;
@@ -156,13 +201,37 @@ private:
     QWidget *homeActionsSection_ = nullptr;
     QGridLayout *homeActionsLayout_ = nullptr;
     QVector<QPushButton *> homeActionButtons_;
+    QFrame *homeSavedProgressCard_ = nullptr;
+    QLabel *homeSavedProgressTitle_ = nullptr;
+    QLabel *homeSavedProgressSummary_ = nullptr;
+    QWidget *homeSavedProgressHint_ = nullptr;
+    QPushButton *homeSavedProgressButton_ = nullptr;
+    std::optional<domain::PracticeSession> homeSavedProgressSession_;
     QGridLayout *summaryGrid_ = nullptr;
     QVector<QWidget *> summaryCards_;
     QVector<QLabel *> summaryValues_;
     QComboBox *themeChoice_ = nullptr;
     QComboBox *paletteChoice_ = nullptr;
     ThemePreview *themePreview_ = nullptr;
+    AiSettingsPanel *aiSettingsPanel_ = nullptr;
+    services::AiQuestionAnalysisService *aiQuestionAnalysisService_ = nullptr;
+    QPushButton *primaryColorButton_ = nullptr;
+    QLabel *primaryColorValue_ = nullptr;
+    QString primaryColorHex_;
+    QWidget *libraryIconPickersContainer_ = nullptr;
+    QGridLayout *libraryIconPickersLayout_ = nullptr;
+    QVector<QButtonGroup *> levelIconChoiceGroups_;
     QCheckBox *reduceMotionChoice_ = nullptr;
+    QCheckBox *autoSaveOnExitChoice_ = nullptr;
+    QCheckBox *mergePracticeProgressChoice_ = nullptr;
+    QCheckBox *randomReshuffleChoice_ = nullptr;
+    QCheckBox *rememberReviewPositionChoice_ = nullptr;
+    QCheckBox *rememberAnswerLookupPositionChoice_ = nullptr;
+    QCheckBox *showSavedProgressChoice_ = nullptr;
+    QSlider *savedProgressPhoneWidthChoice_ = nullptr;
+    QSlider *savedProgressTabletWidthChoice_ = nullptr;
+    QLabel *savedProgressPhoneWidthValue_ = nullptr;
+    QLabel *savedProgressTabletWidthValue_ = nullptr;
     QSlider *cornerRadiusChoice_ = nullptr;
     QLabel *cornerRadiusValue_ = nullptr;
     QLabel *settingsStatus_ = nullptr;
@@ -173,22 +242,35 @@ private:
     QGridLayout *libraryResponsiveLayout_ = nullptr;
     QWidget *librarySourceColumn_ = nullptr;
     QWidget *libraryBrowserColumn_ = nullptr;
+    QWidget *libraryBanksSurface_ = nullptr;
+    QScrollArea *libraryPageScroll_ = nullptr;
+    QToolButton *libraryEditButton_ = nullptr;
     QPushButton *libraryPathBackButton_ = nullptr;
     QLabel *libraryPathTitle_ = nullptr;
     QLabel *libraryPathSummary_ = nullptr;
     QGridLayout *libraryScopeModesLayout_ = nullptr;
     QVector<QPushButton *> libraryScopeModeButtons_;
     QLabel *libraryImportStatus_ = nullptr;
-    QLabel *libraryStoragePath_ = nullptr;
     QPushButton *libraryImportButton_ = nullptr;
     QPushButton *libraryOpenStorageButton_ = nullptr;
     QPushButton *libraryStorageAccessButton_ = nullptr;
     QPushButton *libraryCancelButton_ = nullptr;
+    QPushButton *checkBankUpdatesButton_ = nullptr;
+    QCheckBox *autoBankUpdateCheckChoice_ = nullptr;
+    QLabel *bankUpdateStatus_ = nullptr;
+    QCheckBox *autoAppUpdateCheckChoice_ = nullptr;
+    QPushButton *checkAppUpdatesButton_ = nullptr;
+    QLabel *appUpdateStatus_ = nullptr;
+    QCheckBox *autoAnnouncementCheckChoice_ = nullptr;
+    QPushButton *checkAnnouncementsButton_ = nullptr;
+    QLabel *announcementCheckStatus_ = nullptr;
     QProgressBar *libraryImportProgress_ = nullptr;
     QTreeWidget *libraryFilesTree_ = nullptr;
     QGridLayout *libraryFileActionsLayout_ = nullptr;
     QPushButton *libraryNewFolderButton_ = nullptr;
     QPushButton *libraryImportJsonButton_ = nullptr;
+    QPushButton *libraryRenameButton_ = nullptr;
+    QPushButton *libraryMoveButton_ = nullptr;
     QPushButton *libraryRecycleButton_ = nullptr;
     QPushButton *libraryRestoreButton_ = nullptr;
     QPushButton *libraryPermanentDeleteButton_ = nullptr;
@@ -199,6 +281,7 @@ private:
     QString sharedStorageRoot_;
     services::SharedStorageLayout sharedStorageLayout_;
     QStringList libraryPath_;
+    bool libraryEditMode_ = false;
     QVector<domain::ReviewCard> dueReviewCards_;
     QHash<QUuid, domain::Question> dueReviewQuestions_;
     QUuid reviewSessionId_;

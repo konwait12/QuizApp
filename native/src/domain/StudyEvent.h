@@ -14,6 +14,7 @@ enum class StudyActivity {
     WrongBook,
     Review,
     Handwriting,
+    Exam,
 };
 
 struct StudyEvent {
@@ -30,4 +31,3 @@ struct DailyStudyTotal {
 };
 
 } // namespace quizapp::domain
-

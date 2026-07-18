@@ -66,43 +66,32 @@ public final class SharedStorageBridge {
         }
     }
 
-    public static boolean openDirectory(String path) {
+    public static boolean openDirectory() {
         Activity activity = QuizAppActivity.currentActivity();
         if (activity == null) {
             return false;
         }
-        String relative = path == null ? ROOT_NAME : path;
-        String externalRoot = Environment.getExternalStorageDirectory().getAbsolutePath();
-        if (relative.startsWith(externalRoot)) {
-            relative = relative.substring(externalRoot.length());
-        }
-        while (relative.startsWith("/")) {
-            relative = relative.substring(1);
-        }
-        String documentId = "primary:" + relative;
+        String documentId = "primary:" + ROOT_NAME;
         Uri initialUri = DocumentsContract.buildDocumentUri(
                 "com.android.externalstorage.documents", documentId);
+        if (openDocumentUri(activity, initialUri)) {
+            return true;
+        }
+        Uri rootUri = DocumentsContract.buildRootUri(
+                "com.android.externalstorage.documents", "primary");
+        return openDocumentUri(activity, rootUri);
+    }
+
+    private static boolean openDocumentUri(Activity activity, Uri uri) {
         try {
             Intent view = new Intent(Intent.ACTION_VIEW);
-            view.setDataAndType(initialUri, DocumentsContract.Document.MIME_TYPE_DIR);
+            view.setDataAndType(uri, DocumentsContract.Document.MIME_TYPE_DIR);
             view.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION
                     | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
             activity.startActivity(view);
             return true;
         } catch (Exception ignored) {
-            try {
-                Intent tree = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    tree.putExtra(DocumentsContract.EXTRA_INITIAL_URI, initialUri);
-                }
-                tree.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION
-                        | Intent.FLAG_GRANT_WRITE_URI_PERMISSION
-                        | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
-                activity.startActivity(tree);
-                return true;
-            } catch (Exception ignoredAgain) {
-                return false;
-            }
+            return false;
         }
     }
 }

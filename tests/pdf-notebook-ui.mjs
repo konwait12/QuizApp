@@ -20,11 +20,30 @@ page.on('pageerror', error => pageErrors.push(error.message));
 
 try {
   await page.addInitScript(() => {
-    localStorage.setItem('quizapp_ui_config', JSON.stringify({ autoUpdateCheck: false, autoAnnouncementCheck: false }));
+    localStorage.setItem('quizapp_ui_config', JSON.stringify({ autoUpdateCheck: false, autoAnnouncementCheck: false, autoBankUpdateCheck: false }));
     localStorage.setItem('quizapp_announcement_suppressed', '1');
   });
   await page.goto(appUrl, { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => Boolean(window.pdfjsLib && window.QuizPdfNotebook && window.QuizNotebook && window.QuizBackup));
+  const pdfNavigationMetadata = await page.evaluate(async () => {
+    const fakePdf = {
+      async getOutline() { return [{ title: '第一节', dest: [{ num: 3, gen: 0 }, { name: 'XYZ' }], items: [{ title: '子节', dest: 'named', items: [] }] }]; },
+      async getDestination(name) { return name === 'named' ? [{ num: 7, gen: 0 }, { name: 'XYZ' }] : null; },
+      async getPageIndex(reference) { return reference.num === 3 ? 0 : 1; },
+    };
+    const outline = await QuizPdfNotebook.extractPdfOutline(fakePdf);
+    const links = await QuizPdfNotebook.extractPageLinks(fakePdf, {
+      async getAnnotations() { return [{ subtype: 'Link', rect: [10, 20, 110, 60], dest: 'named', title: '下一节' }]; },
+    }, {
+      width: 200,
+      height: 100,
+      convertToViewportRectangle(rect) { return rect; },
+    }, 1200, 600);
+    return { outline, links };
+  });
+  assert.deepEqual(pdfNavigationMetadata.outline.map(item => [item.title, item.pageNumber, item.depth]), [['第一节', 1, 0], ['子节', 2, 1]]);
+  assert.equal(pdfNavigationMetadata.links[0].targetPage, 2);
+  assert.deepEqual(pdfNavigationMetadata.links[0].rect, { x: 60, y: 120, width: 600, height: 240 });
   await page.evaluate(() => document.querySelectorAll('.app-dialog-mask').forEach(element => element.remove()));
   await page.evaluate(() => openHandwritingPractice([], { freeMode: true }));
   await page.locator('.notebook-view').waitFor({ state: 'visible' });
@@ -166,6 +185,8 @@ try {
   assert.deepEqual(pageErrors, []);
   console.log(JSON.stringify({
     pdfJsOfflineImport: true,
+    pdfOutlineNavigation: true,
+    pdfInternalLinks: true,
     twoPageAnnotation: true,
     extractedTextSearch: true,
     tagsAndKnowledgeLinks: true,

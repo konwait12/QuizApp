@@ -22,6 +22,13 @@ QString EndfieldTheme::styleSheet()
             color: #ffffff; font-size: 17px; font-weight: 800;
             min-width: 140px; padding-left: 2px;
         }
+        #announcementButton {
+            background: #1b1c20; border: 1px solid #414248; padding: 7px;
+        }
+        #announcementButton:hover { background: #28292e; border-color: #fdfc00; }
+        #announcementUnreadDot {
+            background: #f96f68; border: 2px solid #18191d; border-radius: 2px;
+        }
         #pageHeading {
             color: #ffffff; font-size: 24px; font-weight: 900;
             border-left: 3px solid #fdfc00; padding-left: 10px;
@@ -34,17 +41,133 @@ QString EndfieldTheme::styleSheet()
         #pageSupportingText, #secondaryText, #settingsStatus { color: #a7a8ad; }
 
         #summaryCard, #homeSummarySurface, #homeActionsSurface,
-        #settingsSurface, #librarySurface,
+        #homeSavedProgressCard,
+        #settingsSurface, #practiceSettingsSurface, #bankUpdateSettingsSurface,
+        #backupSettingsSurface, #aiSettingsSurface,
+        #librarySurface,
         #libraryBrowserHeader, #libraryPathNodeCard,
-        #practiceOptionsSurface, #practiceAnswerSurface,
+        #practiceOptionsSurface, #practiceAnswerSurface, #questionAiSurface,
         #studySummaryCard, #reviewOptionsSurface, #reviewAnswerSurface {
             background: #18191d; border: 1px solid #393a40; border-radius: 3px;
         }
         #summaryCard, #studySummaryCard { border-top: 2px solid #5b5c62; }
+        #practiceAiButton, #questionAiAnalyzeButton {
+            background: #fdfc00; color: #101113; border-color: #fdfc00;
+            font-weight: 800;
+        }
+        #questionAiTitle { color: #ffffff; font-size: 16px; font-weight: 850; }
+        #questionAiStatus { color: #a7a8ad; }
+        #questionAiContent {
+            background: #101113; border: 1px solid #414248; padding: 8px;
+        }
+        #homeSavedProgressCard { border-color: #fdfc00; }
+        #homeSavedProgressTitle { color: #ffffff; font-size: 16px; font-weight: 850; }
+        #homeSavedProgressSummary, #homeSavedProgressHintText { color: #a7a8ad; }
+        #homeSavedProgressHint {
+            background: #24251f; border: 1px solid #6a6a26; border-radius: 2px;
+        }
+        #homeSavedProgressHintDismiss {
+            color: #fdfc00; border: 0; background: transparent; padding: 3px 5px;
+            font-weight: 750;
+        }
         #summaryValue, #studySummaryValue {
             color: #ffffff; font-size: 22px; font-weight: 900;
         }
-        #settingsSurface, #librarySurface { border-left: 3px solid #fdfc00; }
+        #settingsSurface, #practiceSettingsSurface, #bankUpdateSettingsSurface,
+        #backupSettingsSurface, #aiSettingsSurface,
+        #librarySurface {
+            border-left: 3px solid #fdfc00;
+        }
+
+        #bankReleaseDialog { background: #101113; }
+        #examPageRoot { background: #101113; }
+        #studyExamSurface, #examSetupSurface {
+            background: #18191d; border: 1px solid #393a40; border-radius: 3px;
+        }
+        #examStartButton, #examSubmitButton {
+            background: #fdfc00; color: #101113; border-color: #fdfc00;
+        }
+        #examTimerLabel, #examResultScore { color: #fdfc00; }
+        #examOptionButton:checked {
+            background: #2d2e22; border: 2px solid #fdfc00; color: #ffffff;
+        }
+        #examPauseCover, #examHistoryList, #examResultList {
+            background: #18191d; border: 1px solid #393a40; border-radius: 3px;
+        }
+        #appUpdateDialog { background: #101113; }
+        #appUpdateStatus, #appUpdateVersions { color: #a7a8ad; }
+        #appUpdateNotes {
+            background: #18191d; border: 1px solid #393a40;
+            border-radius: 3px; padding: 10px; color: #f1f1f2;
+        }
+        #appUpdateDownloadButton {
+            background: #fdfc00; color: #101113; border-color: #fdfc00;
+        }
+        #backupPreviewDialog { background: #101113; }
+        #backupSecurityNote, #backupStatus, #backupPreviewMeta { color: #a7a8ad; }
+        #aiSettingsStatus { color: #a7a8ad; }
+        #notebookList {
+            background: #18191d; border: 1px solid #393a40; padding: 4px; outline: 0;
+        }
+        #notebookList::item { padding: 8px 12px; border-bottom: 1px solid #393a40; }
+        #notebookList::item:hover { background: #24252a; }
+        #notebookList::item:selected { background: #2d2e22; color: #fdfc00; }
+        #notebookEmptyLabel, #notebookStatus { color: #a7a8ad; }
+        #notebookStatus[error="true"] { color: #ff6b6b; }
+        #notebookRecycleViewButton:checked {
+            background: #2d2e22; color: #fdfc00; border-color: #fdfc00;
+        }
+        #backupPreviewStat {
+            background: #18191d; border: 1px solid #393a40; border-radius: 3px;
+        }
+        #backupPreviewValue { color: #ffffff; }
+        #backupIntegrity {
+            background: #2d2e22; border: 1px solid #fdfc00;
+            border-radius: 3px; color: #fdfc00;
+        }
+        #backupConfirmRestoreButton {
+            background: #fdfc00; color: #101113; border-color: #fdfc00;
+        }
+        #announcementDialog { background: #101113; }
+        #announcementStatus { color: #a7a8ad; }
+        #announcementTree {
+            background: #18191d; border: 1px solid #393a40;
+            border-radius: 3px; outline: 0; padding: 4px;
+        }
+        #announcementTree::item {
+            min-height: 38px; padding: 6px 8px; border-bottom: 1px solid #393a40;
+        }
+        #announcementTree::item:hover { background: #25262b; }
+        #announcementBody {
+            background: #18191d; color: #f1f1f2; border: 0; padding: 8px;
+        }
+        #bankReleaseStatus, #bankReleaseSelectionSummary { color: #a7a8ad; }
+        #bankReleaseTree {
+            background: #18191d; border: 1px solid #393a40;
+            border-radius: 3px; outline: 0; padding: 4px;
+        }
+        #bankReleaseTree::item { min-height: 34px; padding: 4px 6px; }
+        #bankReleaseTree::item:selected { background: #28292e; color: #fdfc00; }
+        QTreeView::branch { background: transparent; }
+        QTreeView::branch:has-children:closed {
+            image: url(:/quizapp/icons/tree_chevron_right_endfield.svg);
+        }
+        QTreeView::branch:has-children:open {
+            image: url(:/quizapp/icons/combo_chevron_endfield.svg);
+        }
+        QTreeView::branch:!has-children { image: none; }
+        #bankReleaseTree::indicator {
+            width: 18px; height: 18px; border: 1px solid #5b5c62;
+            border-radius: 2px; background: #18191d;
+        }
+        #bankReleaseTree::indicator:checked {
+            background: #fdfc00; border-color: #fdfc00;
+            image: url(:/quizapp/icons/check_black.svg);
+        }
+        #bankReleaseTree::indicator:indeterminate {
+            background: #fdfc00; border-color: #fdfc00;
+            image: url(:/quizapp/icons/minus_black.svg);
+        }
 
         #studyDueList {
             background: #18191d; border: 1px solid #393a40; border-radius: 3px;
@@ -59,7 +182,8 @@ QString EndfieldTheme::styleSheet()
             qproperty-gridColor: #393a40;
             qproperty-textColor: #a7a8ad;
         }
-        #studyStartReviewButton, #reviewRevealButton, #saveSettingsButton {
+        #studyStartReviewButton, #reviewRevealButton, #saveSettingsButton,
+        #bankReleaseDownloadButton {
             background: #fdfc00; border-color: #fdfc00; color: #101113;
             font-weight: 850;
         }
@@ -132,6 +256,8 @@ QString EndfieldTheme::styleSheet()
         }
         #practiceProgressLabel, #practiceQuestionType, #reviewProgress, #reviewPath,
         #handwritingStatus { color: #a7a8ad; font-weight: 650; }
+        #practiceSaveStatus { color: #fdfc00; font-weight: 700; }
+        #practiceSaveStatus[error="true"] { color: #ff5f67; }
         #practicePrompt, #reviewPrompt {
             color: #ffffff; font-size: 18px; font-weight: 700;
         }
@@ -234,14 +360,49 @@ QString EndfieldTheme::styleSheet()
         QPushButton:hover { border-color: #fdfc00; }
         QPushButton:pressed { background: #28292e; }
         QPushButton:disabled { color: #707177; border-color: #34353a; }
-        QComboBox, QLineEdit {
+        QLineEdit, QTextEdit, QTextBrowser, QSpinBox, QDoubleSpinBox {
             background: #1b1c20; border: 1px solid #414248;
             border-radius: 3px; padding: 7px 10px;
         }
-        QComboBox:hover, QLineEdit:focus { border-color: #fdfc00; }
+        QLineEdit:focus, QTextEdit:focus, QTextBrowser:focus,
+        QSpinBox:focus, QDoubleSpinBox:focus {
+            border-color: #fdfc00;
+        }
+        QComboBox {
+            background: #1b1c20; border: 1px solid #414248;
+            border-radius: 3px; padding: 8px 40px 8px 12px;
+            selection-background-color: #fdfc00; selection-color: #101113;
+        }
+        QComboBox:hover { border-color: #77787e; }
+        QComboBox:focus, QComboBox:on { border-color: #fdfc00; }
+        QComboBox:disabled {
+            background: #25262b; border-color: #34353a; color: #707177;
+        }
+        QComboBox::drop-down {
+            subcontrol-origin: border; subcontrol-position: top right;
+            width: 38px; background: #1b1c20; border: 0;
+            border-top-right-radius: 3px; border-bottom-right-radius: 3px;
+        }
+        QComboBox::drop-down:hover, QComboBox::drop-down:on {
+            background: #1b1c20;
+        }
+        QComboBox::drop-down:disabled { background: #25262b; }
+        QComboBox::down-arrow {
+            image: url(:/quizapp/icons/combo_chevron_endfield.svg);
+            width: 16px; height: 16px;
+        }
         QComboBox QAbstractItemView {
-            background: #1b1c20; selection-background-color: #fdfc00;
-            selection-color: #101113; border: 1px solid #4a4b51;
+            background: #1b1c20; color: #f1f1f2;
+            selection-background-color: #fdfc00; selection-color: #101113;
+            border: 1px solid #4a4b51; border-radius: 3px;
+            outline: 0; padding: 6px;
+        }
+        QComboBox QAbstractItemView::item {
+            min-height: 40px; padding: 7px 12px; border: 0;
+        }
+        QComboBox QAbstractItemView::item:hover,
+        QComboBox QAbstractItemView::item:selected {
+            background: #fdfc00; color: #101113;
         }
         QCheckBox::indicator {
             width: 18px; height: 18px; border: 1px solid #5b5c62;

@@ -59,18 +59,18 @@
         <div class="settings-notice">OCR 在当前设备处理图像，不会改写题库题干、PDF 原文或内置解析。语言模型只在第一次使用时按需下载并缓存。</div>
         <div class="settings-row">
           <label for="ocrLanguage">默认识别语言</label>
-          <select id="ocrLanguage">${QuizNotebookOcr.LANGUAGES.map(item => `<option value="${escapeAttr(item.value)}" ${config.language === item.value ? 'selected' : ''}>${escapeHtml(item.label)}</option>`).join('')}</select>
+          ${global.renderChoiceSelect('ocrLanguage', config.language, QuizNotebookOcr.LANGUAGES)}
         </div>
         <div class="settings-row">
           <label for="ocrPageSegMode">页面类型</label>
-          <select id="ocrPageSegMode">${QuizNotebookOcr.PAGE_SEG_MODES.map(item => `<option value="${escapeAttr(item.value)}" ${config.pageSegMode === item.value ? 'selected' : ''}>${escapeHtml(item.label)}</option>`).join('')}</select>
+          ${global.renderChoiceSelect('ocrPageSegMode', config.pageSegMode, QuizNotebookOcr.PAGE_SEG_MODES)}
         </div>
         <div class="settings-row">
           <label for="ocrModelSource">语言模型来源</label>
-          <select id="ocrModelSource" onchange="toggleNotebookOcrCustomSource(this.value)">
-            <option value="auto" ${config.modelSource === 'auto' ? 'selected' : ''}>Tesseract.js 默认 CDN</option>
-            <option value="custom" ${config.modelSource === 'custom' ? 'selected' : ''}>自定义 HTTPS 镜像</option>
-          </select>
+          ${global.renderChoiceSelect('ocrModelSource', config.modelSource, [
+            { value: 'auto', label: 'Tesseract.js 默认 CDN' },
+            { value: 'custom', label: '自定义 HTTPS 镜像' },
+          ], 'ocrModelSource')}
         </div>
         <div class="settings-row" id="ocrCustomSourceRow" ${config.modelSource === 'custom' ? '' : 'hidden'}>
           <label for="ocrCustomLangPath">模型目录</label>

@@ -2,6 +2,7 @@
 
 #include "storage/Database.h"
 
+#include <QByteArray>
 #include <QCryptographicHash>
 #include <QDateTime>
 #include <QDir>
@@ -65,7 +66,10 @@ bool streamCopy(const QString &sourcePath, const QString &targetPath, QString *e
     if (!target.open(QIODevice::WriteOnly)) {
         return fail(QStringLiteral("无法写入预置题库文件：%1").arg(target.errorString()), error);
     }
-    std::array<char, 1024 * 1024> buffer{};
+    // Android worker threads have a comparatively small stack. Keeping the
+    // transfer buffer on the heap avoids a first-launch stack overflow while
+    // preserving bounded-memory streaming for the bundled database and media.
+    QByteArray buffer(1024 * 1024, Qt::Uninitialized);
     while (!source.atEnd()) {
         const qint64 read = source.read(buffer.data(), static_cast<qint64>(buffer.size()));
         if (read <= 0 || target.write(buffer.data(), read) != read) {
@@ -233,7 +237,7 @@ bool existingDatabaseIsEmpty(const QString &databasePath, bool *empty, QString *
     if (!database.open(databasePath, error) || !database.migrate(error)) {
         return false;
     }
-    const std::array<QString, 21> protectedTables{{
+    const std::array<QString, 24> protectedTables{{
         QStringLiteral("subjects"),
         QStringLiteral("banks"),
         QStringLiteral("questions"),
@@ -255,6 +259,9 @@ bool existingDatabaseIsEmpty(const QString &databasePath, bool *empty, QString *
         QStringLiteral("settings"),
         QStringLiteral("question_search"),
         QStringLiteral("notebook_search"),
+        QStringLiteral("legacy_migrations"),
+        QStringLiteral("legacy_records"),
+        QStringLiteral("question_answer_state"),
     }};
     for (const QString &table : protectedTables) {
         qint64 count = 0;
@@ -291,7 +298,8 @@ DefaultBankBundleBootstrapResult DefaultBankBundleBootstrapService::install(
     const QString &bundleRoot,
     const QString &dataRoot,
     const QString &databasePath,
-    const CopyGate &copyGate) const
+    const CopyGate &copyGate,
+    const ProgressCallback &progress) const
 {
     DefaultBankBundleBootstrapResult result;
     const QString manifestPath = QDir(bundleRoot).filePath(QStringLiteral("manifest.json"));
@@ -351,6 +359,14 @@ DefaultBankBundleBootstrapResult DefaultBankBundleBootstrapService::install(
         result.error = fileListError;
         return result;
     }
+    const int totalWork = files.size() + manifest.blobCount + 2;
+    int completedWork = 0;
+    auto reportProgress = [&](const QString &phase) {
+        if (progress) {
+            progress(phase, completedWork, totalWork);
+        }
+    };
+    reportProgress(QStringLiteral("正在复制题库资源"));
     for (const QString &relativePath : files) {
         if (copyGate && !copyGate(relativePath)) {
             cleanupStaging();
@@ -366,7 +382,10 @@ DefaultBankBundleBootstrapResult DefaultBankBundleBootstrapService::install(
             result.status = DefaultBankBundleBootstrapStatus::Failed;
             return result;
         }
+        ++completedWork;
+        reportProgress(QStringLiteral("正在复制题库资源"));
     }
+    reportProgress(QStringLiteral("正在校验题库"));
     if (!validateDatabase(
             QDir(stagingRoot).filePath(QStringLiteral("quizapp.sqlite")),
             manifest,
@@ -376,6 +395,8 @@ DefaultBankBundleBootstrapResult DefaultBankBundleBootstrapService::install(
         result.status = DefaultBankBundleBootstrapStatus::Failed;
         return result;
     }
+    ++completedWork;
+    reportProgress(QStringLiteral("正在安装题库"));
 
     QString backupPath;
     const bool existingDatabase = QFileInfo::exists(databasePath);
@@ -410,6 +431,8 @@ DefaultBankBundleBootstrapResult DefaultBankBundleBootstrapService::install(
                 targetReady = false;
                 break;
             }
+            ++completedWork;
+            reportProgress(QStringLiteral("正在安装题库"));
             continue;
         }
         if (!streamCopy(sourcePath, targetPath, &result.error)) {
@@ -417,6 +440,8 @@ DefaultBankBundleBootstrapResult DefaultBankBundleBootstrapService::install(
             break;
         }
         createdBlobs.append(targetPath);
+        ++completedWork;
+        reportProgress(QStringLiteral("正在安装题库"));
     }
 
     const QString stagedDatabase = QDir(stagingRoot).filePath(QStringLiteral("quizapp.sqlite"));
@@ -448,6 +473,8 @@ DefaultBankBundleBootstrapResult DefaultBankBundleBootstrapService::install(
     QFile::remove(databasePath + QStringLiteral("-wal"));
     QFile::remove(databasePath + QStringLiteral("-shm"));
     cleanupStaging();
+    completedWork = totalWork;
+    reportProgress(QStringLiteral("题库准备完成"));
     result.status = DefaultBankBundleBootstrapStatus::Installed;
     return result;
 }

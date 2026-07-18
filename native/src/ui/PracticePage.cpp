@@ -1,4 +1,5 @@
 #include "ui/PracticePage.h"
+#include "ui/QuestionAiPanel.h"
 #include "ui/QuestionOverviewDialog.h"
 
 #include <QDir>
@@ -14,6 +15,7 @@
 #include <QSizePolicy>
 #include <QSet>
 #include <QStyle>
+#include <QTimer>
 #include <QToolButton>
 #include <QVBoxLayout>
 
@@ -65,6 +67,22 @@ PracticePage::PracticePage(QString dataRoot, QWidget *parent)
     auto *headerActionsLayout = new QHBoxLayout(headerActions_);
     headerActionsLayout->setContentsMargins(0, 0, 0, 0);
     headerActionsLayout->setSpacing(8);
+    resetButton_ = new QToolButton(headerActions_);
+    resetButton_->setObjectName(QStringLiteral("practiceResetButton"));
+    resetButton_->setProperty("quizappIcon", QStringLiteral("redo"));
+    resetButton_->setToolTip(QStringLiteral("重做当前练习"));
+    resetButton_->setAccessibleName(QStringLiteral("重做当前练习"));
+    resetButton_->setFixedSize(42, 42);
+    connect(resetButton_, &QToolButton::clicked, this, &PracticePage::resetRequested);
+    headerActionsLayout->addWidget(resetButton_);
+    saveButton_ = new QToolButton(headerActions_);
+    saveButton_->setObjectName(QStringLiteral("practiceSaveButton"));
+    saveButton_->setProperty("quizappIcon", QStringLiteral("save"));
+    saveButton_->setToolTip(QStringLiteral("保存当前进度"));
+    saveButton_->setAccessibleName(QStringLiteral("保存当前进度"));
+    saveButton_->setFixedSize(42, 42);
+    connect(saveButton_, &QToolButton::clicked, this, &PracticePage::manualSaveRequested);
+    headerActionsLayout->addWidget(saveButton_);
     overviewButton_ = new QToolButton(headerActions_);
     overviewButton_->setObjectName(QStringLiteral("practiceOverviewButton"));
     overviewButton_->setProperty("quizappIcon", QStringLiteral("grid_view"));
@@ -74,6 +92,11 @@ PracticePage::PracticePage(QString dataRoot, QWidget *parent)
     connect(overviewButton_, &QToolButton::clicked,
             this, &PracticePage::showQuestionOverview);
     headerActionsLayout->addWidget(overviewButton_);
+    saveStatusLabel_ = new QLabel(headerActions_);
+    saveStatusLabel_->setObjectName(QStringLiteral("practiceSaveStatus"));
+    saveStatusLabel_->setAccessibleName(QStringLiteral("练习保存状态"));
+    saveStatusLabel_->hide();
+    headerActionsLayout->addWidget(saveStatusLabel_);
     progressLabel_ = new QLabel(headerActions_);
     progressLabel_->setObjectName(QStringLiteral("practiceProgressLabel"));
     headerActionsLayout->addWidget(progressLabel_);
@@ -136,7 +159,21 @@ PracticePage::PracticePage(QString dataRoot, QWidget *parent)
         }
         emit reviewToggleRequested(*questionId, !reviewQuestionIds_.contains(*questionId));
     });
-    contentLayout->addWidget(reviewButton_);
+
+    aiButton_ = new QPushButton(QStringLiteral("AI解析"), content);
+    aiButton_->setObjectName(QStringLiteral("practiceAiButton"));
+    aiButton_->setMinimumHeight(44);
+    connect(aiButton_, &QPushButton::clicked, this, [this] {
+        const bool visible = !aiPanel_->isVisible();
+        aiPanel_->setVisible(visible);
+        aiButton_->setText(visible ? QStringLiteral("收起AI") : QStringLiteral("AI解析"));
+    });
+    auto *learningActions = new QHBoxLayout;
+    learningActions->setContentsMargins(0, 0, 0, 0);
+    learningActions->setSpacing(8);
+    learningActions->addWidget(reviewButton_, 1);
+    learningActions->addWidget(aiButton_, 1);
+    contentLayout->addLayout(learningActions);
 
     answerSurface_ = new QFrame(content);
     answerSurface_->setObjectName(QStringLiteral("practiceAnswerSurface"));
@@ -157,6 +194,14 @@ PracticePage::PracticePage(QString dataRoot, QWidget *parent)
     explanationImagesLayout_->setSpacing(10);
     answerLayout->addLayout(explanationImagesLayout_);
     contentLayout->addWidget(answerSurface_);
+
+    aiPanel_ = new QuestionAiPanel(content);
+    aiPanel_->hide();
+    connect(aiPanel_, &QuestionAiPanel::analyzeRequested,
+            this, &PracticePage::aiAnalysisRequested);
+    connect(aiPanel_, &QuestionAiPanel::cancelRequested,
+            this, &PracticePage::aiAnalysisCancelRequested);
+    contentLayout->addWidget(aiPanel_);
 
     contentLayout->addStretch();
     scroll->setWidget(content);
@@ -358,6 +403,113 @@ void PracticePage::setReviewMembership(const QUuid &questionId, bool included)
     render();
 }
 
+void PracticePage::applyPersistedAnswers(const QHash<QUuid, QString> &answers)
+{
+    if (session_.mode != domain::PracticeMode::Sequential
+        && session_.mode != domain::PracticeMode::Random) return;
+    for (auto iterator = answers.constBegin(); iterator != answers.constEnd(); ++iterator) {
+        if (!questionIndexes_.contains(iterator.key())) continue;
+        if (iterator.value().isEmpty()) session_.answers.remove(iterator.key());
+        else session_.answers.insert(iterator.key(), iterator.value());
+        session_.drafts.remove(iterator.key());
+    }
+    session_.dirty = false;
+    render();
+}
+
+void PracticePage::applyMergedProgress(const domain::PracticeSession &progress)
+{
+    if (!hasActiveSession()) return;
+    const QUuid progressQuestion = progress.currentIndex >= 0
+            && progress.currentIndex < progress.questionOrder.size()
+        ? progress.questionOrder.at(progress.currentIndex)
+        : QUuid();
+    session_.answers.clear();
+    session_.drafts.clear();
+    session_.revealedAnswers.clear();
+    for (auto iterator = progress.answers.constBegin(); iterator != progress.answers.constEnd(); ++iterator) {
+        if (questionIndexes_.contains(iterator.key())) {
+            session_.answers.insert(iterator.key(), iterator.value());
+        }
+    }
+    for (auto iterator = progress.drafts.constBegin(); iterator != progress.drafts.constEnd(); ++iterator) {
+        if (questionIndexes_.contains(iterator.key())) {
+            session_.drafts.insert(iterator.key(), iterator.value());
+        }
+    }
+    for (const QUuid &questionId : progress.revealedAnswers) {
+        if (questionIndexes_.contains(questionId)) {
+            session_.revealedAnswers.insert(questionId);
+        }
+    }
+    const qsizetype mergedIndex = session_.questionOrder.indexOf(progressQuestion);
+    session_.currentIndex = mergedIndex >= 0 ? mergedIndex : 0;
+    session_.dirty = false;
+    render();
+}
+
+void PracticePage::resetSession(bool reshuffleRandom)
+{
+    if (!hasActiveSession()) return;
+    const domain::PracticeMode mode = session_.mode;
+    QVector<QUuid> order;
+    order.reserve(questions_.size());
+    for (const domain::Question &question : questions_) {
+        order.append(question.id);
+    }
+    if (mode == domain::PracticeMode::Random && !reshuffleRandom) {
+        order = session_.questionOrder;
+    }
+    session_ = practiceService_.start(bank_.id, mode, order);
+    if (mode == domain::PracticeMode::Random && !reshuffleRandom) {
+        session_.questionOrder = order;
+    }
+    session_.viewport.insert(QStringLiteral("bankId"), bank_.id);
+    session_.viewport.insert(QStringLiteral("bankTitle"), bank_.title);
+    session_.dirty = true;
+    renderedQuestionId_ = QUuid();
+    render();
+    emit sessionChanged();
+}
+
+void PracticePage::showSaveStatus(const QString &message, bool error)
+{
+    saveStatusLabel_->setText(message);
+    saveStatusLabel_->setProperty("error", error);
+    saveStatusLabel_->style()->unpolish(saveStatusLabel_);
+    saveStatusLabel_->style()->polish(saveStatusLabel_);
+    saveStatusLabel_->show();
+    QTimer::singleShot(1600, saveStatusLabel_, [label = saveStatusLabel_, message] {
+        if (label->text() == message) {
+            label->hide();
+        }
+    });
+}
+
+void PracticePage::setAiRecord(const domain::AiRecord &record)
+{
+    aiPanel_->setRecord(record);
+}
+
+void PracticePage::setAiLoading(const QUuid &questionId)
+{
+    aiPanel_->setVisible(true);
+    aiButton_->setText(QStringLiteral("收起AI"));
+    aiPanel_->setLoading(questionId);
+}
+
+void PracticePage::setAiError(const QUuid &questionId, const QString &message)
+{
+    aiPanel_->setVisible(true);
+    aiButton_->setText(QStringLiteral("收起AI"));
+    aiPanel_->setError(questionId, message);
+}
+
+void PracticePage::setAiCancelled(const QUuid &questionId)
+{
+    aiPanel_->setCancelled(questionId);
+}
+
 bool PracticePage::selectQuestion(qsizetype questionIndex, bool renderPage)
 {
     if (!practiceService_.move(session_, questionIndex)) {
@@ -389,6 +541,8 @@ void PracticePage::render()
         answerLabel_->clear();
         explanationLabel_->clear();
         answerSurface_->hide();
+        aiPanel_->hide();
+        aiButton_->setText(QStringLiteral("AI解析"));
         wrongBookButton_->hide();
         reviewButton_->hide();
         updateNavigationButtons();
@@ -405,6 +559,8 @@ void PracticePage::render()
         answerLabel_->clear();
         explanationLabel_->clear();
         answerSurface_->hide();
+        aiPanel_->hide();
+        aiButton_->setText(QStringLiteral("AI解析"));
         reviewButton_->hide();
         updateNavigationButtons();
         return;
@@ -419,6 +575,9 @@ void PracticePage::render()
     typeLabel_->setText(QStringLiteral("%1 · %2")
         .arg(practiceModeText(session_.mode), questionTypeText(question->type)));
     const bool questionChanged = renderedQuestionId_ != question->id;
+    if (questionChanged) {
+        aiPanel_->setQuestion(*question);
+    }
     promptLabel_->setText(question->prompt);
     if (questionChanged) {
         clearImageLayout(questionImagesLayout_);
@@ -488,6 +647,7 @@ void PracticePage::render()
         explanationLabel_->clear();
     }
     updateNavigationButtons();
+    if (questionChanged) emit currentQuestionChanged(*question);
 }
 
 const domain::Question *PracticePage::currentQuestion() const
@@ -648,6 +808,7 @@ void PracticePage::updateNavigationButtons()
     nextButton_->setEnabled(active && session_.currentIndex + 1 < session_.questionOrder.size());
     revealButton_->setEnabled(active);
     handwritingButton_->setEnabled(active && currentQuestionId().has_value());
+    aiButton_->setEnabled(active && currentQuestionId().has_value());
     overviewButton_->setEnabled(active);
 }
 

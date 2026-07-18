@@ -2,6 +2,8 @@
 
 #include <QSqlError>
 #include <QSqlQuery>
+#include <QJsonArray>
+#include <QJsonDocument>
 
 namespace quizapp::storage {
 namespace {
@@ -27,6 +29,43 @@ domain::ManagedBankSource sourceFromQuery(const QSqlQuery &query)
     source.lastError = query.value(8).toString();
     source.lastSyncedAt = QDateTime::fromString(query.value(9).toString(), Qt::ISODateWithMs);
     return source;
+}
+
+QString pathJson(const QStringList &path)
+{
+    return QString::fromUtf8(QJsonDocument(
+        QJsonArray::fromStringList(path)).toJson(QJsonDocument::Compact));
+}
+
+bool releaseOverridesInTransaction(
+    QSqlDatabase database,
+    const QString &bankId,
+    QString *error)
+{
+    QSqlQuery restore(database);
+    restore.prepare(QStringLiteral(
+        "UPDATE banks SET active=1 WHERE id IN ("
+        "SELECT overridden_bank_id FROM managed_bank_overrides "
+        "WHERE overriding_bank_id=?) AND id NOT IN ("
+        "SELECT bank_id FROM library_hidden_banks)"));
+    restore.addBindValue(bankId);
+    if (!restore.exec()) {
+        if (error) {
+            *error = restore.lastError().text();
+        }
+        return false;
+    }
+    QSqlQuery remove(database);
+    remove.prepare(QStringLiteral(
+        "DELETE FROM managed_bank_overrides WHERE overriding_bank_id=?"));
+    remove.addBindValue(bankId);
+    if (!remove.exec()) {
+        if (error) {
+            *error = remove.lastError().text();
+        }
+        return false;
+    }
+    return true;
 }
 
 } // namespace
@@ -83,6 +122,23 @@ QVector<domain::ManagedBankSource> SqliteBankSourceRepository::listByRoot(
     return sources;
 }
 
+QString SqliteBankSourceRepository::identitySourceKeyForBank(
+    const QString &bankId,
+    QString *error) const
+{
+    clearError(error);
+    QSqlQuery query(database_);
+    query.prepare(QStringLiteral("SELECT source_id FROM banks WHERE id=?"));
+    query.addBindValue(bankId);
+    if (!query.exec()) {
+        if (error) {
+            *error = query.lastError().text();
+        }
+        return {};
+    }
+    return query.next() ? query.value(0).toString() : QString();
+}
+
 bool SqliteBankSourceRepository::save(
     const domain::ManagedBankSource &source,
     QString *error)
@@ -131,6 +187,45 @@ bool SqliteBankSourceRepository::save(
     return true;
 }
 
+bool SqliteBankSourceRepository::replaceKey(
+    const QString &previousSourceKey,
+    const domain::ManagedBankSource &source,
+    QString *error)
+{
+    clearError(error);
+    if (previousSourceKey == source.sourceKey) {
+        return save(source, error);
+    }
+    if (!database_.transaction()) {
+        if (error) {
+            *error = database_.lastError().text();
+        }
+        return false;
+    }
+    QSqlQuery removePrevious(database_);
+    removePrevious.prepare(QStringLiteral(
+        "DELETE FROM bank_sources WHERE source_key=?"));
+    removePrevious.addBindValue(previousSourceKey);
+    if (!removePrevious.exec()) {
+        database_.rollback();
+        if (error) {
+            *error = removePrevious.lastError().text();
+        }
+        return false;
+    }
+    if (!save(source, error)) {
+        database_.rollback();
+        return false;
+    }
+    if (!database_.commit()) {
+        if (error) {
+            *error = database_.lastError().text();
+        }
+        return false;
+    }
+    return true;
+}
+
 bool SqliteBankSourceRepository::setAvailability(
     const QString &sourceKey,
     bool available,
@@ -172,6 +267,116 @@ bool SqliteBankSourceRepository::setAvailability(
             }
             return false;
         }
+        if (!available
+            && !releaseOverridesInTransaction(database_, source->bankId, error)) {
+            database_.rollback();
+            return false;
+        }
+    }
+    if (!database_.commit()) {
+        if (error) {
+            *error = database_.lastError().text();
+        }
+        return false;
+    }
+    return true;
+}
+
+bool SqliteBankSourceRepository::applyManagedOverride(
+    const QString &bankId,
+    const QStringList &path,
+    QString *error)
+{
+    clearError(error);
+    if (bankId.trimmed().isEmpty() || path.isEmpty()) {
+        if (error) {
+            *error = QStringLiteral("Managed bank override path is invalid");
+        }
+        return false;
+    }
+    if (!database_.transaction()) {
+        if (error) {
+            *error = database_.lastError().text();
+        }
+        return false;
+    }
+    if (!releaseOverridesInTransaction(database_, bankId, error)) {
+        database_.rollback();
+        return false;
+    }
+    QSqlQuery candidates(database_);
+    candidates.prepare(QStringLiteral(
+        "SELECT DISTINCT b.id FROM banks b "
+        "JOIN questions q ON q.bank_id=b.id AND q.active=1 "
+        "LEFT JOIN bank_sources s ON s.bank_id=b.id "
+        "WHERE b.id<>? AND b.active=1 AND q.path_json=? "
+        "AND (s.bank_id IS NULL OR s.available=0)"));
+    candidates.addBindValue(bankId);
+    candidates.addBindValue(pathJson(path));
+    if (!candidates.exec()) {
+        database_.rollback();
+        if (error) {
+            *error = candidates.lastError().text();
+        }
+        return false;
+    }
+    QStringList overriddenBankIds;
+    while (candidates.next()) {
+        overriddenBankIds.append(candidates.value(0).toString());
+    }
+    const QString now = QDateTime::currentDateTimeUtc().toString(Qt::ISODateWithMs);
+    for (const QString &overriddenBankId : overriddenBankIds) {
+        QSqlQuery insert(database_);
+        insert.prepare(QStringLiteral(
+            "INSERT INTO managed_bank_overrides("
+            "overriding_bank_id, overridden_bank_id, created_at) VALUES(?, ?, ?)"));
+        insert.addBindValue(bankId);
+        insert.addBindValue(overriddenBankId);
+        insert.addBindValue(now);
+        if (!insert.exec()) {
+            database_.rollback();
+            if (error) {
+                *error = insert.lastError().text();
+            }
+            return false;
+        }
+        QSqlQuery deactivate(database_);
+        deactivate.prepare(QStringLiteral("UPDATE banks SET active=0 WHERE id=?"));
+        deactivate.addBindValue(overriddenBankId);
+        if (!deactivate.exec()) {
+            database_.rollback();
+            if (error) {
+                *error = deactivate.lastError().text();
+            }
+            return false;
+        }
+    }
+    if (!database_.commit()) {
+        if (error) {
+            *error = database_.lastError().text();
+        }
+        return false;
+    }
+    return true;
+}
+
+bool SqliteBankSourceRepository::releaseManagedOverrides(
+    const QString &bankId,
+    QString *error)
+{
+    clearError(error);
+    if (bankId.trimmed().isEmpty()) {
+        return true;
+    }
+    if (!database_.transaction()) {
+        if (error) {
+            *error = database_.lastError().text();
+        }
+        return false;
+    }
+    if (!releaseOverridesInTransaction(database_, bankId, error)) {
+        database_.rollback();
+        return false;
     }
     if (!database_.commit()) {
         if (error) {

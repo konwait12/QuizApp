@@ -1,20 +1,25 @@
 package com.quizapp;
 
+import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.DownloadManager;
 import android.content.ActivityNotFoundException;
 import android.content.ClipData;
+import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.res.Configuration;
 import android.content.res.AssetManager;
+import android.database.Cursor;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
+import android.content.pm.PackageManager;
 import android.provider.DocumentsContract;
+import android.provider.MediaStore;
 import android.util.Base64;
 import android.view.View;
 import android.webkit.WebSettings;
@@ -31,9 +36,11 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 
 public class MainActivity extends Activity {
+    static final String PUBLIC_BANK_RELATIVE_PATH = Environment.DIRECTORY_DOCUMENTS + "/QuizApp/data/";
     static final int FILE_CHOOSER_REQUEST = 1001;
     static final int BACKUP_EXPORT_REQUEST = 1002;
     static final int DOCUMENT_EXPORT_REQUEST = 1003;
+    static final int STORAGE_PERMISSION_REQUEST = 1004;
     private WebView webView;
     private ValueCallback<Uri[]> fileCallback;
     private long pendingApkDownloadId = -1L;
@@ -250,7 +257,34 @@ public class MainActivity extends Activity {
     }
 
     void openBankDirectory() {
-        File directory = getBankDirectory();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            if (!syncBundledBanksToPublicDocuments()) {
+                reportBankDirectoryResult(false, "无法创建公共题库文件夹：Documents/QuizApp/data");
+                Toast.makeText(this, "无法创建公共题库文件夹", Toast.LENGTH_LONG).show();
+                return;
+            }
+            if (tryOpenPublicBankDirectory()) {
+                reportBankDirectoryResult(true, "已打开默认题库文件夹：Documents/QuizApp/data");
+                Toast.makeText(this, "已打开 Documents/QuizApp/data", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            if (tryOpenDocumentTree(publicBankDocumentUri())) {
+                reportBankDirectoryResult(true, "已定位默认题库文件夹：Documents/QuizApp/data");
+                Toast.makeText(this, "请选择或打开 Documents/QuizApp/data", Toast.LENGTH_LONG).show();
+                return;
+            }
+            reportBankDirectoryResult(false, "已创建 Documents/QuizApp/data，但当前系统没有可用的文件管理器。");
+            Toast.makeText(this, "当前系统没有可用的文件管理器", Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
+            && checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[] { Manifest.permission.WRITE_EXTERNAL_STORAGE }, STORAGE_PERMISSION_REQUEST);
+            return;
+        }
+
+        File directory = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS), "QuizApp/data");
         if (!ensureDirectory(directory)) {
             reportBankDirectoryResult(false, "无法创建默认题库文件夹");
             Toast.makeText(this, "无法创建默认题库文件夹", Toast.LENGTH_LONG).show();
@@ -258,25 +292,110 @@ public class MainActivity extends Activity {
         }
         syncBundledBanks(directory);
         if (tryOpenDirectory(directory)) {
-            reportBankDirectoryResult(true, "已打开默认题库文件夹");
-            Toast.makeText(this, "已打开默认题库文件夹", Toast.LENGTH_SHORT).show();
+            reportBankDirectoryResult(true, "已打开默认题库文件夹：Documents/QuizApp/data");
+            Toast.makeText(this, "已打开 Documents/QuizApp/data", Toast.LENGTH_SHORT).show();
             return;
         }
-        if (tryOpenDocumentTree()) {
-            reportBankDirectoryResult(true, "已打开系统文件夹入口，请进入 Android/data/com.quizapp/files/data");
-            Toast.makeText(this, "已创建题库文件夹：Android/data/com.quizapp/files/data", Toast.LENGTH_LONG).show();
+        if (tryOpenDocumentTree(publicBankDocumentUri())) {
+            reportBankDirectoryResult(true, "已定位默认题库文件夹：Documents/QuizApp/data");
+            Toast.makeText(this, "请选择或打开 Documents/QuizApp/data", Toast.LENGTH_LONG).show();
             return;
         }
-        reportBankDirectoryResult(false, "已创建题库文件夹：Android/data/com.quizapp/files/data；当前系统没有可用的文件管理器。");
+        reportBankDirectoryResult(false, "已创建 Documents/QuizApp/data，但当前系统没有可用的文件管理器。");
         Toast.makeText(this, "当前系统没有可用的文件管理器", Toast.LENGTH_LONG).show();
     }
 
-    private File getBankDirectory() {
-        File root = getExternalFilesDir(null);
-        if (root == null) {
-            root = getFilesDir();
+    private boolean syncBundledBanksToPublicDocuments() {
+        try {
+            syncPublicBankTree(getAssets(), "data", "");
+            return true;
+        } catch (Exception e) {
+            return false;
         }
-        return new File(root, "data");
+    }
+
+    private void syncPublicBankTree(AssetManager assets, String assetDirectory, String relativeDirectory) throws Exception {
+        String[] names = assets.list(assetDirectory);
+        if (names == null) {
+            return;
+        }
+        for (int i = 0; i < names.length; i++) {
+            String name = names[i];
+            if (name == null || name.isEmpty()) {
+                continue;
+            }
+            String assetPath = assetDirectory + "/" + name;
+            String[] children = assets.list(assetPath);
+            if (children != null && children.length > 0 && !name.endsWith(".json")) {
+                syncPublicBankTree(assets, assetPath, relativeDirectory + name + "/");
+            } else if (name.endsWith(".json")) {
+                copyAssetToPublicDocuments(assets, assetPath, relativeDirectory, name);
+            }
+        }
+    }
+
+    private void copyAssetToPublicDocuments(AssetManager assets, String assetPath, String relativeDirectory, String fileName) throws Exception {
+        String relativePath = PUBLIC_BANK_RELATIVE_PATH + relativeDirectory;
+        Uri collection = MediaStore.Downloads.EXTERNAL_CONTENT_URI;
+        String[] projection = new String[] { MediaStore.MediaColumns._ID };
+        String selection = MediaStore.MediaColumns.DISPLAY_NAME + "=? AND " + MediaStore.MediaColumns.RELATIVE_PATH + "=?";
+        String[] selectionArgs = new String[] { fileName, relativePath };
+        Cursor cursor = null;
+        try {
+            cursor = getContentResolver().query(collection, projection, selection, selectionArgs, null);
+            if (cursor != null && cursor.moveToFirst()) {
+                return;
+            }
+        } finally {
+            if (cursor != null) cursor.close();
+        }
+
+        ContentValues values = new ContentValues();
+        values.put(MediaStore.MediaColumns.DISPLAY_NAME, fileName);
+        values.put(MediaStore.MediaColumns.MIME_TYPE, "application/json");
+        values.put(MediaStore.MediaColumns.RELATIVE_PATH, relativePath);
+        values.put(MediaStore.MediaColumns.IS_PENDING, 1);
+        Uri target = getContentResolver().insert(collection, values);
+        if (target == null) {
+            throw new IllegalStateException("Unable to create public bank file");
+        }
+        try {
+            InputStream input = assets.open(assetPath);
+            OutputStream output = getContentResolver().openOutputStream(target, "w");
+            if (output == null) {
+                input.close();
+                throw new IllegalStateException("Unable to write public bank file");
+            }
+            try {
+                byte[] buffer = new byte[8192];
+                int read;
+                while ((read = input.read(buffer)) > 0) output.write(buffer, 0, read);
+                output.flush();
+            } finally {
+                input.close();
+                output.close();
+            }
+            ContentValues ready = new ContentValues();
+            ready.put(MediaStore.MediaColumns.IS_PENDING, 0);
+            getContentResolver().update(target, ready, null, null);
+        } catch (Exception e) {
+            getContentResolver().delete(target, null, null);
+            throw e;
+        }
+    }
+
+    private Uri publicBankDocumentUri() {
+        return DocumentsContract.buildDocumentUri(
+            "com.android.externalstorage.documents",
+            "primary:" + Environment.DIRECTORY_DOCUMENTS + "/QuizApp/data"
+        );
+    }
+
+    private boolean tryOpenPublicBankDirectory() {
+        Intent intent = new Intent(Intent.ACTION_VIEW);
+        intent.setDataAndType(publicBankDocumentUri(), DocumentsContract.Document.MIME_TYPE_DIR);
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+        return tryStart(intent);
     }
 
     private boolean ensureDirectory(File directory) {
@@ -286,22 +405,36 @@ public class MainActivity extends Activity {
     private void syncBundledBanks(File directory) {
         try {
             AssetManager assets = getAssets();
-            String[] names = assets.list("data");
-            if (names == null) {
-                return;
-            }
-            for (int i = 0; i < names.length; i++) {
-                String name = names[i];
-                if (name == null || !name.endsWith(".json")) {
-                    continue;
-                }
-                File target = new File(directory, name);
-                if (target.exists()) {
-                    continue;
-                }
-                copyAsset(assets, "data/" + name, target);
-            }
+            syncBundledBankTree(assets, "data", directory);
         } catch (Exception ignored) {
+        }
+    }
+
+    private void syncBundledBankTree(AssetManager assets, String assetDirectory, File targetDirectory) throws Exception {
+        String[] names = assets.list(assetDirectory);
+        if (names == null) {
+            return;
+        }
+        for (int i = 0; i < names.length; i++) {
+            String name = names[i];
+            if (name == null || name.isEmpty()) {
+                continue;
+            }
+            String assetPath = assetDirectory + "/" + name;
+            File target = new File(targetDirectory, name);
+            if (name.endsWith(".json")) {
+                if (!target.exists()) {
+                    copyAsset(assets, assetPath, target);
+                }
+                continue;
+            }
+            String[] children = assets.list(assetPath);
+            if (children != null && children.length > 0) {
+                if (!ensureDirectory(target)) {
+                    throw new IllegalStateException("Unable to create bank directory");
+                }
+                syncBundledBankTree(assets, assetPath, target);
+            }
         }
     }
 
@@ -309,6 +442,10 @@ public class MainActivity extends Activity {
         InputStream input = null;
         FileOutputStream output = null;
         try {
+            File parent = target.getParentFile();
+            if (parent != null && !ensureDirectory(parent)) {
+                throw new IllegalStateException("Unable to create bank directory");
+            }
             input = assets.open(assetPath);
             output = new FileOutputStream(target);
             byte[] buffer = new byte[8192];
@@ -340,12 +477,11 @@ public class MainActivity extends Activity {
         return tryStart(fileIntent);
     }
 
-    private boolean tryOpenDocumentTree() {
+    private boolean tryOpenDocumentTree(Uri initialUri) {
         Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            Uri uri = DocumentsContract.buildDocumentUri("com.android.externalstorage.documents", "primary:Android/data/" + getPackageName() + "/files/data");
-            intent.putExtra(DocumentsContract.EXTRA_INITIAL_URI, uri);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && initialUri != null) {
+            intent.putExtra(DocumentsContract.EXTRA_INITIAL_URI, initialUri);
         }
         return tryStart(intent);
     }
@@ -474,6 +610,18 @@ public class MainActivity extends Activity {
         }
         fileCallback.onReceiveValue(results);
         fileCallback = null;
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode != STORAGE_PERMISSION_REQUEST) return;
+        if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+            openBankDirectory();
+        } else {
+            reportBankDirectoryResult(false, "需要存储权限才能创建 Documents/QuizApp/data");
+            Toast.makeText(this, "未授予存储权限", Toast.LENGTH_LONG).show();
+        }
     }
 
     @Override

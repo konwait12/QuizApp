@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QColor>
 #include <QWidget>
 
 namespace quizapp::ui {
@@ -14,6 +15,7 @@ public:
     QString paletteId() const;
     void setThemeId(const QString &themeId);
     void setPaletteId(const QString &paletteId);
+    void setPrimaryColor(const QColor &color);
     void setCornerRadius(int radius);
     QSize sizeHint() const override;
 
@@ -23,6 +25,7 @@ protected:
 private:
     QString themeId_ = QStringLiteral("system");
     QString paletteId_ = QStringLiteral("forest");
+    QColor primaryColor_;
     int cornerRadius_ = 7;
 };
 

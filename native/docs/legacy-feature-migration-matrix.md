@@ -25,13 +25,13 @@ the capability or its persisted user data.
 
 | Legacy capability | Legacy evidence | Native status | Missing before completion |
 | --- | --- | --- | --- |
-| System light/dark appearance | `uiConfig.theme`, `applyUiConfig()` | Partial | System change listener, per-page screenshot suite, persisted migration from Web settings. |
-| Forest green default theme | `uiConfig.palette = forest` | Partial | Exact token mapping and compatibility migration. |
-| Palette presets | `PALETTE_PRESETS`, palette cards | Partial | Six `v1.0.18` presets now have native tokens, preview, persistence and tests; legacy setting migration and backup/export remain. |
-| Custom primary color | `uiConfig.primary` | Not started | Color picker, contrast validation, persistence and backup. |
-| Global component corner radius | comfortable rounded `v1.0.18` surfaces | Partial | Native 0-18 px design token, live preview, persistence and screenshots exist; backup/export and every remaining module must adopt the token. |
+| System light/dark appearance | `uiConfig.theme`, `applyUiConfig()` | Partial | Legacy setting import now maps the saved mode without overwriting native edits; system change listener and per-page screenshot suite remain. |
+| Forest green default theme | `uiConfig.palette = forest` | Partial | Native first-install default and legacy setting mapping exist; full page token/screenshot parity remains. |
+| Palette presets | `PALETTE_PRESETS`, palette cards | Partial | Six `v1.0.18` presets have native tokens, preview, persistence, tests, legacy setting mapping and local backup coverage; remaining page/device screenshot parity remains. |
+| Custom primary color | `uiConfig.primary` | Partial | Native color swatch, live preview, background/readability contrast validation, legacy setting migration, persistence, backup and UI screenshots exist; reset/device acceptance remains. |
+| Global component corner radius | comfortable rounded `v1.0.18` surfaces | Partial | Native 0-18 px design token, live preview, persistence, backup and screenshots exist; every remaining module must adopt the token. |
 | Reduce motion | `uiConfig.reduceMotion` | Partial | Apply to every transition and handwriting animation; accessibility test. |
-| Subject/chapter icon choices | legacy icon settings and previews | Not started | Native icon model, preview, hierarchy persistence and backup. |
+| Subject/chapter icon choices | legacy icon settings and previews | Partial | Native Emoji choices now follow the detected database/shared-folder nesting depth, preserve the two legacy keys, persist every level, render by actual card depth and participate in local backup; Android device acceptance remains. |
 | Optional Endfield advanced theme | no legacy equivalent; new native theme | Partial | Complete page coverage, phone/tablet screenshots, no proprietary assets, theme export metadata. Existing themes must remain unchanged. |
 | Phone/tablet navigation | responsive Web layouts | Partial | Android rotation, split-screen and process-restoration device tests. |
 | Android system back | WebView history handling | Partial | Deep route matrix, handwriting return and process-restoration device tests. |
@@ -40,39 +40,39 @@ the capability or its persisted user data.
 
 | Legacy capability | Legacy evidence | Native status | Missing before completion |
 | --- | --- | --- | --- |
-| Bundled banks visible on first launch | `data/` and legacy bundled loaders | Not started | Package default banks, first-run install, count/hash verification and update policy. |
-| Arbitrary subject/chapter nesting | editable path model | Partial | Shared-folder hierarchy is now authoritative for imported files and covered by tests; rename/move identity reconciliation remains. |
+| Bundled banks visible on first launch | `data/` and legacy bundled loaders | Partial | `27考研题库包` is packaged with count/provider/media verification, visible first-run progress, empty-database rollback protection and a full 870/72/1936 desktop bootstrap test; real-device first launch and update policy remain. |
+| Arbitrary subject/chapter nesting | editable path model | Partial | Shared-folder hierarchy is authoritative; dynamic per-depth icons, tested rename/move operations and SHA-256 relocation reconciliation preserve stable source-defined question IDs across repeated path changes. Content-signature reconciliation for questions without source IDs remains. |
 | Import JSON at every hierarchy level | edit mode and file input | Foundation | Android root folder, SAF fallback, validation report, duplicate/update behavior and UI. |
-| In-app file manager | legacy storage/recycle surfaces | Partial | Native folder/file tree, source path, sync status, refresh, Android permission and external-open actions exist; create/move/delete/recycle actions remain. |
+| In-app file manager | legacy storage/recycle surfaces | Partial | Native tree, status, refresh, permission, external-open, folder creation, JSON import, rename, move, recycle, restore and permanent delete exist; Android device acceptance remains. |
 | Automatic directory scan | legacy load/import lifecycle | Partial | Startup/resume scan, SHA-256 metadata, changed/new/missing reconciliation and cancellation exist; Android lifecycle device tests and explicit retry/report UI remain. |
 | Bank quality validation | import diagnostics and repair logic | Partial | Full-library report for type, answer, duplicate, media and quarantined records. |
-| Bank release distribution | release bank manifest and chooser | Not started | Independent manifest, per-subject selection, download verification, conflict policy and rollback. |
-| Editable hierarchy | edit mode create/rename/order | Not started | Native model, long-press ordering, recycle workflow, persistence and tests. |
-| Recycle bin | `quizapp_recycle_bin` | Not started | Separate shared folder, restore/permanent delete, metadata and backup behavior. |
+| Bank release distribution | release bank manifest and chooser | Partial | Native latest-Release catalog, subject/chapter selection, size/SHA-256 validation, overwrite/keep-both conflicts, whole-batch rollback, per-bank installed fingerprints and silent 12-hour automatic checks are covered; real Android network/download/device acceptance remains. |
+| Editable hierarchy | edit mode create/rename/order | Partial | Native shared-storage editor creates, renames, moves and recycles files/folders; the library has scoped edit mode deletion plus long-press drag ordering persisted by parent path. Shared cards move real files to the recycle bin, while bundled cards are only hidden locally and can be restored. Android pen/touch drag acceptance remains. |
+| Recycle bin | `quizapp_recycle_bin` | Partial | Separate shared folder, direct-card recycle, bundled-bank local hiding, restore and permanent shared-file delete flows exist; richer metadata, backup behavior and Android device acceptance remain. |
 
 ## Practice and Learning
 
 | Legacy capability | Legacy evidence | Native status | Missing before completion |
 | --- | --- | --- | --- |
-| Sequential practice | sequential session flow | Partial | Legacy migration, all question types, device tests and export. |
-| Random practice | shuffled order and separate progress | Partial | Configurable merge policy, reset/reshuffle settings, migration and tests. |
+| Sequential practice | sequential session flow | Partial | Shared per-question answer state now synchronizes global and nested scopes, remains separate from random mode and resolves direct legacy question keys; all question types, device tests and export remain. |
+| Random practice | shuffled order and separate progress | Partial | Shared per-question answer state is isolated from sequential mode and covered for large banks; configurable merge policy, reset/reshuffle settings, remaining legacy key resolution and device tests remain. |
 | Memorize mode | answer-first practice | Partial | Settings, completion statistics, migration and documentation. |
 | Answer table | grouped answer lookup | Partial | Last-position setting, search/filter, migration and export. |
 | Explicit wrong-book membership | add/remove confirmation flow | Partial | Reason tags/notes UI, recycle semantics, export and migration. |
 | Question overview | grouped type sections and status colors | Partial | Full type grouping, large-bank performance and tablet device tests. |
-| Manual save, autosave and reset | save/reset/autosave settings | Foundation | User-configurable semantics, crash recovery, migration and exhaustive mode tests. |
-| Saved-progress widget | configurable phone/tablet widget | Not started | Native home component, sizing, hide/help state and migration. |
+| Manual save, autosave and reset | save/reset/autosave settings | Partial | Manual save, exit-autosave setting, mode-aware persistence and reset cleanup have UI/core coverage; crash recovery, remaining legacy migration cases and exhaustive device-mode tests remain. |
+| Saved-progress widget | configurable phone/tablet widget | Partial | Native home card restores the latest incomplete saved session, keeps the legacy show/help keys, supports 300-430 px phone and 440-720 px tablet sizing, and has repository/UI/screenshot/backup coverage; Android device acceptance remains. |
 | Correct/incorrect answer feedback | option state and animation | Partial | Reduced-motion behavior, accessibility semantics and device screenshots. |
 | Question-bound handwriting entry | practice handwriting route | Partial | Entry from every practice/exam/review surface and complete viewport restoration tests. |
-| FSRS review | FSRS queue/history | Partial | Full rating history UI, configurable parameters, backup/migration and documentation. |
-| Mock exam | setup, timer, pause, result/history | Not started | Complete native module and all completion gates. |
+| FSRS review | FSRS queue/history | Partial | Full rating history UI, configurable parameters, legacy migration and documentation. Local backup covers the repository. |
+| Mock exam | setup, timer, pause, result/history | Partial | Native subject/all-bank setup, objective filtering, random sampling, pause/resume timer, 10-second checkpoint plus action saves, question overview, handwriting return, unified grading, last-30 history, deletion-independent text snapshots and local backup are covered by tests. Android lifecycle/timer device tests, result media rendering, legacy migration and accessibility remain. |
 
 ## Notes, Search and Content Tools
 
 | Legacy capability | Legacy evidence | Native status | Missing before completion |
 | --- | --- | --- | --- |
 | Question-bound SpeedyNote document | handwriting practice workspace | Partial | Full tool set, Android pen/gesture device evidence, export and recovery. |
-| Free notebooks | notebook launcher/library | Not started | Independent notebook model and complete lifecycle. |
+| Free notebooks | notebook launcher/library | Partial | Native home entry and notebook library now create/open/rename/recycle/restore/permanently delete independent SpeedyNote bundles. SQLite metadata, interrupted migration repair, content hashes, viewport persistence, backup inclusion, phone/tablet layouts and core/UI tests exist. Android pen/device acceptance, export/share, search/tags and process-kill recovery remain. |
 | Multi-page notes | page strip, add/reorder/bookmark | Partial | Reorder, templates, orientation, thumbnails, bookmarks and tests. |
 | Infinite canvas | free canvas mode | Not started | Viewport model, persistence, export and performance tests. |
 | Pen/highlighter/eraser/lasso/shapes/text/image | legacy handwriting tools | Foundation | Remaining native tools, object actions, input mapping and tests. |
@@ -86,17 +86,18 @@ the capability or its persisted user data.
 
 | Legacy capability | Legacy evidence | Native status | Missing before completion |
 | --- | --- | --- | --- |
-| BYOK AI provider configuration | DeepSeek/OpenAI-compatible presets | Not started | Secure key storage, provider/model discovery, validation and backup exclusion. |
-| AI question analysis | structured question prompt and records | Not started | Native record model, stale-source detection, cancellation/errors and export. |
+| BYOK AI provider configuration | DeepSeek/OpenAI-compatible presets | Partial | Native DeepSeek/custom OpenAI-compatible settings, DPAPI on Windows, Android Keystore AES-GCM, plaintext legacy-key migration, HTTPS/localhost validation, model discovery, real connection test, generation controls and backup exclusion/explicit inclusion are covered by core/UI tests. Real Android Keystore and provider network acceptance, cancellation UX and integration with native AI consumers remain. |
+| AI question analysis | structured question prompt and records | Partial | Native question-bound panel now sends the type, prompt, all options, structured answer, built-in explanation and optional images through the configured OpenAI-compatible endpoint. SQLite caching remains separate from built-in content and supports source-hash staleness, cancellation, retry and Markdown/JSON export with core/UI coverage. Real provider/Android networking, streamed responses, accessibility and phone/tablet device acceptance remain. |
 | AI learning assistant | local threads and attachments | Not started | Native threads, attachment boundary, persistence and deletion. |
-| Study time tracking | foreground activity timer | Partial | All activity coverage, suspend/resume tests and backup. |
+| Study time tracking | foreground activity timer | Partial | SQLite records participate in local backup; all activity coverage and suspend/resume device tests remain. |
 | 7/30/90-day charts | study chart ranges | Partial | Month archive controls, interaction/accessibility and device screenshots. |
 | Wrong-reason analysis | tags, notes and optional AI summary | Foundation | Native UI and repository for tags/notes; AI remains physically separate. |
-| Full local backup `.quizbackup v2` | legacy local backup | Not started | Streaming archive, preview, hashes, rollback, cross-device restore and tests. |
+| Full local backup `.quizbackup v2` | legacy local backup | Partial | Native streaming container covers a consistent SQLite snapshot, QSettings, notes/blobs and shared QuestionBanks/Notes/RecycleBin; per-entry SHA-256, preview, API-key exclusion, restart staging and transactional rollback have core/UI coverage. Android SAF open/create compiles into ARM64 APK. Real-device SAF round trip, interrupted-process recovery, cross-version/cross-device restore and large device performance remain. |
+| Legacy WebView data migration | WebView localStorage and `quizapp_study_data` IndexedDB | Partial | Hidden local-only exporter now loads at the legacy `file:///android_asset/index.html` origin with networking blocked; binary-safe IndexedDB capture, API-key redaction, versioned SQLite staging, direct question-key resolution, idempotence and rollback tests exist. Content-signature resolution, saved-session/notebook materialization and real stable-package overwrite testing remain. |
 | Export | JSON/PDF/PNG and notebook export | Foundation | Unified export service, destination UI, errors and tests. |
-| Announcements | local/remote announcement feed | Not started | Independent manifest, unread state, automatic silent check and archive. |
-| Application updates | GitHub Releases latest flow | Not started | Native Android download/install, progress, fallback and overwrite-data test. |
-| Settings organization | grouped legacy settings | Foundation | All migrated settings, save feedback, reset/export and tablet layout. |
+| Announcements | local/remote announcement feed | Partial | Native Release-asset catalog parsing, HTML sanitization, cached archive, per-item read state, unread badge, manual refresh and silent automatic checks are implemented and covered by core/UI tests. Real GitHub networking and Android phone/tablet interaction remain. |
+| Application updates | GitHub Releases latest flow | Partial | Native latest-Release parsing, semantic/prerelease and same-version build comparison, platform asset selection, size/SHA-256 verification, real download progress, Release fallback and Android FileProvider installer handoff are implemented and compile for Windows/Android ARM64. Real GitHub download, Android unknown-source permission return, installer launch and signed overwrite-install data retention still require device acceptance. |
+| Settings organization | grouped legacy settings | Partial | Supported `v1.0.18` settings map into absent native keys without overwriting native edits; remaining controls, custom-primary UI, reset/export and tablet layout remain. |
 
 ## Migration Order and Invariants
 

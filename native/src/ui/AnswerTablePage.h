@@ -13,6 +13,7 @@ class QPushButton;
 class QResizeEvent;
 class QSortFilterProxyModel;
 class QTableView;
+class QToolButton;
 
 namespace quizapp::ui {
 
@@ -31,12 +32,14 @@ public:
     qsizetype currentQuestionIndex() const;
     void setCurrentQuestionIndex(qsizetype questionIndex);
     bool hasContent() const;
+    void showSaveStatus(const QString &message);
 
 signals:
     void backRequested();
     void currentQuestionChanged(qsizetype questionIndex);
     void detailRequested(qsizetype questionIndex);
     void handwritingRequested(qsizetype questionIndex);
+    void manualSaveRequested();
 
 protected:
     void resizeEvent(QResizeEvent *event) override;
@@ -55,6 +58,7 @@ private:
     QWidget *titleContainer_ = nullptr;
     QLabel *title_ = nullptr;
     QLabel *summary_ = nullptr;
+    QToolButton *saveButton_ = nullptr;
     QPushButton *detailButton_ = nullptr;
     QPushButton *handwritingButton_ = nullptr;
 };

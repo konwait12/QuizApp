@@ -1,8 +1,11 @@
 #include "storage/Database.h"
 
+#include <QDateTime>
 #include <QFile>
+#include <QSet>
 #include <QSqlError>
 #include <QSqlQuery>
+#include <algorithm>
 #include <array>
 #include <utility>
 
@@ -69,11 +72,18 @@ bool Database::migrate(QString *error)
         int version;
         const char *resourcePath;
     };
-    const std::array<Migration, 4> migrations{{
+    const std::array<Migration, 11> migrations{{
         {1, ":/quizapp/schema/001_initial.sql"},
         {2, ":/quizapp/schema/002_question_paths.sql"},
         {3, ":/quizapp/schema/003_review_history.sql"},
         {4, ":/quizapp/schema/004_managed_bank_sources.sql"},
+        {5, ":/quizapp/schema/005_legacy_migration_staging.sql"},
+        {6, ":/quizapp/schema/006_question_answer_state.sql"},
+        {7, ":/quizapp/schema/007_library_node_order.sql"},
+        {8, ":/quizapp/schema/008_library_hidden_banks.sql"},
+        {9, ":/quizapp/schema/009_managed_bank_overrides.sql"},
+        {10, ":/quizapp/schema/010_exam_completion.sql"},
+        {11, ":/quizapp/schema/011_notebook_recycle.sql"},
     }};
 
     for (const Migration &migration : migrations) {
@@ -83,6 +93,73 @@ bool Database::migrate(QString *error)
         }
         if (applied) {
             continue;
+        }
+        if (migration.version == 10) {
+            QSet<QString> columns;
+            QSqlQuery columnQuery(connection());
+            if (columnQuery.exec(QStringLiteral("PRAGMA table_info(exam_sessions)"))) {
+                while (columnQuery.next()) {
+                    columns.insert(columnQuery.value(1).toString());
+                }
+            }
+            QSqlQuery resultTableQuery(connection());
+            const bool hasResultTable = resultTableQuery.exec(QStringLiteral(
+                "SELECT 1 FROM sqlite_master WHERE type='table' "
+                "AND name='exam_result_items'"))
+                && resultTableQuery.next();
+            const QStringList requiredColumns{
+                QStringLiteral("title"), QStringLiteral("current_index"),
+                QStringLiteral("remaining_seconds"), QStringLiteral("paused"),
+                QStringLiteral("correct_count"), QStringLiteral("wrong_count"),
+                QStringLiteral("unanswered_count"), QStringLiteral("timed_out"),
+                QStringLiteral("updated_at"),
+            };
+            const bool hasAllColumns = std::all_of(
+                requiredColumns.cbegin(), requiredColumns.cend(),
+                [&columns](const QString &column) { return columns.contains(column); });
+            if (hasAllColumns && hasResultTable) {
+                QSqlQuery repair(connection());
+                repair.prepare(QStringLiteral(
+                    "INSERT OR IGNORE INTO schema_migrations(version, applied_at) "
+                    "VALUES(10, ?)"));
+                repair.addBindValue(
+                    QDateTime::currentDateTimeUtc().toString(Qt::ISODateWithMs));
+                if (!repair.exec()) {
+                    if (error) {
+                        *error = repair.lastError().text();
+                    }
+                    return false;
+                }
+                continue;
+            }
+        }
+        if (migration.version == 11) {
+            bool hasDeletedAt = false;
+            QSqlQuery columnQuery(connection());
+            if (columnQuery.exec(QStringLiteral("PRAGMA table_info(notebooks)"))) {
+                while (columnQuery.next()) {
+                    hasDeletedAt = hasDeletedAt
+                        || columnQuery.value(1).toString() == QStringLiteral("deleted_at");
+                }
+            }
+            if (hasDeletedAt) {
+                QSqlQuery repair(connection());
+                if (!repair.exec(QStringLiteral(
+                        "CREATE INDEX IF NOT EXISTS idx_notebooks_free_updated "
+                        "ON notebooks(question_id, deleted_at, updated_at DESC)"))) {
+                    if (error) *error = repair.lastError().text();
+                    return false;
+                }
+                repair.prepare(QStringLiteral(
+                    "INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES(11, ?)"));
+                repair.addBindValue(
+                    QDateTime::currentDateTimeUtc().toString(Qt::ISODateWithMs));
+                if (!repair.exec()) {
+                    if (error) *error = repair.lastError().text();
+                    return false;
+                }
+                continue;
+            }
         }
         QFile file(QString::fromUtf8(migration.resourcePath));
         if (!file.open(QIODevice::ReadOnly)) {

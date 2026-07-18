@@ -22,7 +22,7 @@ page.on('pageerror', error => errors.push(error.message));
 
 try {
   await page.addInitScript(() => {
-    localStorage.setItem('quizapp_ui_config', JSON.stringify({ autoUpdateCheck: false, autoAnnouncementCheck: false }));
+    localStorage.setItem('quizapp_ui_config', JSON.stringify({ autoUpdateCheck: false, autoAnnouncementCheck: false, autoBankUpdateCheck: false }));
     localStorage.setItem('quizapp_announcement_suppressed', '1');
   });
   await page.goto(appUrl, { waitUntil: 'domcontentloaded' });

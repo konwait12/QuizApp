@@ -63,6 +63,7 @@
         sourceName: String(options.sourceName || ''),
         sourcePage: Number(options.sourcePage || 0),
         searchText: String(options.searchText || ''),
+        links: Array.isArray(options.backgroundLinks) ? clone(options.backgroundLinks) : [],
       },
       ocr: options.ocr && typeof options.ocr === 'object' ? clone(options.ocr) : null,
       layers: [layer],
@@ -74,7 +75,12 @@
   }
 
   function createDocument(options = {}) {
-    const firstPage = createPage({ name: '第 1 页', ...options.page });
+    const mode = options.mode === 'edgeless' ? 'edgeless' : 'paged';
+    const firstPage = createPage({
+      name: mode === 'edgeless' ? '无边界画布' : '第 1 页',
+      ...(mode === 'edgeless' ? { width: 3600, height: 2800, backgroundType: 'grid', spacing: 48 } : {}),
+      ...options.page,
+    });
     const now = Date.now();
     return {
       schemaVersion: SCHEMA_VERSION,
@@ -85,7 +91,8 @@
       tags: Array.isArray(options.tags) ? options.tags.map(item => String(item || '').trim()).filter(Boolean) : [],
       links: Array.isArray(options.links) ? clone(options.links) : [],
       bookmarks: Array.isArray(options.bookmarks) ? clone(options.bookmarks) : [],
-      mode: options.mode === 'edgeless' ? 'edgeless' : 'paged',
+      pdfOutline: Array.isArray(options.pdfOutline) ? clone(options.pdfOutline) : [],
+      mode,
       pages: [firstPage],
       activePageId: firstPage.id,
       lastViewport: null,
@@ -120,7 +127,7 @@
     }) : [];
     return {
       id: raw?.id || uid('stroke'),
-      tool: raw?.tool === 'highlighter' ? 'highlighter' : 'pen',
+      tool: ['pen', 'marker', 'highlighter'].includes(raw?.tool) ? raw.tool : 'pen',
       color: raw?.color || '#202522',
       size: Number(raw?.size || raw?.baseThickness || 5),
       pointerType: raw?.pointerType || 'pen',
@@ -164,6 +171,7 @@
         sourceName: String(raw?.background?.sourceName || ''),
         sourcePage: Number(raw?.background?.sourcePage || 0),
         searchText: String(raw?.background?.searchText || ''),
+        links: Array.isArray(raw?.background?.links) ? raw.background.links.filter(link => link && typeof link === 'object').map(link => ({ ...link })) : [],
       },
       ocr: raw?.ocr && typeof raw.ocr === 'object' ? {
         text: String(raw.ocr.text || ''),
@@ -199,6 +207,12 @@
         label: String(item.label || '书签'),
         note: String(item.note || ''),
         createdAt: Number(item.createdAt || Date.now()),
+      })) : [],
+      pdfOutline: Array.isArray(raw.pdfOutline) ? raw.pdfOutline.filter(item => item && Number(item.pageNumber) > 0).map(item => ({
+        title: String(item.title || '目录项'),
+        pageNumber: Number(item.pageNumber),
+        depth: Math.max(0, Number(item.depth || 0)),
+        sourceName: String(item.sourceName || ''),
       })) : [],
       mode: raw.mode === 'edgeless' ? 'edgeless' : 'paged',
       pages,
@@ -250,6 +264,20 @@
     return { x: minX - inset, y: minY - inset, width: maxX - minX + inset * 2, height: maxY - minY + inset * 2 };
   }
 
+  function translatePageContent(page, dx, dy) {
+    if (!page || (!dx && !dy)) return;
+    page.layers.forEach(layer => layer.strokes.forEach(stroke => {
+      stroke.points.forEach(point => { point.x += dx; point.y += dy; });
+      stroke.bounds = computeBounds(stroke.points, stroke.size);
+    }));
+    page.objects.forEach(object => { object.x += dx; object.y += dy; });
+    (page.background?.links || []).forEach(link => {
+      if (!link.rect) return;
+      link.rect.x = Number(link.rect.x || 0) + dx;
+      link.rect.y = Number(link.rect.y || 0) + dy;
+    });
+  }
+
   function pointToSegmentDistance(point, start, end) {
     const dx = end.x - start.x;
     const dy = end.y - start.y;
@@ -257,6 +285,19 @@
     if (lengthSq < .0001) return Math.hypot(point.x - start.x, point.y - start.y);
     const t = clamp(((point.x - start.x) * dx + (point.y - start.y) * dy) / lengthSq, 0, 1);
     return Math.hypot(point.x - (start.x + t * dx), point.y - (start.y + t * dy));
+  }
+
+  function pointInPolygon(point, polygon) {
+    if (!Array.isArray(polygon) || polygon.length < 3) return false;
+    let inside = false;
+    for (let current = 0, previous = polygon.length - 1; current < polygon.length; previous = current, current += 1) {
+      const a = polygon[current];
+      const b = polygon[previous];
+      const crosses = (a.y > point.y) !== (b.y > point.y)
+        && point.x < ((b.x - a.x) * (point.y - a.y)) / ((b.y - a.y) || Number.EPSILON) + a.x;
+      if (crosses) inside = !inside;
+    }
+    return inside;
   }
 
   function strokeContainsPoint(stroke, point, tolerance = 12) {
@@ -470,6 +511,7 @@
     }
 
     addPage(options = {}) {
+      if (this.document.mode === 'edgeless') return null;
       this.beginHistory();
       const page = createPage({ name: `第 ${this.document.pages.length + 1} 页`, ...options });
       this.document.pages.push(page);
@@ -512,6 +554,29 @@
       return page;
     }
 
+    renameDocument(name) {
+      const nextName = String(name || '').trim();
+      if (!nextName || this.document.title === nextName) return false;
+      this.beginHistory();
+      this.document.title = nextName;
+      this.document.updatedAt = Date.now();
+      this.commitHistory('rename-document');
+      this.emit('documentchange', { id: this.document.id, action: 'rename' });
+      return true;
+    }
+
+    renamePage(id, name) {
+      const page = this.document.pages.find(item => item.id === id);
+      const nextName = String(name || '').trim();
+      if (!page || !nextName || page.name === nextName) return false;
+      this.beginHistory();
+      page.name = nextName;
+      page.updatedAt = Date.now();
+      this.commitHistory('rename-page');
+      this.emit('pagechange', { id: page.id, action: 'rename' });
+      return true;
+    }
+
     movePage(id, direction) {
       const from = this.document.pages.findIndex(page => page.id === id);
       const to = clamp(from + Number(direction || 0), 0, this.document.pages.length - 1);
@@ -541,6 +606,28 @@
       this.document.activePageId = this.document.pages[Math.max(0, index - 1)].id;
       this.commitHistory('remove-page');
       this.emit('pagechange', { id: this.document.activePageId });
+      return true;
+    }
+
+    setDocumentMode(mode) {
+      const nextMode = mode === 'edgeless' ? 'edgeless' : 'paged';
+      if (this.document.mode === nextMode) return false;
+      if (nextMode === 'edgeless' && this.document.pages.length > 1) return false;
+      this.beginHistory();
+      if (nextMode === 'edgeless') {
+        const page = this.page;
+        const targetWidth = Math.max(3600, page.width + 1600);
+        const targetHeight = Math.max(2800, page.height + 1200);
+        const dx = Math.round((targetWidth - page.width) / 2);
+        const dy = Math.round((targetHeight - page.height) / 2);
+        translatePageContent(page, dx, dy);
+        page.width = targetWidth;
+        page.height = targetHeight;
+      }
+      this.document.mode = nextMode;
+      this.document.lastViewport = null;
+      this.commitHistory('document-mode');
+      this.emit('documentchange', { action: 'mode', mode: nextMode });
       return true;
     }
 
@@ -596,6 +683,29 @@
       });
       this.commitHistory('remove-layer');
       this.emit('layerchange', { id: this.page.activeLayerId });
+      return true;
+    }
+
+    mergeLayerDown(id = this.page.activeLayerId) {
+      const sourceIndex = this.page.layers.findIndex(layer => layer.id === id);
+      if (sourceIndex <= 0) return false;
+      const source = this.page.layers[sourceIndex];
+      const target = this.page.layers[sourceIndex - 1];
+      if (source.locked || target.locked) return false;
+      this.beginHistory();
+      target.strokes.push(...source.strokes.map(stroke => normalizeStroke(stroke)));
+      target.visible = target.visible || source.visible;
+      const sourceAffinity = sourceIndex - 1;
+      const targetAffinity = sourceIndex - 2;
+      this.page.objects.forEach(object => {
+        if (object.layerAffinity === sourceAffinity) object.layerAffinity = targetAffinity;
+        else if (object.layerAffinity > sourceAffinity) object.layerAffinity -= 1;
+      });
+      this.page.layers.splice(sourceIndex, 1);
+      this.page.activeLayerId = target.id;
+      this.selected = null;
+      this.commitHistory('merge-layer-down');
+      this.emit('layerchange', { id: target.id, action: 'merge-down' });
       return true;
     }
 
@@ -732,13 +842,16 @@
       this.onChange = options.onChange || (() => {});
       this.onSelectionChange = options.onSelectionChange || (() => {});
       this.onViewportChange = options.onViewportChange || (() => {});
+      this.onLink = options.onLink || (() => {});
       this.tool = 'pen';
       this.color = '#202522';
       this.size = 5;
       this.penOnly = true;
+      this.straightLine = false;
       this.scale = 1;
       this.offsetX = 0;
       this.offsetY = 0;
+      this.panMargin = clamp(options.panMargin ?? 96, 24, 320);
       this.pointer = null;
       this.touchPoints = new Map();
       this.pinch = null;
@@ -786,12 +899,19 @@
         this.canvas.dataset.dpr = String(dpr);
         if (!this.session.document.lastViewport) this.fit();
       }
+      this.constrainViewport();
       this.requestRender();
     }
 
     setTool(tool) {
-      this.tool = ['pen', 'highlighter', 'eraser', 'select', 'pan'].includes(tool) ? tool : 'pen';
+      this.tool = ['pen', 'marker', 'highlighter', 'eraser', 'select', 'pan'].includes(tool) ? tool : 'pen';
       this.canvas.dataset.tool = this.tool;
+      this.requestRender();
+    }
+
+    setStraightLine(enabled) {
+      this.straightLine = Boolean(enabled);
+      this.canvas.dataset.straightLine = this.straightLine ? 'true' : 'false';
       this.requestRender();
     }
 
@@ -801,16 +921,29 @@
       if (penOnly != null) this.penOnly = Boolean(penOnly);
     }
 
+    setPanMargin(value) {
+      this.panMargin = clamp(value, 24, 320);
+      this.constrainViewport();
+      this.saveViewport();
+      this.requestRender();
+    }
+
     get viewportSize() {
       const rect = this.canvas.getBoundingClientRect();
       return { width: rect.width, height: rect.height };
+    }
+
+    get isEdgeless() {
+      return this.session.document.mode === 'edgeless';
     }
 
     fit() {
       const page = this.session.page;
       const view = this.viewportSize;
       const margin = 32;
-      this.scale = clamp(Math.min((view.width - margin * 2) / page.width, (view.height - margin * 2) / page.height), .15, 4);
+      this.scale = this.isEdgeless
+        ? clamp(Math.min(1, Math.max(.55, Math.min(view.width / 1200, view.height / 900))), .35, 1)
+        : clamp(Math.min((view.width - margin * 2) / page.width, (view.height - margin * 2) / page.height), .15, 4);
       this.offsetX = (view.width - page.width * this.scale) / 2;
       this.offsetY = (view.height - page.height * this.scale) / 2;
       this.saveViewport();
@@ -818,11 +951,72 @@
       this.requestRender();
     }
 
+    constrainViewport() {
+      const page = this.session.page;
+      const view = this.viewportSize;
+      if (!page || !view.width || !view.height) return;
+      const margin = Math.min(this.panMargin, Math.max(24, Math.min(view.width, view.height) * .35));
+      const constrainAxis = (offset, pageSize, viewSize) => {
+        const scaledSize = pageSize * this.scale;
+        const min = scaledSize <= viewSize ? -margin : viewSize - scaledSize - margin;
+        const max = scaledSize <= viewSize ? viewSize - scaledSize + margin : margin;
+        return clamp(offset, min, max);
+      };
+      this.offsetX = constrainAxis(this.offsetX, page.width, view.width);
+      this.offsetY = constrainAxis(this.offsetY, page.height, view.height);
+    }
+
+    ensureEdgelessBounds(minX, minY, maxX, maxY, margin = 360) {
+      if (!this.isEdgeless) return { shiftX: 0, shiftY: 0 };
+      const page = this.session.page;
+      const chunk = 800;
+      const shiftX = minX < margin ? Math.ceil((margin - minX) / chunk) * chunk : 0;
+      const shiftY = minY < margin ? Math.ceil((margin - minY) / chunk) * chunk : 0;
+      let changed = Boolean(shiftX || shiftY);
+      if (shiftX || shiftY) {
+        translatePageContent(page, shiftX, shiftY);
+        page.width += shiftX;
+        page.height += shiftY;
+        this.offsetX -= shiftX * this.scale;
+        this.offsetY -= shiftY * this.scale;
+        maxX += shiftX;
+        maxY += shiftY;
+      }
+      if (maxX > page.width - margin) {
+        page.width += Math.ceil((maxX + margin - page.width) / chunk) * chunk;
+        changed = true;
+      }
+      if (maxY > page.height - margin) {
+        page.height += Math.ceil((maxY + margin - page.height) / chunk) * chunk;
+        changed = true;
+      }
+      if (changed) {
+        this.session.page.updatedAt = Date.now();
+        this.onChange('expand-canvas');
+      }
+      return { shiftX, shiftY, changed };
+    }
+
+    ensureEdgelessViewport() {
+      if (!this.isEdgeless) return;
+      const view = this.viewportSize;
+      const left = -this.offsetX / this.scale;
+      const top = -this.offsetY / this.scale;
+      const right = (view.width - this.offsetX) / this.scale;
+      const bottom = (view.height - this.offsetY) / this.scale;
+      this.ensureEdgelessBounds(left, top, right, bottom);
+    }
+
     zoomAt(screenX, screenY, factor) {
-      const before = this.screenToPage(screenX, screenY);
+      const rect = this.canvas.getBoundingClientRect();
+      const localX = screenX - rect.left;
+      const localY = screenY - rect.top;
+      const before = { x: (localX - this.offsetX) / this.scale, y: (localY - this.offsetY) / this.scale };
       this.scale = clamp(this.scale * factor, .15, 6);
-      this.offsetX = screenX - before.x * this.scale;
-      this.offsetY = screenY - before.y * this.scale;
+      this.offsetX = localX - before.x * this.scale;
+      this.offsetY = localY - before.y * this.scale;
+      this.ensureEdgelessViewport();
+      this.constrainViewport();
       this.saveViewport();
       this.onViewportChange({ scale: this.scale, offsetX: this.offsetX, offsetY: this.offsetY });
       this.requestRender();
@@ -853,6 +1047,7 @@
       this.scale = clamp(saved.scale || 1, .15, 6);
       this.offsetX = Number(saved.offsetX || 0);
       this.offsetY = Number(saved.offsetY || 0);
+      this.constrainViewport();
       this.requestRender();
     }
 
@@ -863,6 +1058,7 @@
 
     pageContains(point) {
       const page = this.session.page;
+      if (this.isEdgeless) return true;
       return point.x >= 0 && point.y >= 0 && point.x <= page.width && point.y <= page.height;
     }
 
@@ -872,6 +1068,8 @@
         this.zoomAt(event.clientX, event.clientY, Math.exp(-event.deltaY * .0015));
       } else {
         this.offsetX -= event.deltaX;
+        this.ensureEdgelessViewport();
+        this.constrainViewport();
         this.saveViewport();
         this.onViewportChange({ scale: this.scale, offsetX: this.offsetX, offsetY: this.offsetY });
         this.requestRender();
@@ -908,6 +1106,11 @@
         return;
       }
       if (this.tool === 'select') {
+        const pageLink = this.hitPageLink(point);
+        if (pageLink) {
+          this.onLink(pageLink);
+          return;
+        }
         const handle = this.selectionHandleAt(point);
         if (handle) return this.startObjectTransform(event, point, handle);
         return this.startSelection(event, point);
@@ -918,7 +1121,9 @@
         id: uid('stroke'),
         tool: this.tool,
         color: this.color,
-        size: this.tool === 'highlighter' ? Math.max(14, this.size * 3) : this.size,
+        size: this.tool === 'highlighter'
+          ? Math.max(14, this.size * 3)
+          : (this.tool === 'marker' ? Math.max(7, this.size * 1.65) : this.size),
         pointerType: event.pointerType || 'mouse',
         points: [this.eventPoint(event)],
       });
@@ -935,7 +1140,7 @@
       const hit = this.hitTest(point);
       if (!hit) {
         if (!event.shiftKey) this.session.setSelection([]);
-        this.pointer = { id: event.pointerId, mode: 'lasso', start: point, end: point };
+        this.pointer = { id: event.pointerId, mode: 'lasso', path: [point] };
         this.onSelectionChange(this.session.selected);
         return this.requestRender();
       }
@@ -1010,13 +1215,20 @@
       if (this.pointer.mode === 'pan') {
         this.offsetX += event.clientX - this.pointer.x;
         this.offsetY += event.clientY - this.pointer.y;
+        this.ensureEdgelessViewport();
+        this.constrainViewport();
         this.pointer.x = event.clientX;
         this.pointer.y = event.clientY;
         this.saveViewport();
         this.onViewportChange({ scale: this.scale, offsetX: this.offsetX, offsetY: this.offsetY });
       } else if (this.pointer.mode === 'draw') {
         const coalesced = typeof event.getCoalescedEvents === 'function' ? event.getCoalescedEvents() : [event];
-        coalesced.forEach(item => this.pointer.stroke.points.push(this.eventPoint(item)));
+        if (this.straightLine) {
+          const last = coalesced[coalesced.length - 1] || event;
+          this.pointer.stroke.points.splice(1, Infinity, this.eventPoint(last));
+        } else {
+          coalesced.forEach(item => this.pointer.stroke.points.push(this.eventPoint(item)));
+        }
       } else if (this.pointer.mode === 'erase') {
         this.eraseAt(this.screenToPage(event.clientX, event.clientY));
       } else if (this.pointer.mode === 'move') {
@@ -1025,7 +1237,9 @@
         this.pointer.x = point.x;
         this.pointer.y = point.y;
       } else if (this.pointer.mode === 'lasso') {
-        this.pointer.end = this.screenToPage(event.clientX, event.clientY);
+        const point = this.screenToPage(event.clientX, event.clientY);
+        const last = this.pointer.path[this.pointer.path.length - 1];
+        if (!last || Math.hypot(point.x - last.x, point.y - last.y) >= 2 / this.scale) this.pointer.path.push(point);
       } else if (this.pointer.mode === 'resize') {
         const point = this.screenToPage(event.clientX, event.clientY);
         this.pointer.object.width = Math.max(80, this.pointer.startWidth + point.x - this.pointer.x);
@@ -1047,7 +1261,9 @@
       if (!this.pointer || this.pointer.id !== event.pointerId) return;
       event.preventDefault();
       if (this.pointer.mode === 'draw') {
-        this.pointer.stroke.points.push(this.eventPoint(event));
+        const endPoint = this.eventPoint(event);
+        if (this.straightLine) this.pointer.stroke.points.splice(1, Infinity, endPoint);
+        else this.pointer.stroke.points.push(endPoint);
         this.pointer.stroke.bounds = computeBounds(this.pointer.stroke.points, this.pointer.stroke.size);
         this.session.commitHistory('stroke');
         this.onChange('stroke');
@@ -1058,8 +1274,7 @@
         this.session.commitHistory('move-selection');
         this.onChange('move-selection');
       } else if (this.pointer.mode === 'lasso') {
-        const rect = rectFromPoints(this.pointer.start, this.pointer.end);
-        const selected = this.selectInRect(rect);
+        const selected = this.selectInPolygon(this.pointer.path);
         this.session.setSelection(selected);
         this.onSelectionChange(this.session.selected);
       } else if (this.pointer.mode === 'resize' || this.pointer.mode === 'rotate') {
@@ -1107,9 +1322,12 @@
 
     eventPoint(event) {
       const point = this.screenToPage(event.clientX, event.clientY);
+      const expansion = this.ensureEdgelessBounds(point.x, point.y, point.x, point.y);
+      point.x += expansion.shiftX;
+      point.y += expansion.shiftY;
       return {
-        x: clamp(point.x, 0, this.session.page.width),
-        y: clamp(point.y, 0, this.session.page.height),
+        x: this.isEdgeless ? point.x : clamp(point.x, 0, this.session.page.width),
+        y: this.isEdgeless ? point.y : clamp(point.y, 0, this.session.page.height),
         pressure: event.pointerType === 'pen' ? clamp(event.pressure || .5, .05, 1) : .5,
         time: Number(event.timeStamp || 0),
       };
@@ -1127,6 +1345,17 @@
         }
       }
       return null;
+    }
+
+    hitPageLink(point) {
+      const links = this.session.page.background?.links || [];
+      return links.find(link => {
+        const rect = link.rect || {};
+        return point.x >= Number(rect.x || 0)
+          && point.y >= Number(rect.y || 0)
+          && point.x <= Number(rect.x || 0) + Number(rect.width || 0)
+          && point.y <= Number(rect.y || 0) + Number(rect.height || 0);
+      }) || null;
     }
 
     getSelectionTarget(hit) {
@@ -1166,6 +1395,26 @@
         layer.strokes.forEach(stroke => {
           const bounds = stroke.bounds || computeBounds(stroke.points, stroke.size);
           if (boundsIntersect(rect, bounds)) selected.push({ kind: 'stroke', id: stroke.id, layerId: layer.id });
+        });
+      });
+      return selected;
+    }
+
+    selectInPolygon(path) {
+      if (!Array.isArray(path) || path.length < 3) return [];
+      const selected = [];
+      this.session.page.objects.forEach(object => {
+        if (!object.visible) return;
+        const bounds = objectBounds(object);
+        const center = { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 };
+        if (pointInPolygon(center, path)) selected.push({ kind: 'object', id: object.id });
+      });
+      this.session.page.layers.forEach(layer => {
+        if (!layer.visible) return;
+        layer.strokes.forEach(stroke => {
+          if (stroke.points.some(point => pointInPolygon(point, path))) {
+            selected.push({ kind: 'stroke', id: stroke.id, layerId: layer.id });
+          }
         });
       });
       return selected;
@@ -1236,14 +1485,19 @@
       context.strokeStyle = background.patternColor;
       context.lineWidth = 1 / this.scale;
       const spacing = Math.max(16, background.spacing);
+      const view = this.viewportSize;
+      const visibleLeft = clamp(-this.offsetX / this.scale, 0, page.width);
+      const visibleTop = clamp(-this.offsetY / this.scale, 0, page.height);
+      const visibleRight = clamp((view.width - this.offsetX) / this.scale, 0, page.width);
+      const visibleBottom = clamp((view.height - this.offsetY) / this.scale, 0, page.height);
       if (background.type === 'grid') {
-        for (let x = spacing; x < page.width; x += spacing) {
-          context.beginPath(); context.moveTo(x, 0); context.lineTo(x, page.height); context.stroke();
+        for (let x = Math.max(spacing, Math.floor(visibleLeft / spacing) * spacing); x <= visibleRight; x += spacing) {
+          context.beginPath(); context.moveTo(x, visibleTop); context.lineTo(x, visibleBottom); context.stroke();
         }
       }
       if (background.type === 'grid' || background.type === 'lines') {
-        for (let y = spacing; y < page.height; y += spacing) {
-          context.beginPath(); context.moveTo(0, y); context.lineTo(page.width, y); context.stroke();
+        for (let y = Math.max(spacing, Math.floor(visibleTop / spacing) * spacing); y <= visibleBottom; y += spacing) {
+          context.beginPath(); context.moveTo(visibleLeft, y); context.lineTo(visibleRight, y); context.stroke();
         }
       }
       context.restore();
@@ -1288,7 +1542,7 @@
       const points = stroke.points.map(point => [point.x, point.y, point.pressure]);
       const outline = this.getStroke ? this.getStroke(points, {
         size: stroke.size,
-        thinning: stroke.tool === 'highlighter' ? .1 : .55,
+        thinning: stroke.tool === 'highlighter' ? .1 : (stroke.tool === 'marker' ? .28 : .55),
         smoothing: .68,
         streamline: .42,
         simulatePressure: stroke.pointerType !== 'pen',
@@ -1297,7 +1551,7 @@
       if (!outline.length) return;
       context.save();
       context.fillStyle = stroke.color;
-      context.globalAlpha *= stroke.tool === 'highlighter' ? .28 : 1;
+      context.globalAlpha *= stroke.tool === 'highlighter' ? .28 : (stroke.tool === 'marker' ? .62 : 1);
       context.beginPath();
       context.moveTo(outline[0][0], outline[0][1]);
       for (let index = 1; index < outline.length - 1; index += 1) {
@@ -1406,14 +1660,19 @@
 
     renderLasso(context) {
       if (this.pointer?.mode !== 'lasso') return;
-      const rect = rectFromPoints(this.pointer.start, this.pointer.end);
+      const path = this.pointer.path || [];
+      if (!path.length) return;
       context.save();
       context.fillStyle = 'rgba(31, 143, 98, .08)';
       context.strokeStyle = '#1f8f62';
       context.lineWidth = 1.5 / this.scale;
       context.setLineDash([6 / this.scale, 4 / this.scale]);
-      context.fillRect(rect.x, rect.y, rect.width, rect.height);
-      context.strokeRect(rect.x, rect.y, rect.width, rect.height);
+      context.beginPath();
+      context.moveTo(path[0].x, path[0].y);
+      path.slice(1).forEach(point => context.lineTo(point.x, point.y));
+      if (path.length >= 3) context.closePath();
+      context.fill();
+      context.stroke();
       context.restore();
     }
   }
@@ -1470,7 +1729,7 @@
         const points = stroke.points.map(point => [point.x, point.y, point.pressure]);
         const outline = getStroke ? getStroke(points, {
           size: stroke.size,
-          thinning: stroke.tool === 'highlighter' ? .1 : .55,
+          thinning: stroke.tool === 'highlighter' ? .1 : (stroke.tool === 'marker' ? .28 : .55),
           smoothing: .68,
           streamline: .42,
           simulatePressure: stroke.pointerType !== 'pen',
@@ -1479,7 +1738,7 @@
         if (!outline.length) return;
         context.save();
         context.fillStyle = stroke.color;
-        context.globalAlpha *= stroke.tool === 'highlighter' ? .28 : 1;
+        context.globalAlpha *= stroke.tool === 'highlighter' ? .28 : (stroke.tool === 'marker' ? .62 : 1);
         context.beginPath();
         context.moveTo(outline[0][0], outline[0][1]);
         outline.slice(1).forEach(point => context.lineTo(point[0], point[1]));

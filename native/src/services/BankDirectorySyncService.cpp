@@ -158,9 +158,12 @@ BankDirectorySyncResult BankDirectorySyncService::synchronize(
     }
 
     QSet<QString> currentKeys;
+    for (const ManagedBankFile &file : std::as_const(scanned.files)) {
+        currentKeys.insert(file.sourceKey);
+    }
+    QSet<QString> relocatedPreviousKeys;
     for (int index = 0; index < scanned.files.size(); ++index) {
         ManagedBankFile file = scanned.files.at(index);
-        currentKeys.insert(file.sourceKey);
         if (progress && !progress(index, scanned.files.size(), file.relativePath)) {
             result.canceled = true;
             return result;
@@ -171,6 +174,12 @@ BankDirectorySyncResult BankDirectorySyncService::synchronize(
             && previous->fileSize == file.fileSize
             && previous->modifiedMsecs == file.modifiedMsecs;
         if (!force && metadataMatches && previous->available) {
+            if (!previous->bankId.isEmpty()
+                && !sourceRepository.applyManagedOverride(
+                    previous->bankId, file.hierarchy, &repositoryError)) {
+                result.error = repositoryError;
+                return result;
+            }
             if (!previous->lastError.isEmpty()) {
                 result.issues.append({file.relativePath, previous->lastError});
             }
@@ -185,6 +194,29 @@ BankDirectorySyncResult BankDirectorySyncService::synchronize(
             continue;
         }
         file.sha256 = QCryptographicHash::hash(json, QCryptographicHash::Sha256);
+
+        const domain::ManagedBankSource *relocatedFrom = nullptr;
+        if (previous == previousByKey.cend()) {
+            const domain::ManagedBankSource *candidate = nullptr;
+            bool ambiguous = false;
+            for (const domain::ManagedBankSource &oldSource : previousSources) {
+                if (!oldSource.available || oldSource.bankId.isEmpty()
+                    || !oldSource.lastError.isEmpty() || oldSource.sha256.isEmpty()
+                    || currentKeys.contains(oldSource.sourceKey)
+                    || relocatedPreviousKeys.contains(oldSource.sourceKey)
+                    || oldSource.sha256 != file.sha256) {
+                    continue;
+                }
+                if (candidate) {
+                    ambiguous = true;
+                    break;
+                }
+                candidate = &oldSource;
+            }
+            if (!ambiguous) {
+                relocatedFrom = candidate;
+            }
+        }
         if (!force && previous != previousByKey.cend()
             && previous->sha256 == file.sha256 && previous->lastError.isEmpty()) {
             domain::ManagedBankSource refreshed = previous.value();
@@ -196,6 +228,12 @@ BankDirectorySyncResult BankDirectorySyncService::synchronize(
                 result.error = repositoryError;
                 return result;
             }
+            if (!refreshed.bankId.isEmpty()
+                && !sourceRepository.applyManagedOverride(
+                    refreshed.bankId, file.hierarchy, &repositoryError)) {
+                result.error = repositoryError;
+                return result;
+            }
             if (previous->available) {
                 ++result.unchangedFiles;
             } else {
@@ -204,9 +242,21 @@ BankDirectorySyncResult BankDirectorySyncService::synchronize(
             continue;
         }
 
+        QString identitySourceKey = file.sourceKey;
+        if (relocatedFrom) {
+            identitySourceKey = sourceRepository.identitySourceKeyForBank(
+                relocatedFrom->bankId, &repositoryError);
+            if (!repositoryError.isEmpty()) {
+                result.error = repositoryError;
+                return result;
+            }
+            if (identitySourceKey.isEmpty()) {
+                identitySourceKey = relocatedFrom->sourceKey;
+            }
+        }
         const BankInstallResult installed = installer.installJson(
             json,
-            file.sourceKey,
+            identitySourceKey,
             blobStore,
             questionRepository,
             {},
@@ -221,22 +271,43 @@ BankDirectorySyncResult BankDirectorySyncService::synchronize(
         source.available = true;
         source.lastSyncedAt = QDateTime::currentDateTimeUtc();
         if (!installed.installed) {
-            source.bankId = previous == previousByKey.cend() ? QString() : previous->bankId;
+            source.bankId = relocatedFrom
+                ? relocatedFrom->bankId
+                : previous == previousByKey.cend() ? QString() : previous->bankId;
             source.lastError = installed.error;
             result.issues.append({file.relativePath, installed.error});
-            if (!sourceRepository.save(source, &repositoryError)) {
+            const bool saved = relocatedFrom
+                ? sourceRepository.replaceKey(
+                      relocatedFrom->sourceKey, source, &repositoryError)
+                : sourceRepository.save(source, &repositoryError);
+            if (!saved) {
                 result.error = repositoryError;
                 return result;
+            }
+            if (relocatedFrom) {
+                relocatedPreviousKeys.insert(relocatedFrom->sourceKey);
             }
             continue;
         }
         source.bankId = installed.import.package->bank.id;
-        if (!sourceRepository.save(source, &repositoryError)) {
+        const bool saved = relocatedFrom
+            ? sourceRepository.replaceKey(
+                  relocatedFrom->sourceKey, source, &repositoryError)
+            : sourceRepository.save(source, &repositoryError);
+        if (!saved) {
+            result.error = repositoryError;
+            return result;
+        }
+        if (!sourceRepository.applyManagedOverride(
+                source.bankId, file.hierarchy, &repositoryError)) {
             result.error = repositoryError;
             return result;
         }
         result.installedQuestions += installed.import.acceptedQuestionCount;
-        if (previous == previousByKey.cend() || previous->bankId.isEmpty()) {
+        if (relocatedFrom) {
+            relocatedPreviousKeys.insert(relocatedFrom->sourceKey);
+            ++result.relocatedFiles;
+        } else if (previous == previousByKey.cend() || previous->bankId.isEmpty()) {
             ++result.installedFiles;
         } else {
             ++result.updatedFiles;
@@ -244,7 +315,8 @@ BankDirectorySyncResult BankDirectorySyncService::synchronize(
     }
 
     for (const domain::ManagedBankSource &source : previousSources) {
-        if (!currentKeys.contains(source.sourceKey) && source.available) {
+        if (!currentKeys.contains(source.sourceKey) && source.available
+            && !relocatedPreviousKeys.contains(source.sourceKey)) {
             if (!sourceRepository.setAvailability(source.sourceKey, false, &repositoryError)) {
                 result.error = repositoryError;
                 return result;

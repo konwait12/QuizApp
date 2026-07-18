@@ -25,7 +25,7 @@
     const titles = { home: '学习首页', library: '题库', study: '学习', profile: '我的' };
     let actions = '';
     if (context.tab === 'home') {
-      actions = `<button class="btn-icon mail-button ${context.unreadAnnouncements ? 'unread' : ''}" onclick="openAnnouncementBoard()" aria-label="公告栏" title="公告栏">✉</button>`;
+      actions = `<button class="btn-text" onclick="toggleEditMode()">${context.editMode ? '完成' : '编辑'}</button><button class="btn-icon mail-button ${context.unreadAnnouncements ? 'unread' : ''}" onclick="openAnnouncementBoard()" aria-label="公告栏" title="公告栏">✉</button>`;
     } else if (context.tab === 'library') {
       actions = `<button class="btn-text" onclick="toggleEditMode()">${context.editMode ? '完成' : '编辑'}</button>`;
     } else if (context.tab === 'study') {
@@ -64,17 +64,17 @@
         </button>
       </div>
       <div class="home-overview"><div class="home-metrics">${context.metricsHtml}</div></div>
-      <div class="hub-section-title"><h2>开始学习</h2><button onclick="setMainTab('study')">全部功能</button></div>
-      <div class="hub-quick-grid">
-        <button class="hub-quick-action" onclick="startAllPractice(false)"><span class="icon">1</span><span>顺序练习</span></button>
-        <button class="hub-quick-action" onclick="startAllPractice(true)"><span class="icon">↝</span><span>随机练习</span></button>
-        <button class="hub-quick-action" onclick="startAllReview()"><span class="icon">答</span><span>背题模式</span></button>
-        <button class="hub-quick-action" onclick="openAnswerLookup('', '')"><span class="icon">表</span><span>答案表</span></button>
+      <div class="hub-section-title"><h2>选择科目开始学习</h2><button onclick="setMainTab('study')">查看全部</button></div>
+      <div class="subjects-grid">${(context.editMode ? context.subjectEditCards : context.subjectCards).slice(0, 4).join('')}</div>
+      <div class="hub-section-title"><h2>快捷入口</h2></div>
+      <div class="hub-quick-grid compact-tools">
+        <button class="hub-quick-action" onclick="openReviewQueue()"><span class="icon">习</span><span>复习队列</span></button>
         <button class="hub-quick-action" onclick="openWrongPractice('', '', true)"><span class="icon">错</span><span>错题集</span></button>
         <button class="hub-quick-action" onclick="openFreeNotebookLibrary()"><span class="icon">记</span><span>自由笔记</span></button>
+        <button class="hub-quick-action" onclick="openExamSetup()"><span class="icon">考</span><span>模拟考试</span></button>
       </div>
-      <div class="hub-section-title"><h2>最近题库</h2><button onclick="setMainTab('library')">查看全部</button></div>
-      <div class="subjects-grid">${context.subjectCards.slice(0, 4).join('')}</div>
+      <div class="home-toggle-row">${renderToolToggle('home-tools')}</div>
+      ${context.editMode || context.homeToolsExpanded ? `<div class="tool-group">${context.toolPanelsHtml}</div>` : ''}
     </div>`;
   }
 
@@ -94,25 +94,51 @@
   function renderStudyPanel(context) {
     const review = context.reviewStats || { total: 0, due: 0 };
     const exam = context.examStats || { total: 0, latestScore: null };
-    const reasons = context.wrongReasonStats || { total: 0, tagged: 0 };
+    const study = context.studyConsole || { subjects: [], scopes: [], subjectStats: {}, selectedPath: [] };
+    const activeScope = study.scopes.find(item => item.active) || study.scopes[0] || { token: '', label: '', count: 0 };
+    const scopeOptions = study.scopes.map(item => ({
+      value: item.token,
+      label: `${item.label} · ${item.count} 题`,
+    }));
     return `<div class="hub-section">
       <div class="hub-summary-band" onclick="openStudyStats()" role="button" tabindex="0"><div><strong>今日学习 ${context.todayStudyTime}</strong><small>累计已练 ${context.progressAnswered}/${context.totalQuestions} 题</small></div><span class="value">${context.progressPercent}%</span></div>
+      <div class="study-console">
+        <div class="hub-section-title"><h2>选择科目</h2><button onclick="setMainTab('library')">管理题库</button></div>
+        <div class="study-subject-switcher">${study.subjects.map(item => `
+          <button class="study-subject-chip ${item.active ? 'active' : ''}" onclick="selectStudySubject('${item.token}')">
+            <span><strong>${escapeHtml(item.name)}</strong><small>${item.count} 题</small></span>
+          </button>`).join('') || '<div class="notebook-empty">暂无可学习科目</div>'}</div>
+        ${study.subject ? `
+          <div class="hub-section-title"><h2>学习范围</h2><span class="settings-subtitle">选择范围不会离开本页</span></div>
+          <div class="study-scope-dropdown">${renderChoiceSelect('studyScopeSelect', activeScope.token, scopeOptions, 'studyScope')}</div>
+          <div class="study-scope-switcher">${study.scopes.map(item => `<button class="study-scope-chip ${item.active ? 'active' : ''}" onclick="selectStudyScope('${item.token}')">${escapeHtml(item.label)} · ${item.count}</button>`).join('')}</div>
+          <div class="study-scope-summary"><div><strong>${escapeHtml(study.selectedLabel)}</strong><small>已练 ${study.scopeAnswered}/${study.scopeQuestionCount} · 错题集 ${study.scopeWrong} · 今日本科 ${escapeHtml(formatStudyDuration(study.subjectStats.todaySeconds || 0))}</small></div><span>${study.scopePercent}%</span></div>
+          <div class="hub-section-title"><h2>开始学习</h2><span class="settings-subtitle">当前范围 ${study.scopeQuestionCount} 题</span></div>
+          <div class="study-mode-grid">
+            <button class="study-mode-entry" onclick="startSelectedStudyPractice(false)"><span class="icon">1</span><span>顺序练习</span></button>
+            <button class="study-mode-entry" onclick="startSelectedStudyPractice(true)"><span class="icon">↝</span><span>随机练习</span></button>
+            <button class="study-mode-entry" onclick="startSelectedStudyReview()"><span class="icon">答</span><span>背题模式</span></button>
+            <button class="study-mode-entry" onclick="openSelectedStudyAnswers()"><span class="icon">表</span><span>答案表</span></button>
+            <button class="study-mode-entry danger" onclick="openSelectedStudyWrongBook()"><span class="icon">错</span><span>错题集</span></button>
+            <button class="study-mode-entry" onclick="openSelectedStudyNotebook()"><span class="icon">写</span><span>题目笔记</span></button>
+            <button class="study-mode-entry" onclick="openReviewQueue()"><span class="icon">习</span><span>复习队列 ${review.due}</span></button>
+            <button class="study-mode-entry" onclick="openExamSetup()"><span class="icon">考</span><span>模拟考试</span></button>
+          </div>` : ''}
+      </div>
       <div class="hub-study-status">
         <button onclick="openReviewQueue()"><strong>${review.due}</strong><span>待复习</span><small>${review.total} 张卡片</small></button>
-        <button onclick="openWrongPractice('', '', true)"><strong>${reasons.tagged}</strong><span>已标错因</span><small>${reasons.total} 道错题</small></button>
+        <button onclick="openFreeNotebookLibrary()"><strong>${context.notebookCount || 0}</strong><span>自由笔记</span><small>独立笔记工作台</small></button>
         <button onclick="openExamSetup()"><strong>${exam.latestScore == null ? '--' : exam.latestScore}</strong><span>最近考试</span><small>${exam.total} 次记录</small></button>
       </div>
-      <div class="hub-section-title"><h2>练习与复习</h2></div>
-      <div class="hub-quick-grid">
-        <button class="hub-quick-action" onclick="startAllPractice(false)"><span class="icon">1</span><span>顺序</span></button>
-        <button class="hub-quick-action" onclick="startAllPractice(true)"><span class="icon">↝</span><span>随机</span></button>
-        <button class="hub-quick-action" onclick="startAllReview()"><span class="icon">答</span><span>背题</span></button>
-        <button class="hub-quick-action" onclick="openWrongPractice('', '', true)"><span class="icon">错</span><span>错题集</span></button>
-        <button class="hub-quick-action" onclick="openHandwritingPractice([])"><span class="icon">写</span><span>题目笔记</span></button>
-        <button class="hub-quick-action" onclick="openFreeNotebookLibrary()"><span class="icon">记</span><span>自由笔记</span></button>
-        <button class="hub-quick-action" onclick="openExamSetup()"><span class="icon">考</span><span>模拟考试</span></button>
-        <button class="hub-quick-action" onclick="openReviewQueue()"><span class="icon">习</span><span>复习队列</span></button>
-      </div>
+      <details class="hub-global-practice">
+        <summary>全库学习</summary>
+        <div class="hub-quick-grid">
+          <button class="hub-quick-action" onclick="startAllPractice(false)"><span class="icon">1</span><span>全部顺序</span></button>
+          <button class="hub-quick-action" onclick="startAllPractice(true)"><span class="icon">↝</span><span>全部随机</span></button>
+          <button class="hub-quick-action" onclick="startAllReview()"><span class="icon">答</span><span>全部背题</span></button>
+          <button class="hub-quick-action" onclick="openAnswerLookup('', '')"><span class="icon">表</span><span>全部答案表</span></button>
+        </div>
+      </details>
     </div>`;
   }
 

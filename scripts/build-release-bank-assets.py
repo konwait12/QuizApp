@@ -8,6 +8,7 @@ New release-bank rule:
 """
 from __future__ import annotations
 
+import argparse
 import json
 import re
 import shutil
@@ -18,6 +19,8 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DATA_DIR = PROJECT_ROOT / "data"
 OUT_DIR = PROJECT_ROOT / "output" / "release-banks"
+POSTGRADUATE_DIR = PROJECT_ROOT / "output" / "xiaoyi-question-banks"
+POSTGRADUATE_REPORT = POSTGRADUATE_DIR / "export-report.json"
 
 
 def normalize_path(value: object) -> list[str]:
@@ -52,13 +55,38 @@ def load_bank(path: Path) -> dict:
     return payload
 
 
+def source_bank_files() -> list[Path]:
+    files = list(DATA_DIR.rglob("*.json"))
+    if POSTGRADUATE_REPORT.exists():
+        report = json.loads(POSTGRADUATE_REPORT.read_text(encoding="utf-8"))
+        for bank_group in report.get("publicBanks") or []:
+            for chapter in bank_group.get("chapters") or []:
+                for section in chapter.get("sections") or []:
+                    relative = Path(str(section.get("file") or ""))
+                    source = (POSTGRADUATE_DIR / relative).resolve()
+                    if source.is_relative_to(POSTGRADUATE_DIR.resolve()) and source.is_file():
+                        files.append(source)
+    return sorted(set(files), key=lambda item: str(item).lower())
+
+
 def main() -> None:
+    parser = argparse.ArgumentParser(description="Build per-bank GitHub Release assets.")
+    parser.add_argument("--dry-run", action="store_true", help="Validate sources without copying large bank files.")
+    args = parser.parse_args()
+    source_files = source_bank_files()
+    if args.dry_run:
+        print(json.dumps({
+            "banks": len(source_files),
+            "bytes": sum(source.stat().st_size for source in source_files),
+            "restrictedBanksIncluded": False,
+        }, ensure_ascii=False))
+        return
+
     if OUT_DIR.exists():
         shutil.rmtree(OUT_DIR)
     OUT_DIR.mkdir(parents=True, exist_ok=True)
 
     entries: list[dict] = []
-    source_files = sorted(DATA_DIR.rglob("*.json"), key=lambda item: str(item.relative_to(DATA_DIR)).lower())
     for index, source in enumerate(source_files, start=1):
         bank = load_bank(source)
         # Keep Release asset names ASCII-only. GitHub/CLI may normalize non-ASCII

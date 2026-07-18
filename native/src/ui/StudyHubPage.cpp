@@ -1,4 +1,6 @@
 #include "ui/StudyHubPage.h"
+
+#include "ui/ChoiceComboBox.h"
 #include "ui/StudyTrendChart.h"
 
 #include <QComboBox>
@@ -120,10 +122,36 @@ StudyHubPage::StudyHubPage(QWidget *parent)
             this, &StudyHubPage::startReviewRequested);
     layout->addWidget(startReviewButton_);
 
+    auto *examSurface = new QFrame(content);
+    examSurface->setObjectName(QStringLiteral("studyExamSurface"));
+    auto *examLayout = new QHBoxLayout(examSurface);
+    examLayout->setContentsMargins(15, 14, 15, 14);
+    examLayout->setSpacing(12);
+    auto *examText = new QWidget(examSurface);
+    auto *examTextLayout = new QVBoxLayout(examText);
+    examTextLayout->setContentsMargins(0, 0, 0, 0);
+    examTextLayout->setSpacing(3);
+    auto *examTitle = new QLabel(QStringLiteral("模拟考试"), examText);
+    examTitle->setObjectName(QStringLiteral("sectionHeading"));
+    auto *examHint = new QLabel(
+        QStringLiteral("自选科目、题量和时长，统一交卷后查看成绩与历史。"), examText);
+    examHint->setObjectName(QStringLiteral("pageSupportingText"));
+    examHint->setWordWrap(true);
+    examTextLayout->addWidget(examTitle);
+    examTextLayout->addWidget(examHint);
+    auto *openExam = new QPushButton(QStringLiteral("进入考试"), examSurface);
+    openExam->setObjectName(QStringLiteral("studyOpenExamButton"));
+    openExam->setMinimumHeight(44);
+    openExam->setProperty("quizappIcon", QStringLiteral("school"));
+    connect(openExam, &QPushButton::clicked, this, &StudyHubPage::openExamRequested);
+    examLayout->addWidget(examText, 1);
+    examLayout->addWidget(openExam);
+    layout->addWidget(examSurface);
+
     auto *trendHeader = new QHBoxLayout;
     auto *trendTitle = new QLabel(QStringLiteral("学习趋势"), content);
     trendTitle->setObjectName(QStringLiteral("sectionHeading"));
-    studyRangeChoice_ = new QComboBox(content);
+    studyRangeChoice_ = new ChoiceComboBox(content);
     studyRangeChoice_->setObjectName(QStringLiteral("studyRangeChoice"));
     studyRangeChoice_->addItem(QStringLiteral("近 7 天"), 7);
     studyRangeChoice_->addItem(QStringLiteral("近 30 天"), 30);

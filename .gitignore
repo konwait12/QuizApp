@@ -20,6 +20,7 @@ aqtinstall.log
 *.jpg
 *.png
 *.gif
+!native/android/res/mipmap-*/ic_launcher.png
 
 # IDE
 .vscode/

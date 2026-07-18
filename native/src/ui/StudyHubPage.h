@@ -34,6 +34,7 @@ signals:
     void startReviewRequested();
     void refreshRequested();
     void studyRangeChanged(int days);
+    void openExamRequested();
 
 protected:
     void resizeEvent(QResizeEvent *event) override;

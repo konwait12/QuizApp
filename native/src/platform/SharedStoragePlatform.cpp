@@ -82,12 +82,10 @@ bool SharedStoragePlatform::openInSystemFileManager(
 {
     clearError(error);
 #if defined(Q_OS_ANDROID)
-    const QJniObject javaPath = QJniObject::fromString(QDir::cleanPath(path));
     const bool opened = QJniObject::callStaticMethod<jboolean>(
         "org/quizapp/platform/SharedStorageBridge",
         "openDirectory",
-        "(Ljava/lang/String;)Z",
-        javaPath.object<jstring>());
+        "()Z");
 #else
     const bool opened = QDesktopServices::openUrl(QUrl::fromLocalFile(path));
 #endif

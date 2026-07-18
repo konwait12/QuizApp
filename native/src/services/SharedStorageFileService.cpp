@@ -28,8 +28,8 @@ QString normalizedAbsolutePath(const QString &path)
 QString uniqueSiblingPath(const QString &path)
 {
     const QFileInfo info(path);
-    const QString baseName = info.completeBaseName();
-    const QString suffix = info.suffix();
+    const QString baseName = info.isDir() ? info.fileName() : info.completeBaseName();
+    const QString suffix = info.isDir() ? QString() : info.suffix();
     const QDir parent = info.dir();
     for (int copyIndex = 2; copyIndex < 10000; ++copyIndex) {
         const QString fileName = suffix.isEmpty()
@@ -41,6 +41,14 @@ QString uniqueSiblingPath(const QString &path)
         }
     }
     return {};
+}
+
+bool validEntryName(const QString &name)
+{
+    static const QRegularExpression unsafe(QStringLiteral(R"([\\/:*?"<>|])"));
+    const QString trimmed = name.trimmed();
+    return !trimmed.isEmpty() && trimmed != QStringLiteral(".")
+        && trimmed != QStringLiteral("..") && !unsafe.match(trimmed).hasMatch();
 }
 
 QString resolvedDestination(
@@ -141,9 +149,7 @@ StorageOperationResult SharedStorageFileService::createQuestionBankFolder(
     const QString &folderName) const
 {
     const QString trimmedName = folderName.trimmed();
-    static const QRegularExpression unsafe(QStringLiteral(R"([\\/:*?"<>|])"));
-    if (!layout.ready() || trimmedName.isEmpty() || unsafe.match(trimmedName).hasMatch()
-        || trimmedName == QStringLiteral(".") || trimmedName == QStringLiteral("..")) {
+    if (!layout.ready() || !validEntryName(trimmedName)) {
         return failure(QStringLiteral("文件夹名称无效"));
     }
     const QString parent = parentDirectory.trimmed().isEmpty()
@@ -219,6 +225,100 @@ StorageOperationResult SharedStorageFileService::importJsonFiles(
         ++result.affectedEntries;
     }
     return result;
+}
+
+StorageOperationResult SharedStorageFileService::renameQuestionBankEntry(
+    const SharedStorageLayout &layout,
+    const QString &sourcePath,
+    const QString &newName) const
+{
+    const QFileInfo source(sourcePath);
+    if (!layout.ready() || !source.exists() || source.isSymLink()
+        || !isPathInside(source.absoluteFilePath(), layout.questionBanks)
+        || normalizedAbsolutePath(source.absoluteFilePath())
+            == normalizedAbsolutePath(layout.questionBanks)
+        || !validEntryName(newName)) {
+        return failure(QStringLiteral("只能重命名 QuestionBanks 内的题库文件或层级"));
+    }
+
+    QString destinationName = newName.trimmed();
+    if (source.isFile()) {
+        if (QFileInfo(destinationName).suffix().isEmpty()) {
+            destinationName += u'.' + source.suffix();
+        }
+        if (QFileInfo(destinationName).suffix().compare(
+                QStringLiteral("json"), Qt::CaseInsensitive) != 0) {
+            return failure(QStringLiteral("题库文件必须保留 .json 后缀"));
+        }
+    }
+    const QString destination = source.dir().filePath(destinationName);
+    if (normalizedAbsolutePath(destination) == normalizedAbsolutePath(source.absoluteFilePath())) {
+        return failure(QStringLiteral("名称没有变化"));
+    }
+    if (QFileInfo::exists(destination)) {
+        return failure(QStringLiteral("同名文件或文件夹已存在"));
+    }
+    if (!movePath(source.absoluteFilePath(), destination)) {
+        return failure(QStringLiteral("无法重命名所选题库项目"));
+    }
+    return {true, 1, destination, {}};
+}
+
+StorageOperationResult SharedStorageFileService::moveQuestionBankEntry(
+    const SharedStorageLayout &layout,
+    const QString &sourcePath,
+    const QString &destinationDirectory,
+    StorageConflictPolicy conflictPolicy) const
+{
+    const QFileInfo source(sourcePath);
+    const QFileInfo destinationFolder(destinationDirectory);
+    if (!layout.ready() || !source.exists() || source.isSymLink()
+        || !isPathInside(source.absoluteFilePath(), layout.questionBanks)
+        || normalizedAbsolutePath(source.absoluteFilePath())
+            == normalizedAbsolutePath(layout.questionBanks)
+        || !destinationFolder.isDir() || destinationFolder.isSymLink()
+        || !isPathInside(destinationFolder.absoluteFilePath(), layout.questionBanks)) {
+        return failure(QStringLiteral("题库项目和目标层级必须位于 QuestionBanks 内"));
+    }
+    if (source.isDir()
+        && isPathInside(destinationFolder.absoluteFilePath(), source.absoluteFilePath())) {
+        return failure(QStringLiteral("不能把层级移动到自身内部"));
+    }
+
+    const QString requested = QDir(destinationFolder.absoluteFilePath())
+        .filePath(source.fileName());
+    if (normalizedAbsolutePath(requested) == normalizedAbsolutePath(source.absoluteFilePath())) {
+        return failure(QStringLiteral("所选项目已经位于目标层级"));
+    }
+    QString destinationError;
+    const QString destination = resolvedDestination(
+        requested, conflictPolicy, &destinationError);
+    if (!destinationError.isEmpty()) {
+        return failure(destinationError);
+    }
+    if (destination.isEmpty()) {
+        return {true, 0, {}, {}};
+    }
+
+    QString replacedBackup;
+    if (QFileInfo::exists(destination)
+        && conflictPolicy == StorageConflictPolicy::Overwrite) {
+        replacedBackup = destination + QStringLiteral(".quizapp-move-")
+            + QUuid::createUuid().toString(QUuid::WithoutBraces);
+        if (!movePath(destination, replacedBackup)) {
+            return failure(QStringLiteral("无法暂存目标层级中的同名项目"));
+        }
+    }
+    if (!movePath(source.absoluteFilePath(), destination)) {
+        if (!replacedBackup.isEmpty()) {
+            movePath(replacedBackup, destination);
+        }
+        return failure(QStringLiteral("无法移动所选题库项目"));
+    }
+    if (!replacedBackup.isEmpty() && !removePath(replacedBackup)) {
+        return failure(QStringLiteral("项目已移动，但同名项目的临时备份未能清理"));
+    }
+    return {true, 1, destination, {}};
 }
 
 StorageOperationResult SharedStorageFileService::moveToRecycleBin(

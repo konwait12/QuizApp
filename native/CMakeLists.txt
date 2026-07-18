@@ -2,6 +2,19 @@ cmake_minimum_required(VERSION 3.24)
 
 project(QuizAppNative VERSION 2.0.0 LANGUAGES CXX)
 
+set(QUIZAPP_APP_VERSION_NAME "2.0.0-alpha.3" CACHE STRING "QuizApp user-facing version")
+set(QUIZAPP_APP_VERSION_CODE 20003 CACHE STRING "QuizApp Android version code")
+execute_process(
+    COMMAND git rev-parse HEAD
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/.."
+    OUTPUT_VARIABLE QUIZAPP_BUILD_COMMIT
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    ERROR_QUIET
+)
+if(NOT QUIZAPP_BUILD_COMMIT)
+    set(QUIZAPP_BUILD_COMMIT "dev")
+endif()
+
 set(QUIZAPP_ANDROID_PACKAGE_NAME "com.quizapp" CACHE STRING
     "Android application package name")
 set(QUIZAPP_ANDROID_APP_NAME "QuizApp" CACHE STRING
@@ -17,7 +30,7 @@ set(CMAKE_AUTORCC ON)
 
 include(CTest)
 include(cmake/VerifySpeedyNote.cmake)
-find_package(Qt6 6.9 REQUIRED COMPONENTS Concurrent Core Gui Sql Svg Widgets)
+find_package(Qt6 6.9 REQUIRED COMPONENTS Concurrent Core Gui Network Sql Svg Widgets)
 qt_policy(SET QTP0002 NEW)
 if(BUILD_TESTING)
     find_package(Qt6 6.9 REQUIRED COMPONENTS Test)
@@ -33,14 +46,22 @@ endif()
 set(fsrs_bridge_root "${CMAKE_CURRENT_SOURCE_DIR}/third_party/fsrs-bridge")
 set(fsrs_bridge_target_dir "${QUIZAPP_CARGO_TARGET_DIR}")
 if(ANDROID)
-    set(fsrs_rust_target "aarch64-linux-android")
-    set(fsrs_android_linker
-        "${CMAKE_ANDROID_NDK}/toolchains/llvm/prebuilt/windows-x86_64/bin/aarch64-linux-android26-clang.cmd")
+    if(CMAKE_ANDROID_ARCH_ABI STREQUAL "x86_64")
+        set(fsrs_rust_target "x86_64-linux-android")
+        set(fsrs_android_linker
+            "${CMAKE_ANDROID_NDK}/toolchains/llvm/prebuilt/windows-x86_64/bin/x86_64-linux-android26-clang.cmd")
+        set(fsrs_cargo_linker_variable "CARGO_TARGET_X86_64_LINUX_ANDROID_LINKER")
+    else()
+        set(fsrs_rust_target "aarch64-linux-android")
+        set(fsrs_android_linker
+            "${CMAKE_ANDROID_NDK}/toolchains/llvm/prebuilt/windows-x86_64/bin/aarch64-linux-android26-clang.cmd")
+        set(fsrs_cargo_linker_variable "CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER")
+    endif()
     if(NOT EXISTS "${fsrs_android_linker}")
         message(FATAL_ERROR "Android Rust linker not found: ${fsrs_android_linker}")
     endif()
     set(fsrs_cargo_environment
-        "CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER=${fsrs_android_linker}")
+        "${fsrs_cargo_linker_variable}=${fsrs_android_linker}")
 else()
     set(fsrs_rust_target "x86_64-pc-windows-gnu")
     set(fsrs_cargo_environment)
@@ -143,12 +164,25 @@ add_library(quizapp_native_core STATIC
     src/domain/QuestionIdentity.cpp
     src/domain/QuestionOrdering.cpp
     src/platform/SharedStoragePlatform.cpp
+    src/platform/BackupDocumentPlatform.cpp
+    src/platform/SecureSecretStore.cpp
+    src/platform/LegacyWebMigrationPlatform.cpp
     src/services/BankInstallService.cpp
+    src/services/BankReleaseService.cpp
+    src/services/BankReleaseStateStore.cpp
+    src/services/AnnouncementService.cpp
+    src/services/AiConfigService.cpp
+    src/services/AiQuestionAnalysisService.cpp
+    src/services/AppUpdateService.cpp
     src/services/BankDirectorySyncService.cpp
     src/services/BlobStore.cpp
     src/services/DefaultBankBundleBootstrapService.cpp
+    src/services/ExamService.cpp
     src/services/FsrsScheduler.cpp
     src/services/LegacyBankImporter.cpp
+    src/services/LegacyMigrationService.cpp
+    src/services/LocalBackupService.cpp
+    src/services/NotebookService.cpp
     src/services/PracticeService.cpp
     src/services/ReviewService.cpp
     src/services/SharedStorageService.cpp
@@ -157,8 +191,12 @@ add_library(quizapp_native_core STATIC
     src/services/WrongBookService.cpp
     src/services/XiaoyiDirectoryInstallService.cpp
     src/storage/Database.cpp
+    src/storage/SqliteAnswerStateRepository.cpp
+    src/storage/SqliteAiRecordRepository.cpp
     src/storage/SqliteBankSourceRepository.cpp
+    src/storage/SqliteExamRepository.cpp
     src/storage/SqliteLibraryRepository.cpp
+    src/storage/SqliteNotebookRepository.cpp
     src/storage/SqlitePracticeRepository.cpp
     src/storage/SqliteQuestionRepository.cpp
     src/storage/SqliteReviewRepository.cpp
@@ -176,39 +214,55 @@ target_link_libraries(quizapp_native_core PUBLIC
     quizapp_fsrs_bridge
     Qt6::Core
     Qt6::Gui
+    Qt6::Network
     Qt6::Sql
 )
 if(ANDROID)
     target_link_libraries(quizapp_native_core PRIVATE dl log m)
 elseif(MINGW)
-    target_link_libraries(quizapp_native_core PRIVATE bcrypt dbghelp ntdll userenv ws2_32)
+    target_link_libraries(quizapp_native_core PRIVATE bcrypt crypt32 dbghelp ntdll userenv ws2_32)
 endif()
 target_compile_definitions(quizapp_native_core PUBLIC QT_NO_CAST_FROM_ASCII QT_NO_CAST_TO_ASCII)
 
 add_library(quizapp_native_ui STATIC
+    src/ui/AnnouncementDialog.cpp
+    src/ui/AiSettingsPanel.cpp
+    src/ui/AppUpdateDialog.cpp
     src/ui/AnswerTablePage.cpp
     src/ui/AppFont.cpp
     src/ui/AppWindow.cpp
+    src/ui/BankReleaseDialog.cpp
+    src/ui/BackupSettingsPanel.cpp
+    src/ui/ChoiceComboBox.cpp
     src/ui/EndfieldTheme.cpp
+    src/ui/ExamPage.cpp
     src/ui/HandwritingPage.cpp
     src/ui/MaterialIconProvider.cpp
+    src/ui/NotebookLibraryPage.cpp
     src/ui/PracticePage.cpp
+    src/ui/QuestionAiPanel.cpp
     src/ui/QuestionOverviewDialog.cpp
     src/ui/ReviewPage.cpp
     src/ui/StudyHubPage.cpp
     src/ui/StudyTrendChart.cpp
     src/ui/ThemePreview.cpp
     src/ui/ThemePalette.cpp
+    src/platform/AppUpdatePlatform.cpp
 )
 target_include_directories(quizapp_native_ui PUBLIC src)
 target_link_libraries(quizapp_native_ui PUBLIC
     quizapp_native_core
     quizapp_speedynote_core
     Qt6::Concurrent
+    Qt6::Network
     Qt6::Svg
     Qt6::Widgets
 )
 target_compile_definitions(quizapp_native_ui PUBLIC QT_NO_CAST_FROM_ASCII QT_NO_CAST_TO_ASCII)
+target_compile_definitions(quizapp_native_ui PUBLIC
+    QUIZAPP_APP_VERSION="${QUIZAPP_APP_VERSION_NAME}"
+    QUIZAPP_BUILD_COMMIT="${QUIZAPP_BUILD_COMMIT}"
+)
 if(MSVC)
     set_source_files_properties(src/ui/HandwritingPage.cpp PROPERTIES
         COMPILE_OPTIONS "/UQT_NO_CAST_FROM_ASCII;/UQT_NO_CAST_TO_ASCII"
@@ -281,8 +335,8 @@ if(ANDROID)
         QT_ANDROID_PACKAGE_NAME "${QUIZAPP_ANDROID_PACKAGE_NAME}"
         QT_ANDROID_APP_NAME "${QUIZAPP_ANDROID_APP_NAME}"
         QT_ANDROID_PACKAGE_SOURCE_DIR "${quizapp_android_package_source_dir}"
-        QT_ANDROID_VERSION_CODE 20003
-        QT_ANDROID_VERSION_NAME "2.0.0-alpha.3"
+        QT_ANDROID_VERSION_CODE ${QUIZAPP_APP_VERSION_CODE}
+        QT_ANDROID_VERSION_NAME "${QUIZAPP_APP_VERSION_NAME}"
         QT_ANDROID_MIN_SDK_VERSION 26
         QT_ANDROID_TARGET_SDK_VERSION 35
         QT_ANDROID_EXTRA_LIBS "${fsrs_bridge_library}"

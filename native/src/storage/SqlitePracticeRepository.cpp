@@ -308,12 +308,87 @@ std::optional<domain::PracticeSession> SqlitePracticeRepository::latest(
     return load(sessionId, error);
 }
 
+std::optional<domain::PracticeSession> SqlitePracticeRepository::latestAcrossModes(
+    const QString &scopeId,
+    const QVector<domain::PracticeMode> &modes,
+    QString *error) const
+{
+    clearError(error);
+    if (scopeId.trimmed().isEmpty() || modes.isEmpty()) {
+        return std::nullopt;
+    }
+    QStringList placeholders;
+    placeholders.reserve(modes.size());
+    for (qsizetype index = 0; index < modes.size(); ++index) {
+        placeholders.append(QStringLiteral("?"));
+    }
+    QSqlQuery query(database_);
+    query.prepare(QStringLiteral(
+        "SELECT id FROM practice_sessions WHERE scope_id=? AND mode IN (%1) "
+        "ORDER BY updated_at DESC, rowid DESC LIMIT 1")
+                      .arg(placeholders.join(u',')));
+    query.addBindValue(scopeId);
+    for (const domain::PracticeMode mode : modes) {
+        query.addBindValue(static_cast<int>(mode));
+    }
+    if (!execPrepared(query, error) || !query.next()) {
+        return std::nullopt;
+    }
+    const QUuid sessionId(query.value(0).toString());
+    query.finish();
+    return load(sessionId, error);
+}
+
+std::optional<domain::PracticeSession>
+SqlitePracticeRepository::latestIncompleteAcrossScopes(
+    const QVector<domain::PracticeMode> &modes,
+    QString *error) const
+{
+    clearError(error);
+    if (modes.isEmpty()) {
+        return std::nullopt;
+    }
+    QStringList placeholders;
+    placeholders.reserve(modes.size());
+    for (qsizetype index = 0; index < modes.size(); ++index) {
+        placeholders.append(QStringLiteral("?"));
+    }
+    QSqlQuery query(database_);
+    query.prepare(QStringLiteral(
+        "SELECT id FROM practice_sessions WHERE is_complete=0 AND mode IN (%1) "
+        "ORDER BY updated_at DESC, rowid DESC LIMIT 1")
+                      .arg(placeholders.join(u',')));
+    for (const domain::PracticeMode mode : modes) {
+        query.addBindValue(static_cast<int>(mode));
+    }
+    if (!execPrepared(query, error) || !query.next()) {
+        return std::nullopt;
+    }
+    const QUuid sessionId(query.value(0).toString());
+    query.finish();
+    return load(sessionId, error);
+}
+
 bool SqlitePracticeRepository::remove(const QUuid &sessionId, QString *error)
 {
     clearError(error);
     QSqlQuery query(database_);
     query.prepare(QStringLiteral("DELETE FROM practice_sessions WHERE id=?"));
     query.addBindValue(uuidText(sessionId));
+    return execPrepared(query, error);
+}
+
+bool SqlitePracticeRepository::removeScopeMode(
+    const QString &scopeId,
+    domain::PracticeMode mode,
+    QString *error)
+{
+    clearError(error);
+    QSqlQuery query(database_);
+    query.prepare(QStringLiteral(
+        "DELETE FROM practice_sessions WHERE scope_id=? AND mode=?"));
+    query.addBindValue(scopeId);
+    query.addBindValue(static_cast<int>(mode));
     return execPrepared(query, error);
 }
 

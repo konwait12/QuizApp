@@ -17,6 +17,14 @@ const pageErrors = [];
 page.on('pageerror', error => pageErrors.push(error.message));
 
 try {
+  await page.addInitScript(() => {
+    localStorage.setItem('quizapp_ui_config', JSON.stringify({
+      autoUpdateCheck: false,
+      autoAnnouncementCheck: false,
+      autoBankUpdateCheck: false,
+    }));
+    localStorage.setItem('quizapp_announcement_suppressed', '1');
+  });
   await page.goto(appUrl, { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => typeof openExamSetup === 'function' && getVisibleBanks().length > 0);
   await page.evaluate(() => {
@@ -25,12 +33,16 @@ try {
     localStorage.removeItem('quizapp_active_exam');
     openExamSetup();
   });
-  await page.locator('#examCount').selectOption('10');
+  await page.locator('[data-choice-id="examCount"] .choice-trigger').click();
+  await page.locator('[data-choice-id="examCount"] .choice-option[data-choice-value="10"]').click();
   await page.getByRole('button', { name: '开始考试' }).click();
   await page.locator('.exam-question-card').waitFor({ state: 'visible' });
   assert.equal(await page.evaluate(() => state.examSession.questions.length), 10);
 
-  await page.evaluate(() => answerExamQuestion(getCorrectAnswer(state.examSession.questions[0])[0]));
+  await page.evaluate(() => {
+    const correct = String(getCorrectAnswer(state.examSession.questions[0]) || '');
+    correct.split('').forEach(letter => answerExamQuestion(letter));
+  });
   await page.evaluate(() => {
     state.examSession.currentIndex = 1;
     const question = state.examSession.questions[1];

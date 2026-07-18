@@ -350,6 +350,9 @@ HandwritingPage::~HandwritingPage() = default;
 void HandwritingPage::openNotebook(const domain::NotebookLaunchContext &context)
 {
     returning_ = false;
+    freeNotebookOpen_ = false;
+    freeNotebookId_ = QUuid();
+    freeNotebookTitle_.clear();
     context_ = context;
     currentBundlePath_ = bundlePathForCurrentQuestion();
 
@@ -372,6 +375,34 @@ void HandwritingPage::openNotebook(const domain::NotebookLaunchContext &context)
     refreshPageControls();
     QTimer::singleShot(0, this, &HandwritingPage::restoreViewportState);
     viewport_->setFocus();
+}
+
+bool HandwritingPage::openFreeNotebook(const domain::NotebookRecord &record)
+{
+    returning_ = false;
+    freeNotebookOpen_ = true;
+    freeNotebookId_ = record.id;
+    freeNotebookTitle_ = record.title;
+    context_ = {};
+    if (!setFreeNotebookPath(record.relativePath)) {
+        freeNotebookOpen_ = false;
+        setStatus(QStringLiteral("自由笔记路径无效"));
+        return false;
+    }
+    std::unique_ptr<Document> loaded;
+    const QString manifestPath = QDir(currentBundlePath_).filePath(QStringLiteral("document.json"));
+    if (QFileInfo::exists(manifestPath)) loaded = Document::loadBundle(currentBundlePath_);
+    if (!loaded) loaded = Document::createNew(record.title, Document::Mode::Paged);
+    loaded->name = record.title;
+    document_ = std::move(loaded);
+    viewport_->setDocument(document_.get());
+    viewport_->setCurrentTool(ToolType::Pen);
+    titleLabel_->setText(record.title);
+    setStatus(QStringLiteral("自由笔记仅保存在当前设备"));
+    refreshPageControls();
+    QTimer::singleShot(0, this, &HandwritingPage::restoreViewportState);
+    viewport_->setFocus();
+    return true;
 }
 
 bool HandwritingPage::hasNotebookOpen() const
@@ -407,7 +438,8 @@ void HandwritingPage::saveAndReturn()
         return;
     }
     setStatus(QStringLiteral("笔记已保存"));
-    emit returnToPractice(context_);
+    if (freeNotebookOpen_) emit returnToNotebookLibrary(freeNotebookId_);
+    else emit returnToPractice(context_);
 }
 
 void HandwritingPage::keyPressEvent(QKeyEvent *event)
@@ -555,6 +587,7 @@ QString HandwritingPage::questionKey() const
 
 QString HandwritingPage::questionNotesDirectory() const
 {
+    if (freeNotebookOpen_) return QFileInfo(currentBundlePath_).absolutePath();
     return QDir(effectiveDataRoot()).filePath(QStringLiteral("notes/questions"));
 }
 
@@ -565,8 +598,36 @@ QString HandwritingPage::bundlePathForCurrentQuestion() const
 
 QString HandwritingPage::viewportStatePathForCurrentQuestion() const
 {
+    if (freeNotebookOpen_) {
+        return QDir(questionNotesDirectory()).filePath(
+            QStringLiteral("%1.viewport.json").arg(
+                freeNotebookId_.toString(QUuid::WithoutBraces)));
+    }
     return QDir(questionNotesDirectory()).filePath(
         QStringLiteral("%1.viewport.json").arg(questionKey()));
+}
+
+bool HandwritingPage::setFreeNotebookPath(const QString &relativePath)
+{
+    if (relativePath.isEmpty() || QDir::isAbsolutePath(relativePath)
+        || relativePath.contains(u'\\')) {
+        return false;
+    }
+    const QString clean = QDir::cleanPath(relativePath);
+    if (clean != relativePath || clean.startsWith(QStringLiteral("../"))
+        || clean.contains(QStringLiteral("/../"))) {
+        return false;
+    }
+    const QString root = QDir::fromNativeSeparators(
+        QDir::cleanPath(QFileInfo(effectiveDataRoot()).absoluteFilePath()));
+    const QString candidate = QDir::fromNativeSeparators(
+        QDir::cleanPath(QDir(root).filePath(clean)));
+    if (candidate != root
+        && !candidate.startsWith(root + u'/', Qt::CaseInsensitive)) {
+        return false;
+    }
+    currentBundlePath_ = candidate;
+    return true;
 }
 
 void HandwritingPage::restoreViewportState()
@@ -634,6 +695,10 @@ bool HandwritingPage::saveViewportState(QString *errorMessage) const
 
     QJsonObject state;
     state.insert(QStringLiteral("questionId"), questionKey());
+    if (freeNotebookOpen_) {
+        state.insert(QStringLiteral("notebookId"),
+                     freeNotebookId_.toString(QUuid::WithoutBraces));
+    }
     state.insert(QStringLiteral("sessionId"), context_.sessionId.toString(QUuid::WithoutBraces));
     state.insert(QStringLiteral("page"), viewport_->currentPageIndex());
     state.insert(QStringLiteral("zoom"), viewport_->zoomLevel());

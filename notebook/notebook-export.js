@@ -280,12 +280,78 @@
     global.setTimeout(() => URL.revokeObjectURL(url), 1500);
   }
 
+  function dataUrlParts(value) {
+    const match = String(value || '').match(/^data:([^;,]+)?(;base64)?,(.*)$/s);
+    if (!match) return null;
+    const mimeType = match[1] || 'application/octet-stream';
+    const bytes = match[2]
+      ? Uint8Array.from(global.atob(match[3]), character => character.charCodeAt(0))
+      : new TextEncoder().encode(decodeURIComponent(match[3]));
+    return { mimeType, bytes };
+  }
+
+  function bytesToDataUrl(bytes, mimeType) {
+    let binary = '';
+    const chunkSize = 32768;
+    for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+      binary += String.fromCharCode(...bytes.subarray(offset, offset + chunkSize));
+    }
+    return `data:${mimeType || 'application/octet-stream'};base64,${global.btoa(binary)}`;
+  }
+
+  async function createSnbx(document, assets = [], options = {}) {
+    if (!global.JSZip) throw new Error('SNBX 打包模块未加载');
+    const zip = new global.JSZip();
+    const assetManifest = [];
+    progress(options.onProgress, 'prepare', 4, '正在准备笔记包');
+    for (let index = 0; index < assets.length; index += 1) {
+      const asset = assets[index];
+      const decoded = dataUrlParts(asset.dataUrl);
+      const path = decoded ? `assets/${index}.bin` : '';
+      if (decoded) zip.file(path, decoded.bytes, { binary: true });
+      assetManifest.push({ ...asset, dataUrl: undefined, path, mimeType: asset.mimeType || decoded?.mimeType || 'application/octet-stream' });
+      progress(options.onProgress, 'assets', 8 + (index + 1) / Math.max(1, assets.length) * 42, `正在打包资源 ${index + 1}/${assets.length}`);
+      await nextFrame();
+    }
+    zip.file('document.json', JSON.stringify(document));
+    zip.file('manifest.json', JSON.stringify({ format: 'quizapp-snbx', version: 1, createdAt: Date.now(), assets: assetManifest }));
+    progress(options.onProgress, 'encode', 54, '正在压缩 SNBX');
+    const bytes = await zip.generateAsync({ type: 'uint8array', compression: 'DEFLATE', compressionOptions: { level: 6 } }, metadata => {
+      progress(options.onProgress, 'encode', 54 + metadata.percent * .45, `正在压缩 ${Math.round(metadata.percent)}%`);
+    });
+    progress(options.onProgress, 'complete', 100, 'SNBX 已生成');
+    return { bytes, filename: `${safeFilename(document.title)}.snbx`, assetCount: assets.length };
+  }
+
+  async function readSnbx(input, options = {}) {
+    if (!global.JSZip) throw new Error('SNBX 解包模块未加载');
+    const zip = await global.JSZip.loadAsync(input);
+    const manifestFile = zip.file('manifest.json');
+    const documentFile = zip.file('document.json');
+    if (!manifestFile || !documentFile) throw new Error('不是有效的 QuizApp SNBX 笔记包');
+    const manifest = JSON.parse(await manifestFile.async('string'));
+    if (manifest.format !== 'quizapp-snbx') throw new Error('不支持的 SNBX 格式');
+    const document = JSON.parse(await documentFile.async('string'));
+    const assets = [];
+    const records = Array.isArray(manifest.assets) ? manifest.assets : [];
+    for (let index = 0; index < records.length; index += 1) {
+      const record = records[index];
+      const file = record.path ? zip.file(record.path) : null;
+      const bytes = file ? await file.async('uint8array') : new Uint8Array();
+      assets.push({ ...record, path: undefined, dataUrl: bytes.length ? bytesToDataUrl(bytes, record.mimeType) : '' });
+      progress(options.onProgress, 'extract', (index + 1) / Math.max(1, records.length) * 100, `正在读取资源 ${index + 1}/${records.length}`);
+    }
+    return { document, assets, manifest };
+  }
+
   global.QuizNotebookExport = {
     PDF_POINT_SCALE,
     safeFilename,
     renderPage,
     canvasBlob,
     createPdf,
+    createSnbx,
+    readSnbx,
     download,
   };
 })(window);

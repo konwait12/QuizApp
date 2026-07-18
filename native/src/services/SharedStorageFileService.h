@@ -31,6 +31,15 @@ public:
         const QString &destinationDirectory,
         const QStringList &sourceFiles,
         StorageConflictPolicy conflictPolicy) const;
+    StorageOperationResult renameQuestionBankEntry(
+        const SharedStorageLayout &layout,
+        const QString &sourcePath,
+        const QString &newName) const;
+    StorageOperationResult moveQuestionBankEntry(
+        const SharedStorageLayout &layout,
+        const QString &sourcePath,
+        const QString &destinationDirectory,
+        StorageConflictPolicy conflictPolicy) const;
     StorageOperationResult moveToRecycleBin(
         const SharedStorageLayout &layout,
         const QString &sourcePath) const;

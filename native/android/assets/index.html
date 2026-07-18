@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>QuizApp Legacy Migration</title>
+</head>
+<body>
+<script>
+(() => {
+  'use strict';
+
+  const DATABASE_NAME = 'quizapp_study_data';
+  const USER_DATA_KEYS = new Set([
+    'quizapp_banks',
+    'quizapp_wrong_book',
+    'quizapp_ui_config',
+    'quizapp_saved_session',
+    'quizapp_saved_progress',
+    'quizapp_view_progress',
+    'quizapp_answer_state',
+    'quizapp_study_stats',
+    'quizapp_library_nodes',
+    'quizapp_bank_meta',
+    'quizapp_recycle_bin',
+    'quizapp_ai_config',
+    'quizapp_ocr_config',
+    'quizapp_ai_threads',
+    'quizapp_ai_analyses'
+  ]);
+  const SECRET_KEYS = new Set([
+    'apikey', 'api_key', 'key', 'token', 'authorization', 'secret'
+  ]);
+
+  function redactSecrets(value) {
+    if (Array.isArray(value)) return value.map(redactSecrets);
+    if (!value || typeof value !== 'object') return value;
+    const result = {};
+    Object.entries(value).forEach(([key, entry]) => {
+      if (!SECRET_KEYS.has(String(key).trim().toLowerCase())) {
+        result[key] = redactSecrets(entry);
+      }
+    });
+    return result;
+  }
+
+  function bytesToBase64(bytes) {
+    const chunks = [];
+    for (let offset = 0; offset < bytes.length; offset += 32768) {
+      chunks.push(String.fromCharCode.apply(
+        null, bytes.subarray(offset, Math.min(bytes.length, offset + 32768))));
+    }
+    return btoa(chunks.join(''));
+  }
+
+  async function serializable(value, seen = new WeakSet()) {
+    if (value instanceof Blob) {
+      const bytes = new Uint8Array(await value.arrayBuffer());
+      return {
+        __quizappBinary: 'blob',
+        type: value.type || 'application/octet-stream',
+        size: value.size,
+        base64: bytesToBase64(bytes)
+      };
+    }
+    if (value instanceof ArrayBuffer) {
+      const bytes = new Uint8Array(value);
+      return { __quizappBinary: 'array-buffer', size: bytes.length,
+        base64: bytesToBase64(bytes) };
+    }
+    if (ArrayBuffer.isView(value)) {
+      const bytes = new Uint8Array(value.buffer, value.byteOffset, value.byteLength);
+      return { __quizappBinary: 'typed-array', constructor: value.constructor.name,
+        size: bytes.length, base64: bytesToBase64(bytes) };
+    }
+    if (value instanceof Date) return { __quizappDate: value.toISOString() };
+    if (Array.isArray(value)) {
+      const result = [];
+      for (const entry of value) result.push(await serializable(entry, seen));
+      return result;
+    }
+    if (!value || typeof value !== 'object') return value;
+    if (seen.has(value)) return { __quizappUnsupported: 'cyclic-reference' };
+    seen.add(value);
+    const result = {};
+    for (const [key, entry] of Object.entries(value)) {
+      result[key] = await serializable(entry, seen);
+    }
+    seen.delete(value);
+    return result;
+  }
+
+  function readStore(database, storeName) {
+    return new Promise((resolve, reject) => {
+      const transaction = database.transaction(storeName, 'readonly');
+      const request = transaction.objectStore(storeName).getAll();
+      request.onsuccess = () => resolve(request.result || []);
+      request.onerror = () => reject(request.error || new Error(`read ${storeName} failed`));
+      transaction.onabort = () => reject(transaction.error || new Error(`read ${storeName} aborted`));
+    });
+  }
+
+  function openExistingDatabase(name) {
+    return new Promise(resolve => {
+      let created = false;
+      const request = indexedDB.open(name);
+      request.onupgradeneeded = () => {
+        created = true;
+        request.transaction.abort();
+      };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => resolve(null);
+      request.onblocked = () => resolve(null);
+      if (created) resolve(null);
+    });
+  }
+
+  async function exportIndexedDb() {
+    if (!window.indexedDB) return {};
+    const database = await openExistingDatabase(DATABASE_NAME);
+    if (!database) return {};
+    try {
+      const stores = {};
+      for (const storeName of Array.from(database.objectStoreNames)) {
+        const values = await readStore(database, storeName);
+        const records = [];
+        for (const value of values) records.push(await serializable(value));
+        stores[storeName] = records;
+      }
+      return { [DATABASE_NAME]: { version: database.version, stores } };
+    } finally {
+      database.close();
+    }
+  }
+
+  async function run() {
+    const local = {};
+    let hasUserData = false;
+    for (let index = 0; index < localStorage.length; index += 1) {
+      const key = localStorage.key(index);
+      if (!key || !key.startsWith('quizapp_')) continue;
+      let value = localStorage.getItem(key);
+      if (key === 'quizapp_ai_config' && value) {
+        try { value = JSON.stringify(redactSecrets(JSON.parse(value))); } catch (_) {}
+      }
+      local[key] = value == null ? '' : value;
+      if (USER_DATA_KEYS.has(key) && value) hasUserData = true;
+    }
+    const indexedDb = await exportIndexedDb();
+    const indexedCount = Object.values(indexedDb).reduce((databaseTotal, database) =>
+      databaseTotal + Object.values(database.stores || {}).reduce(
+        (storeTotal, records) => storeTotal + records.length, 0), 0);
+    if (!hasUserData && indexedCount === 0) {
+      window.QuizAppMigration.noData();
+      return;
+    }
+    const sourceVersion = new URLSearchParams(location.search).get('sourceVersion')
+      || 'legacy-webview';
+    window.QuizAppMigration.complete(JSON.stringify({
+      format: 'quizapp-legacy-v1',
+      schemaVersion: 1,
+      sourceVersion,
+      exportedAt: new Date().toISOString(),
+      localStorage: local,
+      indexedDb
+    }));
+  }
+
+  run().catch(error => window.QuizAppMigration.fail(
+    String(error && (error.stack || error.message) || error)));
+})();
+</script>
+</body>
+</html>

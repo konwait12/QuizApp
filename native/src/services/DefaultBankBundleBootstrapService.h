@@ -30,12 +30,15 @@ struct DefaultBankBundleBootstrapResult {
 class DefaultBankBundleBootstrapService final {
 public:
     using CopyGate = std::function<bool(const QString &relativePath)>;
+    using ProgressCallback = std::function<void(
+        const QString &phase, int completed, int total)>;
 
     DefaultBankBundleBootstrapResult install(
         const QString &bundleRoot,
         const QString &dataRoot,
         const QString &databasePath,
-        const CopyGate &copyGate = {}) const;
+        const CopyGate &copyGate = {},
+        const ProgressCallback &progress = {}) const;
 };
 
 } // namespace quizapp::services
