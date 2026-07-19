@@ -111,7 +111,7 @@
         ${study.subject ? `
           <div class="hub-section-title"><h2>学习范围</h2><span class="settings-subtitle">选择范围不会离开本页</span></div>
           <div class="study-scope-dropdown">${renderChoiceSelect('studyScopeSelect', activeScope.token, scopeOptions, 'studyScope')}</div>
-          <div class="study-scope-switcher">${study.scopes.map(item => `<button class="study-scope-chip ${item.active ? 'active' : ''}" onclick="selectStudyScope('${item.token}')">${escapeHtml(item.label)} · ${item.count}</button>`).join('')}</div>
+          <div class="study-scope-switcher">${study.scopes.map(item => `<button class="study-scope-chip ${item.active ? 'active' : ''}" onclick="selectStudyScope('${item.token}','switcher')">${escapeHtml(item.label)} · ${item.count}</button>`).join('')}</div>
           <div class="study-scope-summary"><div><strong>${escapeHtml(study.selectedLabel)}</strong><small>已练 ${study.scopeAnswered}/${study.scopeQuestionCount} · 错题集 ${study.scopeWrong} · 今日本科 ${escapeHtml(formatStudyDuration(study.subjectStats.todaySeconds || 0))}</small></div><span>${study.scopePercent}%</span></div>
           <div class="hub-section-title"><h2>开始学习</h2><span class="settings-subtitle">当前范围 ${study.scopeQuestionCount} 题</span></div>
           <div class="study-mode-grid">

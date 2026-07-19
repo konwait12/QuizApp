@@ -404,11 +404,44 @@ body[data-theme="dark"] .answer-reveal button{
 .app-dialog-actions.single button{min-width:112px}
 .app-dialog-actions button.secondary{background:var(--bg);color:var(--muted)}
 .announcement-dialog{width:min(560px,100%);overflow:hidden}
+.announcement-board-dialog{
+  width:100%;
+  height:100dvh;
+  max-height:none;
+  padding:0;
+  gap:0;
+  border:0;
+  border-radius:0;
+  background:var(--bg);
+  box-shadow:none
+}
+.app-dialog-mask:has(.announcement-board-dialog){padding:0;background:var(--bg);place-items:stretch}
+.announcement-board-head{
+  flex:0 0 auto;
+  display:grid;
+  grid-template-columns:44px minmax(0,1fr) 44px;
+  align-items:center;
+  min-height:54px;
+  border-bottom:1px solid var(--line);
+  background:var(--bar-bg)
+}
+.announcement-board-head h3{
+  margin:0;
+  text-align:center;
+  font-size:15px;
+  font-weight:850
+}
+.announcement-board-back{
+  width:44px;height:44px;border:0;background:transparent;color:var(--muted);
+  font-size:28px;line-height:1;cursor:pointer
+}
 .announcement-body{
   display:flex;flex-direction:column;gap:10px;color:var(--muted);font-size:13px;line-height:1.7;
   flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y;
   padding-right:2px
 }
+.announcement-board-dialog .announcement-body{padding:22px clamp(18px,5vw,48px) calc(28px + env(safe-area-inset-bottom));gap:0}
+.announcement-board-dialog .announcement-timeline{width:min(760px,100%);margin:0 auto}
 .announcement-body h4{font-size:14px;color:var(--text);line-height:1.35}
 .announcement-body p,.announcement-body ul{margin:0}
 .announcement-body ul{padding-left:18px}
@@ -473,6 +506,33 @@ body[data-theme="dark"] .answer-reveal button{
   border-top:1px solid var(--line);padding:12px;max-height:min(34dvh,320px);overflow:auto;
   overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y
 }
+.announcement-timeline{display:flex;flex-direction:column;gap:24px}
+.announcement-time{
+  text-align:center;
+  color:var(--text);
+  font-size:12px;
+  font-weight:850;
+  line-height:1
+}
+.announcement-card{
+  margin-top:13px;
+  padding:18px;
+  border:1px solid var(--line);
+  border-radius:12px;
+  background:var(--card);
+  color:var(--muted);
+  font-size:13px;
+  line-height:1.78
+}
+.announcement-card h4{
+  margin:0 0 12px;
+  color:var(--text);
+  font-size:15px;
+  line-height:1.4
+}
+.announcement-card p{margin:0 0 10px}
+.announcement-card ul{margin:0;padding-left:18px}
+.announcement-card li{margin:4px 0}
 .announcement-option{
   display:flex;align-items:center;gap:8px;border:1px solid var(--line);
   background:var(--bg);border-radius:var(--radius-sm);padding:10px 12px;
@@ -1793,6 +1853,10 @@ body[data-system-theme="endfield"] .analysis-panel{position:relative;border:1px 
 @media(max-width:520px){.learning-insight-grid{grid-template-columns:1fr}.learning-insight-grid button{display:grid;grid-template-columns:56px minmax(0,1fr);align-items:center}.learning-insight-grid strong{grid-row:1/3}.learning-insight-grid span,.learning-insight-grid small{grid-column:2;margin-top:0}.wrong-reason-row{grid-template-columns:58px minmax(0,1fr) 20px}}
 @media(max-width:520px){.hub-study-status button{grid-template-columns:1fr;justify-items:center;padding:9px 4px;text-align:center}.hub-study-status strong{grid-row:auto}.hub-study-status span{margin-top:2px;font-size:10px}.hub-study-status small{display:none}}
 @media(max-width:520px){.study-mode-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.study-mode-entry{min-height:70px}.study-scope-summary{padding:11px 12px}.study-scope-dropdown{max-width:none}}
+@media(max-width:520px){
+  .announcement-board-dialog .announcement-body{padding:22px 18px calc(28px + env(safe-area-inset-bottom))}
+  .announcement-card{padding:18px;border-radius:10px}
+}
 @media(min-width:840px) and (orientation:landscape){
   .main-nav{left:50%;transform:translateX(-50%);width:min(1180px,100%)}
   .hub-quick-grid{grid-template-columns:repeat(6,minmax(0,1fr))}
@@ -2066,6 +2130,126 @@ body[data-system-theme="endfield"] .analysis-panel{position:relative;border:1px 
   .notebook-question-nav{display:none}
 }
 
+/* Notebook library and focused editor */
+.notebook-library-view{
+  position:fixed;inset:0;z-index:90;display:grid;grid-template-rows:58px minmax(0,1fr);
+  width:100vw;height:100dvh;background:var(--bg);color:var(--text);overflow:hidden
+}
+.notebook-library-topbar{
+  display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:12px;
+  padding:8px 16px;border-bottom:1px solid var(--line);background:var(--bar-bg)
+}
+.notebook-library-title{min-width:0}.notebook-library-title strong,.notebook-library-title small{display:block}
+.notebook-library-title strong{font-size:18px}.notebook-library-title small{margin-top:2px;color:var(--muted);font-size:10px}
+.notebook-library-top-actions{display:flex;align-items:center;gap:6px}
+.notebook-library-icon-button{
+  width:38px;height:38px;display:grid;place-items:center;border:1px solid var(--line);border-radius:6px;
+  background:var(--surface);color:var(--text);font:inherit;font-size:16px;cursor:pointer
+}
+.notebook-library-icon-button.primary{border-color:var(--primary);background:var(--primary);color:var(--on-primary,#fff)}
+.notebook-library-shell{min-height:0;display:grid;grid-template-columns:250px minmax(0,1fr);overflow:hidden}
+.notebook-library-sidebar{min-height:0;display:flex;flex-direction:column;border-right:1px solid var(--line);background:var(--surface)}
+.notebook-library-search-wrap{padding:12px 12px 6px}
+.notebook-library-search-wrap input{
+  width:100%;height:38px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--text);
+  padding:0 11px;font:inherit;font-size:12px
+}
+.notebook-folder-list{min-height:0;flex:1;overflow:auto;padding:5px 8px 12px}
+.notebook-folder-section-label{display:flex;align-items:center;justify-content:space-between;padding:12px 9px 5px;color:var(--muted);font-size:10px;font-weight:800}
+.notebook-folder-section-label button{width:26px;height:26px;border:0;background:transparent;color:var(--primary);font:20px/1 sans-serif}
+.notebook-folder-item{
+  width:100%;min-height:40px;display:grid;grid-template-columns:24px minmax(0,1fr) auto;align-items:center;gap:8px;
+  padding:6px 9px;border:0;border-radius:5px;background:transparent;color:var(--text);font:inherit;text-align:left;cursor:pointer
+}
+.notebook-folder-item:hover{background:var(--surface-soft)}
+.notebook-folder-item.active{background:var(--primary-soft);color:var(--primary)}
+.notebook-folder-item span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:650}
+.notebook-folder-item small{color:var(--muted);font-size:10px}.notebook-folder-item .folder-actions{display:flex;gap:2px}
+.notebook-folder-item .folder-actions button{width:24px;height:24px;border:0;background:transparent;color:var(--muted);font:inherit}
+.notebook-library-main{min-width:0;min-height:0;display:flex;flex-direction:column;background:var(--bg)}
+.notebook-library-mainbar{display:flex;align-items:center;gap:8px;min-height:58px;padding:10px 18px;border-bottom:1px solid var(--line);background:var(--surface)}
+.notebook-library-mainbar h2{min-width:0;flex:1;font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.notebook-library-view-toggle{display:flex;padding:3px;border:1px solid var(--line);border-radius:6px;background:var(--bg)}
+.notebook-library-view-toggle button{width:32px;height:30px;border:0;border-radius:4px;background:transparent;color:var(--muted);font:inherit}
+.notebook-library-view-toggle button.active{background:var(--surface);color:var(--primary);box-shadow:var(--shadow-soft)}
+.notebook-library-content{min-height:0;flex:1;overflow:auto;padding:20px;overscroll-behavior:contain}
+.notebook-library-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:24px 18px;align-items:start}
+.notebook-library-list{display:grid;gap:2px;max-width:980px}
+.notebook-cover-card{min-width:0;position:relative;cursor:pointer}
+.notebook-cover-visual{
+  position:relative;width:100%;aspect-ratio:4/5;overflow:hidden;border:1px solid var(--line);border-radius:6px;
+  background:var(--surface);box-shadow:0 7px 18px rgba(20,28,24,.10)
+}
+.notebook-cover-visual::after{content:"";position:absolute;inset:0;border:1px solid rgba(255,255,255,.3);border-radius:inherit;pointer-events:none}
+.notebook-cover-preset{position:absolute;inset:0;display:grid;grid-template-rows:1fr 32%;background:#809c91}
+.notebook-cover-preset::before{content:"";background:rgba(255,255,255,.13);border-right:12px solid rgba(22,43,35,.18)}
+.notebook-cover-preset::after{content:"";background:#f7f4e8;border-top:1px solid rgba(0,0,0,.08)}
+.notebook-cover-preset.blue{background:#738cb8}.notebook-cover-preset.rose{background:#a06d75}
+.notebook-cover-preset.charcoal{background:#4a5350}.notebook-cover-preset.gold{background:#a88a4e}
+.notebook-cover-image,.notebook-cover-page{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#fff}
+.notebook-cover-title{margin-top:9px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:750}
+.notebook-cover-meta{margin-top:3px;color:var(--muted);font-size:9px}
+.notebook-cover-menu{position:absolute;right:5px;top:5px;z-index:2;width:30px;height:30px;border:1px solid var(--line);border-radius:5px;background:var(--bar-bg);color:var(--text);font:18px/1 sans-serif}
+.notebook-library-row{
+  min-height:58px;display:grid;grid-template-columns:42px minmax(0,1fr) auto;align-items:center;gap:10px;
+  padding:7px 8px;border-bottom:1px solid var(--line);color:var(--text);cursor:pointer
+}
+.notebook-library-row:hover{background:var(--surface-soft)}
+.notebook-library-row-cover{width:38px;height:46px;position:relative;overflow:hidden;border:1px solid var(--line);border-radius:4px;background:var(--surface)}
+.notebook-library-row-copy strong,.notebook-library-row-copy small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.notebook-library-row-copy strong{font-size:12px}.notebook-library-row-copy small{margin-top:3px;color:var(--muted);font-size:9px}
+.notebook-library-row-actions{display:flex;gap:3px}.notebook-library-row-actions button{width:30px;height:30px;border:0;border-radius:4px;background:transparent;color:var(--muted);font:inherit}
+.notebook-library-empty{display:grid;place-items:center;min-height:50vh;color:var(--muted);text-align:center}.notebook-library-empty strong{display:block;color:var(--text);font-size:16px}.notebook-library-empty small{display:block;margin-top:6px;font-size:11px}
+.notebook-cover-choice-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}.notebook-cover-choice{position:relative;overflow:hidden;aspect-ratio:4/5;border:2px solid transparent;border-radius:5px;padding:0}.notebook-cover-choice.active{border-color:var(--primary)}
+.notebook-cover-crop{display:grid;gap:10px}.notebook-cover-crop-preview{width:min(240px,70vw);aspect-ratio:4/5;margin:auto;overflow:hidden;border:1px solid var(--line);border-radius:6px;background:var(--surface)}
+.notebook-cover-crop-preview img{width:100%;height:100%;object-fit:cover;transform-origin:center}
+
+.notebook-view{position:fixed;inset:0;z-index:90;width:100vw;height:100dvh;max-width:none;background:var(--bg)}
+.notebook-typing-surface{position:relative;min-height:0;background:#eef2ef;overflow:auto;padding:28px}
+.notebook-typing-page{width:min(760px,100%);min-height:100%;margin:0 auto;background:#fff;box-shadow:0 8px 28px rgba(20,34,27,.12)}
+.notebook-typing-editor{width:100%;min-height:calc(100dvh - 210px);resize:none;border:0;background:transparent;color:#202522;padding:54px 58px;font:16px/1.85 "Microsoft YaHei","Noto Sans SC",sans-serif;outline:none}
+.notebook-editor-mode-switch,.notebook-input-mode-switch{display:flex;padding:3px;border:1px solid var(--line);border-radius:6px;background:var(--surface-soft)}
+.notebook-editor-mode-switch button,.notebook-input-mode-switch button{height:29px;padding:0 9px;border:0;border-radius:4px;background:transparent;color:var(--muted);font:inherit;font-size:10px;font-weight:700;white-space:nowrap}
+.notebook-editor-mode-switch button.active,.notebook-input-mode-switch button.active{background:var(--surface);color:var(--primary);box-shadow:var(--shadow-soft)}
+.notebook-center.typing-mode>.notebook-toolbar-stack{display:none}
+
+@media(min-width:840px) and (orientation:landscape){
+  .notebook-center{position:relative;grid-template-rows:minmax(0,1fr) 72px}
+  .notebook-toolbar-stack{position:absolute;left:10px;top:12px;z-index:20;width:44px;display:block;border:1px solid var(--line);border-radius:6px;background:var(--bar-bg);box-shadow:var(--shadow)}
+  .notebook-toolbar{height:auto;max-height:calc(100dvh - 190px);flex-direction:column;gap:4px;padding:5px;overflow-y:auto;overflow-x:hidden}
+  .notebook-toolbar .notebook-tool{flex:0 0 32px;width:32px;height:32px}
+  .notebook-toolbar-separator{width:24px;height:1px;flex-basis:1px;margin:2px 4px}
+  .notebook-subtoolbar{position:absolute;left:50px;top:0;z-index:2;width:max-content;max-width:min(470px,60vw);min-height:42px;padding:5px 8px;border:1px solid var(--line);border-radius:6px;background:var(--bar-bg);box-shadow:var(--shadow)}
+  .notebook-subtoolbar.hidden{display:none}
+}
+
+@media(max-width:839px),(orientation:portrait){
+  .notebook-library-view{grid-template-rows:54px minmax(0,1fr)}
+  .notebook-library-topbar{padding:6px 8px}.notebook-library-title strong{font-size:15px}.notebook-library-title small{display:none}
+  .notebook-library-shell{display:flex;flex-direction:column}
+  .notebook-library-sidebar{flex:0 0 auto;border-right:0;border-bottom:1px solid var(--line)}
+  .notebook-library-search-wrap{padding:8px 8px 4px}.notebook-folder-list{display:flex;gap:5px;overflow-x:auto;padding:4px 8px 8px;scrollbar-width:none}
+  .notebook-folder-list::-webkit-scrollbar{display:none}
+  .notebook-folder-section-label{display:none}.notebook-folder-item{flex:0 0 auto;width:auto;min-height:34px;grid-template-columns:auto auto auto;padding:5px 10px;border:1px solid var(--line);background:var(--bg)}
+  .notebook-folder-item .folder-actions{display:none}.notebook-library-mainbar{min-height:48px;padding:7px 10px}.notebook-library-mainbar h2{font-size:14px}
+  .notebook-library-content{padding:8px}.notebook-library-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:18px 12px;padding:4px}
+  .notebook-library-row{grid-template-columns:38px minmax(0,1fr) auto}.notebook-library-row-actions button:not(:last-child){display:none}
+  .notebook-typing-surface{height:100%;padding:0;background:#fff;overflow:hidden}.notebook-typing-page{width:100%;height:100%;min-height:0;box-shadow:none}
+  .notebook-typing-editor{height:100%;min-height:0;overflow-y:auto;padding:26px 20px 80px;font-size:16px}
+  .notebook-center{display:grid;grid-template-rows:minmax(0,1fr) auto}
+  .notebook-center>.notebook-toolbar-stack{grid-row:2}.notebook-center>.notebook-canvas-wrap,.notebook-center>.notebook-typing-surface{grid-row:1}.notebook-center>.notebook-pages{grid-row:3}
+  .notebook-toolbar-stack{grid-template-rows:auto}.notebook-subtoolbar{display:none}.notebook-toolbar{justify-content:safe center;min-height:46px;border-top:1px solid var(--line)}
+  .notebook-center>.notebook-pages,.notebook-document-tabs{display:none}
+  .notebook-mobile-sheet{align-self:end;width:100%;max-width:none;max-height:min(78dvh,640px);margin:0;border-radius:12px 12px 0 0;padding:16px 14px calc(14px + env(safe-area-inset-bottom));overflow:auto}
+  .app-dialog-mask:has(.notebook-mobile-sheet){place-items:end stretch;padding:0}
+  .notebook-mobile-tool-settings{display:flex;align-items:center;gap:9px;flex-wrap:wrap;min-height:58px;padding:10px;border:1px solid var(--line);border-radius:7px;background:var(--surface-soft)}
+  .notebook-mobile-tool-settings .notebook-subtoolbar-label{flex-basis:100%}
+  .notebook-mobile-tool-settings .notebook-width{flex:1 1 130px;min-width:110px}
+  .notebook-mobile-tool-settings .notebook-input-mode-switch{margin-left:auto}
+  .notebook-pages-sheet-list{display:flex;align-items:center;gap:8px;min-height:86px;padding:8px 2px;overflow-x:auto;border:0;background:transparent;scrollbar-width:none}
+  .notebook-pages-sheet-list::-webkit-scrollbar{display:none}
+}
+
 @media(min-width:840px) and (orientation:landscape){
   .tablet-only{display:flex!important}
   .tool-group>.tablet-only{min-width:0}
@@ -2239,7 +2423,7 @@ body[data-system-theme="endfield"] .exam-options button.selected span{color:#101
 <body>
 <div class="app" id="app"></div>
 
-<script src="./vendor/perfect-freehand.min.js?v=1.0.20"></script>
+<script src="./vendor/perfect-freehand.min.js?v=1.0.21"></script>
 <script src="./vendor/ts-fsrs.umd.js?v=5.4.1"></script>
 <script src="./vendor/pdfjs/pdf.min.js?v=3.11.174"></script>
 <script src="./vendor/pdf-lib/pdf-lib.min.js?v=1.17.1"></script>
@@ -2249,23 +2433,23 @@ body[data-system-theme="endfield"] .exam-options button.selected span{color:#101
 <script src="./vendor/cytoscape/cytoscape.min.js?v=3.33.1"></script>
 <script src="./vendor/tesseract/tesseract.min.js?v=7.0.0"></script>
 <script src="./vendor/jszip.min.js?v=3.10.1"></script>
-<script src="./notebook/speedynote-notebook.js?v=1.0.20"></script>
-<script src="./notebook/pdf-notebook.js?v=1.0.20"></script>
-<script src="./notebook/notebook-export.js?v=1.0.20"></script>
-<script src="./notebook/rich-objects.js?v=1.0.20"></script>
-<script src="./notebook/knowledge-graph.js?v=1.0.20"></script>
-<script src="./notebook/ocr.js?v=1.0.20"></script>
-<script src="./notebook/ocr-ui.js?v=1.0.20"></script>
-<script src="./review/fsrs-review.js?v=1.0.20"></script>
-<script src="./review/review-ui.js?v=1.0.20"></script>
-<script src="./exam/exam-ui.js?v=1.0.20"></script>
-<script src="./ai/learning-tasks.js?v=1.0.20"></script>
-<script src="./backup/local-backup.js?v=1.0.20"></script>
-<script src="./shell/main-hub.js?v=1.0.20"></script>
+<script src="./notebook/speedynote-notebook.js?v=1.0.21"></script>
+<script src="./notebook/pdf-notebook.js?v=1.0.21"></script>
+<script src="./notebook/notebook-export.js?v=1.0.21"></script>
+<script src="./notebook/rich-objects.js?v=1.0.21"></script>
+<script src="./notebook/knowledge-graph.js?v=1.0.21"></script>
+<script src="./notebook/ocr.js?v=1.0.21"></script>
+<script src="./notebook/ocr-ui.js?v=1.0.21"></script>
+<script src="./review/fsrs-review.js?v=1.0.21"></script>
+<script src="./review/review-ui.js?v=1.0.21"></script>
+<script src="./exam/exam-ui.js?v=1.0.21"></script>
+<script src="./ai/learning-tasks.js?v=1.0.21"></script>
+<script src="./backup/local-backup.js?v=1.0.21"></script>
+<script src="./shell/main-hub.js?v=1.0.21"></script>
 <script>
 // ========== State ==========
 const STORAGE_KEY = 'quizapp_banks';
-const APP_VERSION = 'v1.0.20';
+const APP_VERSION = 'v1.0.21';
 const APP_BUILD_COMMIT = 'dev';
 const RELEASE_API_URL = 'https://api.github.com/repos/konwait12/QuizApp/releases/latest';
 const RELEASE_PAGE_URL = 'https://github.com/konwait12/QuizApp/releases/latest';
@@ -2288,6 +2472,7 @@ const AI_CONFIG_KEY = 'quizapp_ai_config';
 const OCR_CONFIG_KEY = 'quizapp_ocr_config';
 const NOTEBOOK_LAYOUT_KEY = 'quizapp_notebook_widget_layout';
 const NOTEBOOK_DOCK_KEY = 'quizapp_notebook_dock_layout';
+const NOTEBOOK_FOLDERS_KEY = 'quizapp_notebook_folders_v1';
 const AI_THREADS_KEY = 'quizapp_ai_threads';
 const AI_ANALYSES_KEY = 'quizapp_ai_analyses';
 const INK_DB_NAME = 'quizapp_study_data';
@@ -2299,7 +2484,7 @@ const NOTEBOOK_ASSET_STORE_NAME = 'notebook_assets';
 const NOTEBOOK_ASSET_DOCUMENT_INDEX = 'documentId';
 const LARGE_BANK_THRESHOLD = 750000;
 const UI_CONFIG_VERSION = 2;
-const ANNOUNCEMENT_ID = 'release-v1.0.20';
+const ANNOUNCEMENT_ID = 'release-v1.0.21';
 const ANNOUNCEMENT_SEEN_KEY = 'quizapp_announcement_seen';
 const ANNOUNCEMENT_SUPPRESS_KEY = 'quizapp_announcement_suppressed';
 const ANNOUNCEMENT_READ_IDS_KEY = 'quizapp_announcement_read_ids';
@@ -2342,10 +2527,24 @@ const AI_QUESTION_SYSTEM_PROMPT = `你是严谨的题目解析教师。你会收
 规则：以提供的结构化正确答案为准；如果题目、选项与答案明显矛盾，必须指出矛盾但不要私自改答案；不得编造教材原文或来源。`;
 const ANNOUNCEMENTS = [
   {
+    id: 'release-v1.0.21',
+    title: 'v1.0.21 系统通知与笔记资料库',
+    date: '2026-07-19',
+    latest: true,
+    body: `
+      <ul>
+        <li>公告改为独立“系统通知”页面，支持多篇完整查看、按时间排序和滚动；启动时只提示最新未读公告。</li>
+        <li>自由笔记新增资料库、科目与自定义文件夹、封面网格和手机紧凑列表，旧笔记会自动补齐兼容字段。</li>
+        <li>手机自由笔记默认进入文字模式，文字和笔迹可叠加；手写支持“笔写字”和“手指写字”两种触控方式。</li>
+        <li>优化手机、平板和桌面书写工具布局，并限制分页纸张拖动边界，减少画布跑远和工具挤占空间。</li>
+        <li>学习范围支持下拉选择后自动显示高亮章节，直接点击横向章节时保留当前滚动视角。</li>
+      </ul>
+    `,
+  },
+  {
     id: 'release-v1.0.20',
     title: 'v1.0.20 手写笔记与综合学习工作台',
     date: '2026-07-15',
-    latest: true,
     body: `
       <ul>
         <li>新增平板横屏手写练题工作台，普通刷题页也可从当前题目进入手写，返回后保留题号、答案和进度。</li>
@@ -2608,6 +2807,7 @@ let state = {
   inkColor: '#202522',
   inkSize: 5,
   inkPenOnly: true,
+  notebookEditorMode: 'handwriting',
   notebookRepository: null,
   notebookSession: null,
   notebookViewport: null,
@@ -2629,7 +2829,11 @@ let state = {
   notebookAssetRepository: null,
   notebookAssetCache: new Map(),
   notebookLibrarySearch: '',
-  notebookSubtoolbarOpen: true,
+  notebookLibraryFolderId: 'all',
+  notebookLibraryMobileLayout: null,
+  notebookFolders: [],
+  pendingNotebookCoverDocumentId: '',
+  notebookSubtoolbarOpen: false,
   notebookSearchIndex: new Map(),
   notebookGraph: null,
   notebookGraphSelection: null,
@@ -2676,6 +2880,8 @@ let state = {
     hiddenHomeMetrics: [],
     subjectOrder: [],
     libraryOrder: {},
+    notebookLibraryViewDesktop: 'covers',
+    notebookLibraryViewMobile: 'list',
   },
 };
 
@@ -2863,6 +3069,7 @@ function restoreRoute(route) {
   if (route.view === 'subjects') return renderSubject();
   if (route.view === 'settings') return renderSettings();
   if (route.view === 'studyStats') return renderStudyStatsPage();
+  if (route.view === 'notebookLibrary') return openFreeNotebookLibrary({ restoreRoute: true });
   if (route.view === 'answerLookup') return renderAnswerLookup();
   if (route.view === 'aiChat') return renderAiChat();
   if (route.view === 'aiSettings') return renderAiSettings();
@@ -3741,7 +3948,7 @@ function openPracticeProgressDetails() {
           </button>
         `).join('') || '<div class="settings-notice">暂无题库</div>'}
       </div>
-      <div class="app-dialog-actions"><button type="button" onclick="closeAppDialog()">关闭</button></div>
+      <div class="app-dialog-actions single"><button type="button" onclick="closeAppDialog()">关闭</button></div>
     </div>
   `;
   document.body.appendChild(mask);
@@ -4087,6 +4294,8 @@ function normalizeUiConfig() {
   state.uiConfig.hiddenHomeMetrics = Array.isArray(state.uiConfig.hiddenHomeMetrics) ? state.uiConfig.hiddenHomeMetrics.filter(key => validMetrics.includes(key)) : [];
   state.uiConfig.subjectOrder = Array.isArray(state.uiConfig.subjectOrder) ? state.uiConfig.subjectOrder : [];
   state.uiConfig.libraryOrder = state.uiConfig.libraryOrder && typeof state.uiConfig.libraryOrder === 'object' ? state.uiConfig.libraryOrder : {};
+  state.uiConfig.notebookLibraryViewDesktop = state.uiConfig.notebookLibraryViewDesktop === 'list' ? 'list' : 'covers';
+  state.uiConfig.notebookLibraryViewMobile = state.uiConfig.notebookLibraryViewMobile === 'covers' ? 'covers' : 'list';
 }
 
 function applyUiConfig() {
@@ -6127,7 +6336,7 @@ async function selectChoiceValue(event, id, value, action = '') {
     saveAnswerLookupPosition();
     renderAnswerLookup();
   } else if (action === 'studyScope') {
-    selectStudyScope(value);
+    selectStudyScope(value, 'dropdown');
   } else if (action === 'aiProvider') {
     applyAiProviderPreset(value);
   } else if (action === 'ocrModelSource') {
@@ -6834,12 +7043,38 @@ function selectStudySubject(token) {
   renderHome();
 }
 
-function selectStudyScope(token) {
+function restoreStudyScopeSwitcher(selection = {}) {
+  if (!selection.source) return;
+  const restore = () => {
+    const switcher = document.querySelector('.study-scope-switcher');
+    if (!switcher) return;
+    if (selection.source === 'switcher') {
+      const maxScrollLeft = Math.max(0, switcher.scrollWidth - switcher.clientWidth);
+      switcher.scrollLeft = Math.min(maxScrollLeft, Math.max(0, Number(selection.scrollLeft) || 0));
+      return;
+    }
+    const active = switcher.querySelector('.study-scope-chip.active');
+    if (!active) return;
+    const switcherRect = switcher.getBoundingClientRect();
+    const activeRect = active.getBoundingClientRect();
+    if (activeRect.left < switcherRect.left) {
+      switcher.scrollLeft += activeRect.left - switcherRect.left;
+    } else if (activeRect.right > switcherRect.right) {
+      switcher.scrollLeft += activeRect.right - switcherRect.right;
+    }
+  };
+  restore();
+  requestAnimationFrame(restore);
+}
+
+function selectStudyScope(token, source = 'switcher') {
   try {
     const path = normalizePath(JSON.parse(decodeURIComponent(String(token || ''))));
     if (!path.length || path[0] !== state.studySubject || !getDescendantBanks(path).length) return;
+    const switcher = document.querySelector('.study-scope-switcher');
+    const scrollLeft = switcher ? switcher.scrollLeft : 0;
     state.studyScopePath = path;
-    renderHome();
+    renderHome({ studyScopeSelection: { source, scrollLeft } });
   } catch(e) {}
 }
 
@@ -6885,7 +7120,7 @@ function setMainTab(tab) {
   renderHome();
 }
 
-function renderHome() {
+function renderHome(options = {}) {
   const previousView = state.view;
   if (!state.activeSession && !state.inkSession && !state.examSession) releaseHydratedLargeBanks();
   state.view = 'home';
@@ -6953,6 +7188,7 @@ function renderHome() {
     });
     setupImport();
     setupEditableInteractions();
+    restoreStudyScopeSwitcher(options.studyScopeSelection);
     resetHomeScrollAfterNavigation(previousView);
     return;
   }
@@ -7793,14 +8029,44 @@ function getLocalAnnouncements() {
   return ANNOUNCEMENTS.map((item, index) => normalizeAnnouncementItem(item, index, false)).filter(Boolean);
 }
 
+function announcementTimestamp(item) {
+  const raw = String(item?.date || '').trim();
+  if (!raw) return 0;
+  const normalized = /^\d{4}-\d{2}-\d{2}$/.test(raw) ? `${raw}T00:00:00+08:00` : raw;
+  const value = Date.parse(normalized);
+  return Number.isFinite(value) ? value : 0;
+}
+
+function sortAnnouncements(items) {
+  return [...(Array.isArray(items) ? items : [])].sort((left, right) => {
+    const byTime = announcementTimestamp(right) - announcementTimestamp(left);
+    if (byTime) return byTime;
+    if (Boolean(left.latest) !== Boolean(right.latest)) return left.latest ? -1 : 1;
+    return String(right.id || '').localeCompare(String(left.id || ''), 'zh-Hans-CN');
+  });
+}
+
+function getLatestAnnouncement(items) {
+  return sortAnnouncements(items)[0] || null;
+}
+
+function formatAnnouncementTime(item) {
+  const value = announcementTimestamp(item);
+  if (!value) return String(item?.date || '时间未知');
+  return new Intl.DateTimeFormat('zh-CN', {
+    year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(new Date(value)).replaceAll('/', '-');
+}
+
 function getAllAnnouncements() {
   const seen = new Set();
-  return [...state.remoteAnnouncements, ...getLocalAnnouncements()].filter(item => {
+  const items = [...state.remoteAnnouncements, ...getLocalAnnouncements()].filter(item => {
     const id = getAnnouncementId(item);
     if (!id || seen.has(id)) return false;
     seen.add(id);
     return true;
   });
+  return sortAnnouncements(items);
 }
 
 function getReadAnnouncementIds() {
@@ -7825,14 +8091,32 @@ function isAnnouncementRead(item) {
 }
 
 function getUnreadAnnouncements() {
-  return getAllAnnouncements().filter(item => !isAnnouncementRead(item));
+  return sortAnnouncements(getAllAnnouncements().filter(item => !isAnnouncementRead(item)));
 }
 
 function renderAnnouncementBody(options = {}) {
   const all = Boolean(options.all);
+  const board = Boolean(options.board);
   const items = Array.isArray(options.items)
-    ? options.items
+    ? sortAnnouncements(options.items)
     : (all ? getAllAnnouncements() : getAllAnnouncements().slice(0, 1));
+  if (board) {
+    return `
+      <div class="announcement-body">
+        <div class="announcement-timeline">
+          ${items.length ? items.map(item => `
+            <article class="announcement-timeline-item" data-announcement-id="${escapeAttr(getAnnouncementId(item))}">
+              <div class="announcement-time">${escapeHtml(formatAnnouncementTime(item))}</div>
+              <div class="announcement-card">
+                <h4>${escapeHtml(item.title)}</h4>
+                <div class="announcement-card-body">${item.body}</div>
+              </div>
+            </article>
+          `).join('') : '<div class="notebook-empty">当前没有系统通知</div>'}
+        </div>
+      </div>
+    `;
+  }
   return `
     <div class="announcement-body">
       <div class="announcement-list">
@@ -7882,19 +8166,24 @@ function renderAnnouncementBoard() {
   `;
 }
 
-function markAnnouncementSeen(suppress = false) {
-  localStorage.setItem(ANNOUNCEMENT_SEEN_KEY, ANNOUNCEMENT_ID);
+function markAnnouncementsRead(items, suppress = false) {
   const ids = getReadAnnouncementIds();
-  getAllAnnouncements().forEach(item => ids.add(getAnnouncementId(item)));
+  (Array.isArray(items) ? items : []).forEach(item => {
+    const id = getAnnouncementId(item);
+    if (id) ids.add(id);
+  });
   saveReadAnnouncementIds(ids);
+  const localIds = new Set(getLocalAnnouncements().map(getAnnouncementId));
+  if ([...localIds].every(id => ids.has(id))) localStorage.setItem(ANNOUNCEMENT_SEEN_KEY, ANNOUNCEMENT_ID);
   if (suppress) localStorage.setItem(ANNOUNCEMENT_SUPPRESS_KEY, '1');
 }
 
+function markAnnouncementSeen(suppress = false, items = []) {
+  markAnnouncementsRead(items.length ? items : [getLatestAnnouncement(getUnreadAnnouncements())].filter(Boolean), suppress);
+}
+
 function markAllAnnouncementsRead() {
-  localStorage.setItem(ANNOUNCEMENT_SEEN_KEY, ANNOUNCEMENT_ID);
-  const ids = getReadAnnouncementIds();
-  getAllAnnouncements().forEach(item => ids.add(getAnnouncementId(item)));
-  saveReadAnnouncementIds(ids);
+  markAnnouncementsRead(getAllAnnouncements());
 }
 
 function hasUnreadAnnouncements() {
@@ -7909,18 +8198,42 @@ function shouldShowStartupAnnouncement() {
 }
 
 function openAnnouncementBoard() {
-  showAnnouncementDialog({ all: true });
-  markAllAnnouncementsRead();
+  const items = getAllAnnouncements();
+  showAnnouncementDialog({ all: true, board: true, items });
+  markAnnouncementsRead(items);
+  if (state.view === 'home') renderHome();
 }
 
-function showAnnouncementDialog({ startup = false, all = false } = {}) {
+function showAnnouncementDialog({ startup = false, all = false, board = false, items: suppliedItems = null } = {}) {
   closeAppDialog();
   const unread = getUnreadAnnouncements();
-  const items = all ? getAllAnnouncements() : (startup && unread.length ? unread : getAllAnnouncements().slice(0, 1));
+  const latestUnread = getLatestAnnouncement(unread);
+  const items = Array.isArray(suppliedItems)
+    ? sortAnnouncements(suppliedItems)
+    : (all ? getAllAnnouncements() : [startup ? latestUnread : getLatestAnnouncement(getAllAnnouncements())].filter(Boolean));
   const mask = document.createElement('div');
   mask.className = 'app-dialog-mask';
   const dialog = document.createElement('div');
-  dialog.className = 'app-dialog announcement-dialog';
+  dialog.className = `app-dialog announcement-dialog ${board ? 'announcement-board-dialog' : ''}`;
+  if (board) {
+    dialog.setAttribute('role', 'dialog');
+    dialog.setAttribute('aria-modal', 'true');
+    dialog.setAttribute('aria-label', '系统通知');
+    dialog.innerHTML = `
+      <header class="announcement-board-head">
+        <button class="announcement-board-back" type="button" aria-label="返回">‹</button>
+        <h3>系统通知</h3>
+        <span aria-hidden="true"></span>
+      </header>
+      ${renderAnnouncementBody({ board: true, items })}
+    `;
+    mask.appendChild(dialog);
+    document.body.appendChild(mask);
+    dialog.querySelector('.announcement-board-back').onclick = closeAppDialog;
+    mask.onclick = event => { if (event.target === mask) closeAppDialog(); };
+    dialog.querySelector('.announcement-board-back')?.focus();
+    return;
+  }
   dialog.innerHTML = `
     <h3>${all ? 'QuizApp 公告栏' : 'QuizApp 公告'}</h3>
     ${renderAnnouncementBody({ all, items })}
@@ -7937,7 +8250,7 @@ function showAnnouncementDialog({ startup = false, all = false } = {}) {
   mask.appendChild(dialog);
   document.body.appendChild(mask);
   const close = () => {
-    markAnnouncementSeen(startup && Boolean(document.getElementById('announcementDontShow')?.checked));
+    markAnnouncementsRead(items, startup && Boolean(document.getElementById('announcementDontShow')?.checked));
     closeAppDialog();
     if (state.view === 'home') renderHome();
   };
@@ -9858,6 +10171,415 @@ async function loadNotebookDocuments() {
   return state.notebookDocuments;
 }
 
+function notebookSubjectFolderId(subject) {
+  return subject ? `subject:${stableNotebookHash(subject)}` : '';
+}
+
+function loadNotebookFolders() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(NOTEBOOK_FOLDERS_KEY) || '[]');
+    state.notebookFolders = Array.isArray(saved) ? saved.map(item => ({
+      id: String(item?.id || ''),
+      name: String(item?.name || '').trim(),
+      createdAt: Number(item?.createdAt || Date.now()),
+    })).filter(item => item.id && item.name) : [];
+  } catch(e) {
+    state.notebookFolders = [];
+  }
+  return state.notebookFolders;
+}
+
+function saveNotebookFolders() {
+  localStorage.setItem(NOTEBOOK_FOLDERS_KEY, JSON.stringify(state.notebookFolders));
+}
+
+function getNotebookLibraryFolders() {
+  const subjects = new Set(getSubjectGroups().map(group => group.subject));
+  state.notebookDocuments.filter(item => item.kind === 'question').forEach(item => {
+    const subject = normalizePath(item.binding?.sourcePath || [])[0];
+    if (subject) subjects.add(subject);
+  });
+  const subjectFolders = [...subjects].sort((a, b) => a.localeCompare(b, 'zh-Hans-CN')).map(subject => ({
+    id: notebookSubjectFolderId(subject), name: subject, type: 'subject', subject,
+  }));
+  const customFolders = state.notebookFolders.map(folder => ({ ...folder, type: 'custom' }));
+  return [...subjectFolders, ...customFolders];
+}
+
+function getNotebookDocumentFolderId(documentItem) {
+  if (documentItem?.kind === 'question') {
+    return notebookSubjectFolderId(normalizePath(documentItem.binding?.sourcePath || [])[0]);
+  }
+  return String(documentItem?.folderId || '');
+}
+
+function isNotebookLibraryMobileLayout() {
+  return window.matchMedia('(max-width:839px), (orientation:portrait)').matches;
+}
+
+function getNotebookLibraryView() {
+  return isNotebookLibraryMobileLayout()
+    ? state.uiConfig.notebookLibraryViewMobile
+    : state.uiConfig.notebookLibraryViewDesktop;
+}
+
+function getFilteredNotebookDocuments() {
+  const query = String(state.notebookLibrarySearch || '').trim().toLowerCase();
+  const folders = new Set(getNotebookLibraryFolders().map(folder => folder.id));
+  return [...(state.notebookDocuments || [])].filter(documentItem => {
+    if (query && !String(state.notebookSearchIndex.get(documentItem.id) || '').includes(query)) return false;
+    const folderId = getNotebookDocumentFolderId(documentItem);
+    if (state.notebookLibraryFolderId === 'all') return true;
+    if (state.notebookLibraryFolderId === 'unfiled') return documentItem.kind === 'free' && (!folderId || !folders.has(folderId));
+    return folderId === state.notebookLibraryFolderId;
+  }).sort((left, right) => Number(right.updatedAt || 0) - Number(left.updatedAt || 0));
+}
+
+function notebookFolderTitle(id = state.notebookLibraryFolderId) {
+  if (id === 'all') return '全部笔记';
+  if (id === 'unfiled') return '未分类';
+  return getNotebookLibraryFolders().find(folder => folder.id === id)?.name || '全部笔记';
+}
+
+function countNotebookFolderDocuments(id) {
+  if (id === 'all') return state.notebookDocuments.length;
+  const folders = new Set(getNotebookLibraryFolders().map(folder => folder.id));
+  return state.notebookDocuments.filter(documentItem => {
+    const folderId = getNotebookDocumentFolderId(documentItem);
+    if (id === 'unfiled') return documentItem.kind === 'free' && (!folderId || !folders.has(folderId));
+    return folderId === id;
+  }).length;
+}
+
+async function openFreeNotebookLibrary(options = {}) {
+  if (!options.restoreRoute && state.view !== 'notebookLibrary') pushRoute();
+  if (state.view === 'handwriting') await saveCurrentInkNote({ silent: true });
+  state.view = 'notebookLibrary';
+  state.inkSession = null;
+  state.notebookViewport?.destroy();
+  state.notebookViewport = null;
+  loadNotebookFolders();
+  await loadNotebookDocuments();
+  const validIds = new Set(['all', 'unfiled', ...getNotebookLibraryFolders().map(folder => folder.id)]);
+  if (!validIds.has(state.notebookLibraryFolderId)) state.notebookLibraryFolderId = 'all';
+  renderNotebookLibraryPage();
+}
+
+function renderNotebookFolderItem(folder) {
+  const active = state.notebookLibraryFolderId === folder.id;
+  const icon = folder.id === 'all' ? '▤' : folder.id === 'unfiled' ? '◇' : '▱';
+  const actions = folder.type === 'custom' ? `
+    <span class="folder-actions">
+      <button type="button" onclick="event.stopPropagation();renameNotebookFolder('${escapeAttr(folder.id)}')" title="重命名" aria-label="重命名文件夹">✎</button>
+      <button type="button" onclick="event.stopPropagation();deleteNotebookFolder('${escapeAttr(folder.id)}')" title="删除" aria-label="删除文件夹">×</button>
+    </span>` : `<small>${countNotebookFolderDocuments(folder.id)}</small>`;
+  return `<button class="notebook-folder-item ${active ? 'active' : ''}" type="button" onclick="selectNotebookFolder('${escapeAttr(folder.id)}')"><b aria-hidden="true">${icon}</b><span>${escapeHtml(folder.name)}</span>${actions}</button>`;
+}
+
+function renderNotebookFolderSidebar() {
+  const folders = getNotebookLibraryFolders();
+  const subjectFolders = folders.filter(folder => folder.type === 'subject');
+  const customFolders = folders.filter(folder => folder.type === 'custom');
+  return `
+    ${renderNotebookFolderItem({ id: 'all', name: '全部笔记', type: 'system' })}
+    ${renderNotebookFolderItem({ id: 'unfiled', name: '未分类', type: 'system' })}
+    <div class="notebook-folder-section-label"><span>科目</span></div>
+    ${subjectFolders.map(renderNotebookFolderItem).join('')}
+    <div class="notebook-folder-section-label"><span>自定义文件夹</span><button type="button" onclick="createNotebookFolder()" aria-label="新建文件夹" title="新建文件夹">＋</button></div>
+    ${customFolders.map(renderNotebookFolderItem).join('')}
+  `;
+}
+
+function notebookCoverPresetClass(documentItem) {
+  const preset = String(documentItem?.cover?.preset || 'sage');
+  return ['blue', 'rose', 'charcoal', 'gold'].includes(preset) ? preset : '';
+}
+
+function renderNotebookCoverVisual(documentItem, compact = false) {
+  const cover = documentItem.cover || { mode: 'preset', preset: 'sage' };
+  const inner = cover.mode === 'image' && cover.assetId
+    ? `<img class="notebook-cover-image" alt="" data-notebook-cover-asset="${escapeAttr(cover.assetId)}">`
+    : cover.mode === 'page'
+      ? `<canvas class="notebook-cover-page" width="${compact ? 76 : 300}" height="${compact ? 92 : 375}" data-notebook-cover-page="${escapeAttr(documentItem.id)}"></canvas>`
+      : `<span class="notebook-cover-preset ${notebookCoverPresetClass(documentItem)}"></span>`;
+  return compact ? `<span class="notebook-library-row-cover">${inner}</span>` : `<div class="notebook-cover-visual">${inner}</div>`;
+}
+
+function renderNotebookLibraryDocument(documentItem, view) {
+  const type = documentItem.kind === 'question' ? '题目笔记' : (documentItem.mode === 'edgeless' ? '无边界笔记' : '分页笔记');
+  const meta = `${type} · ${documentItem.pages.length} 页 · ${new Date(documentItem.updatedAt).toLocaleDateString('zh-CN')}`;
+  if (view === 'list') {
+    return `<article class="notebook-library-row" data-notebook-document-id="${escapeAttr(documentItem.id)}" onclick="openNotebookFromLibrary('${escapeAttr(documentItem.id)}')">
+      ${renderNotebookCoverVisual(documentItem, true)}
+      <span class="notebook-library-row-copy"><strong>${escapeHtml(documentItem.title)}</strong><small>${escapeHtml(meta)}</small></span>
+      <span class="notebook-library-row-actions"><button type="button" onclick="event.stopPropagation();showNotebookMoveDialog('${escapeAttr(documentItem.id)}')" title="移动" aria-label="移动笔记" ${documentItem.kind === 'question' ? 'disabled' : ''}>↗</button><button type="button" onclick="event.stopPropagation();showNotebookDocumentMenu('${escapeAttr(documentItem.id)}')" title="更多" aria-label="更多操作">⋯</button></span>
+    </article>`;
+  }
+  return `<article class="notebook-cover-card" data-notebook-document-id="${escapeAttr(documentItem.id)}" onclick="openNotebookFromLibrary('${escapeAttr(documentItem.id)}')">
+    ${renderNotebookCoverVisual(documentItem)}
+    <button class="notebook-cover-menu" type="button" onclick="event.stopPropagation();showNotebookDocumentMenu('${escapeAttr(documentItem.id)}')" title="更多" aria-label="更多操作">⋯</button>
+    <div class="notebook-cover-title">${escapeHtml(documentItem.title)}</div><div class="notebook-cover-meta">${escapeHtml(meta)}</div>
+  </article>`;
+}
+
+function renderNotebookLibraryPage() {
+  state.view = 'notebookLibrary';
+  state.notebookLibraryMobileLayout = isNotebookLibraryMobileLayout();
+  const documents = getFilteredNotebookDocuments();
+  const view = getNotebookLibraryView();
+  const app = document.getElementById('app');
+  app.innerHTML = `
+    <div class="notebook-library-view">
+      <header class="notebook-library-topbar">
+        <button class="notebook-library-icon-button" type="button" onclick="goBackRoute()" aria-label="返回">←</button>
+        <div class="notebook-library-title"><strong>笔记资料库</strong><small>科目、自由笔记与题目笔记</small></div>
+        <div class="notebook-library-top-actions"><button class="notebook-library-icon-button" type="button" onclick="showNotebookKnowledgeGraph()" title="知识图谱" aria-label="知识图谱">⌘</button><button class="notebook-library-icon-button primary" type="button" onclick="showNotebookCreateMenu()" title="新建笔记" aria-label="新建笔记">＋</button></div>
+      </header>
+      <div class="notebook-library-shell">
+        <aside class="notebook-library-sidebar">
+          <div class="notebook-library-search-wrap"><input value="${escapeAttr(state.notebookLibrarySearch)}" placeholder="搜索笔记、正文、PDF 或题目" oninput="filterNotebookLibraryPage(this.value)" aria-label="搜索笔记"></div>
+          <nav class="notebook-folder-list" aria-label="笔记文件夹">${renderNotebookFolderSidebar()}</nav>
+        </aside>
+        <main class="notebook-library-main">
+          <div class="notebook-library-mainbar"><h2>${escapeHtml(notebookFolderTitle())}</h2><span class="notebook-save-state">${documents.length} 篇</span><div class="notebook-library-view-toggle" aria-label="显示方式"><button class="${view === 'covers' ? 'active' : ''}" type="button" onclick="setNotebookLibraryView('covers')" title="封面模式" aria-label="封面模式">▦</button><button class="${view === 'list' ? 'active' : ''}" type="button" onclick="setNotebookLibraryView('list')" title="列表模式" aria-label="列表模式">☷</button></div></div>
+          <div class="notebook-library-content">
+            ${documents.length ? `<div class="notebook-library-${view === 'covers' ? 'grid' : 'list'}">${documents.map(item => renderNotebookLibraryDocument(item, view)).join('')}</div>` : `<div class="notebook-library-empty"><div><strong>这里还没有笔记</strong><small>新建分页笔记、无边界画布，或从题目进入手写。</small></div></div>`}
+          </div>
+        </main>
+      </div>
+    </div>
+    <input id="notebookCoverInput" type="file" accept="image/*" hidden onchange="prepareNotebookCoverImage(this)">
+  `;
+  window.requestAnimationFrame(hydrateNotebookLibraryCovers);
+}
+
+async function hydrateNotebookLibraryCovers() {
+  document.querySelectorAll('[data-notebook-cover-asset]').forEach(async image => {
+    const source = await getNotebookAssetDataUrl(image.dataset.notebookCoverAsset);
+    if (image.isConnected && source) image.src = source;
+  });
+  document.querySelectorAll('[data-notebook-cover-page]').forEach(async canvas => {
+    const documentItem = state.notebookDocuments.find(item => item.id === canvas.dataset.notebookCoverPage);
+    if (!documentItem || !window.QuizNotebook) return;
+    const pageId = documentItem.cover?.pageId;
+    const page = documentItem.pages.find(item => item.id === pageId) || documentItem.pages[0];
+    const source = page?.background?.assetId ? await getNotebookAssetDataUrl(page.background.assetId) : '';
+    if (canvas.isConnected && page) QuizNotebook.renderPageThumbnail(canvas, page, window.PerfectFreehand?.getStroke, source);
+  });
+}
+
+function filterNotebookLibraryPage(value) {
+  state.notebookLibrarySearch = String(value || '');
+  renderNotebookLibraryPage();
+  document.querySelector('.notebook-library-search-wrap input')?.focus();
+}
+
+function selectNotebookFolder(id) {
+  state.notebookLibraryFolderId = id || 'all';
+  renderNotebookLibraryPage();
+}
+
+function setNotebookLibraryView(view) {
+  const key = isNotebookLibraryMobileLayout() ? 'notebookLibraryViewMobile' : 'notebookLibraryViewDesktop';
+  state.uiConfig[key] = view === 'list' ? 'list' : 'covers';
+  saveUiConfig();
+  renderNotebookLibraryPage();
+}
+
+function createNotebookFolder() {
+  askText('新建文件夹', '', name => {
+    const clean = String(name || '').trim();
+    if (!clean) return;
+    state.notebookFolders.push({ id: `folder:${Date.now().toString(36)}:${Math.random().toString(36).slice(2)}`, name: clean, createdAt: Date.now() });
+    saveNotebookFolders();
+    renderNotebookLibraryPage();
+  });
+}
+
+function renameNotebookFolder(id) {
+  const folder = state.notebookFolders.find(item => item.id === id);
+  if (!folder) return;
+  askText('重命名文件夹', folder.name, name => {
+    const clean = String(name || '').trim();
+    if (!clean) return;
+    folder.name = clean;
+    saveNotebookFolders();
+    renderNotebookLibraryPage();
+  });
+}
+
+function deleteNotebookFolder(id) {
+  const folder = state.notebookFolders.find(item => item.id === id);
+  if (!folder) return;
+  askConfirm(`删除文件夹“${folder.name}”？其中的笔记会移到未分类。`, async () => {
+    const affected = state.notebookDocuments.filter(item => item.kind === 'free' && item.folderId === id);
+    for (const documentItem of affected) {
+      documentItem.folderId = '';
+      await getNotebookRepository().put(documentItem);
+    }
+    state.notebookFolders = state.notebookFolders.filter(item => item.id !== id);
+    if (state.notebookLibraryFolderId === id) state.notebookLibraryFolderId = 'unfiled';
+    saveNotebookFolders();
+    await loadNotebookDocuments();
+    renderNotebookLibraryPage();
+  });
+}
+
+async function openNotebookFromLibrary(id) {
+  const documentItem = state.notebookDocuments.find(item => item.id === id);
+  if (!documentItem) return showNotice('找不到这个笔记');
+  if (documentItem.kind === 'question') {
+    const questions = buildQuestionSet(await ensureBanksHydrated(getVisibleBanks()));
+    releaseHydratedLargeBanks();
+    const index = questions.findIndex(question => questionKey(question) === documentItem.binding?.questionKey);
+    if (index < 0) return showNotice('原题已不在当前题库');
+    return openHandwritingPractice(documentItem.binding?.sourcePath || [], { questions, index });
+  }
+  return openHandwritingPractice([], { freeMode: true, documentId: id });
+}
+
+function showNotebookCreateMenu() {
+  closeAppDialog();
+  const mask = document.createElement('div');
+  mask.className = 'app-dialog-mask';
+  mask.innerHTML = `<div class="app-dialog" role="dialog" aria-modal="true" aria-label="新建笔记"><h3>新建笔记</h3><p>笔记会保存在“${escapeHtml(notebookFolderTitle())}”。</p><div class="action-grid"><button type="button" onclick="createFreeNotebook('paged')">分页笔记</button><button class="secondary" type="button" onclick="createFreeNotebook('edgeless')">无边界画布</button></div><div class="app-dialog-actions single"><button class="secondary" type="button" onclick="closeAppDialog()">取消</button></div></div>`;
+  document.body.appendChild(mask);
+  mask.onclick = event => { if (event.target === mask) closeAppDialog(); };
+}
+
+function showNotebookMoveDialog(id) {
+  const documentItem = state.notebookDocuments.find(item => item.id === id);
+  if (!documentItem || documentItem.kind !== 'free') return showNotice('题目笔记会自动跟随所属科目');
+  const folders = getNotebookLibraryFolders();
+  closeAppDialog();
+  const mask = document.createElement('div');
+  mask.className = 'app-dialog-mask';
+  mask.innerHTML = `<div class="app-dialog" role="dialog" aria-modal="true" aria-label="移动笔记"><h3>移动到文件夹</h3><div class="notebook-link-picker"><button type="button" onclick="moveNotebookToFolder('${escapeAttr(id)}','')"><span>◇</span><strong>未分类</strong></button>${folders.map(folder => `<button type="button" onclick="moveNotebookToFolder('${escapeAttr(id)}','${escapeAttr(folder.id)}')"><span>▱</span><strong>${escapeHtml(folder.name)}</strong></button>`).join('')}</div></div>`;
+  document.body.appendChild(mask);
+  mask.onclick = event => { if (event.target === mask) closeAppDialog(); };
+}
+
+async function moveNotebookToFolder(id, folderId) {
+  const documentItem = await getNotebookRepository().get(id);
+  if (!documentItem || documentItem.kind !== 'free') return;
+  documentItem.folderId = String(folderId || '');
+  await getNotebookRepository().put(documentItem);
+  await loadNotebookDocuments();
+  closeAppDialog();
+  renderNotebookLibraryPage();
+  showToast('笔记已移动');
+}
+
+function showNotebookDocumentMenu(id) {
+  const documentItem = state.notebookDocuments.find(item => item.id === id);
+  if (!documentItem) return;
+  closeAppDialog();
+  const mask = document.createElement('div');
+  mask.className = 'app-dialog-mask';
+  mask.innerHTML = `<div class="app-dialog" role="dialog" aria-modal="true" aria-label="笔记操作"><h3>${escapeHtml(documentItem.title)}</h3><div class="action-grid"><button type="button" onclick="closeAppDialog();openNotebookFromLibrary('${escapeAttr(id)}')">打开</button><button class="secondary" type="button" onclick="showNotebookCoverMenu('${escapeAttr(id)}')">设置封面</button>${documentItem.kind === 'free' ? `<button class="secondary" type="button" onclick="showNotebookMoveDialog('${escapeAttr(id)}')">移动</button><button class="secondary" type="button" onclick="closeAppDialog();renameNotebookById('${escapeAttr(id)}')">重命名</button><button class="danger" type="button" onclick="closeAppDialog();deleteFreeNotebook('${escapeAttr(id)}')">删除</button>` : ''}</div><div class="app-dialog-actions single"><button class="secondary" type="button" onclick="closeAppDialog()">关闭</button></div></div>`;
+  document.body.appendChild(mask);
+  mask.onclick = event => { if (event.target === mask) closeAppDialog(); };
+}
+
+function showNotebookCoverMenu(id) {
+  const documentItem = state.notebookDocuments.find(item => item.id === id);
+  if (!documentItem) return;
+  closeAppDialog();
+  const currentPreset = documentItem.cover?.preset || 'sage';
+  const presets = ['sage', 'blue', 'rose', 'charcoal', 'gold'];
+  const mask = document.createElement('div');
+  mask.className = 'app-dialog-mask';
+  mask.innerHTML = `<div class="app-dialog" role="dialog" aria-modal="true" aria-label="设置封面"><h3>设置封面</h3><div class="notebook-cover-choice-grid">${presets.map(preset => `<button class="notebook-cover-choice ${currentPreset === preset && documentItem.cover?.mode === 'preset' ? 'active' : ''}" type="button" onclick="setNotebookPresetCover('${escapeAttr(id)}','${preset}')"><span class="notebook-cover-preset ${preset === 'sage' ? '' : preset}"></span></button>`).join('')}</div><div class="action-grid"><button type="button" onclick="chooseNotebookCoverImage('${escapeAttr(id)}')">选择本地图片</button><button class="secondary" type="button" onclick="setNotebookPageCover('${escapeAttr(id)}')">使用第一页</button><button class="muted-mode" type="button" onclick="resetNotebookCover('${escapeAttr(id)}')">恢复默认</button></div><div class="app-dialog-actions single"><button class="secondary" type="button" onclick="closeAppDialog()">关闭</button></div></div>`;
+  document.body.appendChild(mask);
+  mask.onclick = event => { if (event.target === mask) closeAppDialog(); };
+}
+
+async function updateNotebookCover(id, cover) {
+  const documentItem = await getNotebookRepository().get(id);
+  if (!documentItem) return;
+  const previousAssetId = documentItem.cover?.mode === 'image' ? documentItem.cover.assetId : '';
+  documentItem.cover = cover;
+  await getNotebookRepository().put(documentItem);
+  if (previousAssetId && previousAssetId !== cover.assetId) await getNotebookAssetRepository().deleteMany([previousAssetId]).catch(() => {});
+  await loadNotebookDocuments();
+  closeAppDialog();
+  renderNotebookLibraryPage();
+}
+
+function setNotebookPresetCover(id, preset) {
+  return updateNotebookCover(id, { mode: 'preset', preset, assetId: '', pageId: '', focusX: .5, focusY: .5, zoom: 1 });
+}
+
+function setNotebookPageCover(id) {
+  const documentItem = state.notebookDocuments.find(item => item.id === id);
+  const pageId = documentItem?.pages?.[0]?.id || '';
+  return updateNotebookCover(id, { mode: 'page', preset: 'sage', assetId: '', pageId, focusX: .5, focusY: .5, zoom: 1 });
+}
+
+function resetNotebookCover(id) {
+  return setNotebookPresetCover(id, 'sage');
+}
+
+function chooseNotebookCoverImage(id) {
+  state.pendingNotebookCoverDocumentId = id;
+  closeAppDialog();
+  const input = document.getElementById('notebookCoverInput');
+  if (input) input.click();
+}
+
+function prepareNotebookCoverImage(input) {
+  const file = input?.files?.[0];
+  if (input) input.value = '';
+  const id = state.pendingNotebookCoverDocumentId;
+  if (!file || !id) return;
+  const reader = new FileReader();
+  reader.onerror = () => showNotice('封面图片读取失败');
+  reader.onload = () => showNotebookCoverCropDialog(id, String(reader.result || ''));
+  reader.readAsDataURL(file);
+}
+
+function showNotebookCoverCropDialog(id, source) {
+  closeAppDialog();
+  const mask = document.createElement('div');
+  mask.className = 'app-dialog-mask';
+  mask.innerHTML = `<div class="app-dialog" role="dialog" aria-modal="true" aria-label="裁切封面"><h3>裁切封面</h3><div class="notebook-cover-crop"><div class="notebook-cover-crop-preview"><img id="notebookCoverCropImage" src="${escapeAttr(source)}" alt="封面预览"></div><label class="range-row"><span>水平位置</span><input id="notebookCoverFocusX" type="range" min="0" max="100" value="50" oninput="previewNotebookCoverCrop()"><strong>↔</strong></label><label class="range-row"><span>垂直位置</span><input id="notebookCoverFocusY" type="range" min="0" max="100" value="50" oninput="previewNotebookCoverCrop()"><strong>↕</strong></label><label class="range-row"><span>缩放</span><input id="notebookCoverZoom" type="range" min="100" max="300" value="100" oninput="previewNotebookCoverCrop()"><strong>＋</strong></label></div><div class="app-dialog-actions"><button class="secondary" type="button" onclick="closeAppDialog()">取消</button><button type="button" onclick="saveNotebookCoverImage('${escapeAttr(id)}','${escapeAttr(source)}')">使用封面</button></div></div>`;
+  document.body.appendChild(mask);
+  mask.onclick = event => { if (event.target === mask) closeAppDialog(); };
+}
+
+function previewNotebookCoverCrop() {
+  const image = document.getElementById('notebookCoverCropImage');
+  if (!image) return;
+  const x = Number(document.getElementById('notebookCoverFocusX')?.value || 50);
+  const y = Number(document.getElementById('notebookCoverFocusY')?.value || 50);
+  const zoom = Number(document.getElementById('notebookCoverZoom')?.value || 100) / 100;
+  image.style.objectPosition = `${x}% ${y}%`;
+  image.style.transform = `scale(${zoom})`;
+}
+
+async function saveNotebookCoverImage(id, source) {
+  const focusX = Number(document.getElementById('notebookCoverFocusX')?.value || 50) / 100;
+  const focusY = Number(document.getElementById('notebookCoverFocusY')?.value || 50) / 100;
+  const zoom = Number(document.getElementById('notebookCoverZoom')?.value || 100) / 100;
+  const image = new Image();
+  image.src = source;
+  await image.decode();
+  const width = 640;
+  const height = 800;
+  const scale = Math.max(width / image.naturalWidth, height / image.naturalHeight) * zoom;
+  const sourceWidth = width / scale;
+  const sourceHeight = height / scale;
+  const sourceX = clampNumber(focusX * image.naturalWidth - sourceWidth / 2, 0, Math.max(0, image.naturalWidth - sourceWidth));
+  const sourceY = clampNumber(focusY * image.naturalHeight - sourceHeight / 2, 0, Math.max(0, image.naturalHeight - sourceHeight));
+  const canvas = document.createElement('canvas');
+  canvas.width = width; canvas.height = height;
+  canvas.getContext('2d').drawImage(image, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, width, height);
+  const dataUrl = canvas.toDataURL('image/jpeg', .88);
+  const assetId = `cover:${id}:${Date.now().toString(36)}`;
+  await getNotebookAssetRepository().putMany([{ id: assetId, documentId: id, pageId: '', role: 'cover', mimeType: 'image/jpeg', dataUrl, createdAt: Date.now() }]);
+  await updateNotebookCover(id, { mode: 'image', preset: 'sage', assetId, pageId: '', focusX: .5, focusY: .5, zoom: 1 });
+}
+
 function upsertNotebookDocument(document) {
   if (!document?.id) return;
   const index = state.notebookDocuments.findIndex(item => item.id === document.id);
@@ -9902,6 +10624,9 @@ async function activateNotebookDocument(document, options = {}) {
   state.notebookViewport?.destroy();
   state.notebookViewport = null;
   state.notebookSession = new QuizNotebook.NotebookSession(document);
+  const mobileLayout = window.matchMedia('(max-width:839px), (orientation:portrait)').matches;
+  state.notebookEditorMode = state.notebookSession.document.lastEditorMode
+    || (state.notebookSession.document.kind === 'free' && mobileLayout ? 'typing' : 'handwriting');
   upsertNotebookDocument(state.notebookSession.document);
   if (document.kind === 'question') {
     if (state.notebookQuestionTabId && state.notebookQuestionTabId !== document.id) {
@@ -9984,11 +10709,11 @@ async function openHandwritingPractice(path = [], options = {}) {
     document = await loadQuestionNotebook(questions[state.currentIndex]);
   }
   await activateNotebookDocument(document);
+  const mobileLayout = window.matchMedia('(max-width:839px), (orientation:portrait)').matches;
+  state.notebookEditorMode = document.kind === 'free'
+    ? (document.lastEditorMode || (mobileLayout ? 'typing' : 'handwriting'))
+    : (document.lastEditorMode || 'handwriting');
   renderHandwritingPractice();
-}
-
-function openFreeNotebookLibrary() {
-  return openHandwritingPractice([], { freeMode: true });
 }
 
 function getCurrentNotebookQuestion() {
@@ -10013,6 +10738,13 @@ function renderNotebookCanvas() {
   `;
 }
 
+function renderNotebookEditorSurface() {
+  if (state.notebookEditorMode === 'typing') {
+    return `<div class="notebook-typing-surface"><div class="notebook-typing-page"><textarea class="notebook-typing-editor" aria-label="笔记正文" placeholder="开始记录…" oninput="updateNotebookBodyText(this.value)">${escapeHtml(state.notebookSession?.page?.bodyText || '')}</textarea></div></div>`;
+  }
+  return renderNotebookCanvas();
+}
+
 function renderNotebookWidget(key, title, content, className = '') {
   return `
     <section class="notebook-widget ${className}" data-notebook-widget="${escapeAttr(key)}">
@@ -10033,9 +10765,9 @@ function renderNotebookWorkspace(question) {
     return `
       <div class="notebook-workspace ${state.notebookMobilePane === 'left' ? 'show-left' : ''} ${state.notebookMobilePane === 'right' ? 'show-right' : ''}" id="notebookWorkspace">
         <aside class="notebook-side left" id="notebookLeftPanel">${renderNotebookLeftPanel()}</aside>
-        <main class="notebook-center">
+        <main class="notebook-center ${state.notebookEditorMode === 'typing' ? 'typing-mode' : 'handwriting-mode'}">
           ${renderNotebookToolbar()}
-          ${renderNotebookCanvas()}
+          ${renderNotebookEditorSurface()}
           <div class="notebook-pages" id="notebookPages">${renderNotebookPages()}</div>
         </main>
         <aside class="notebook-side right" id="notebookRightPanel">${renderNotebookRightPanelHtml(question)}</aside>
@@ -10054,10 +10786,10 @@ function renderNotebookWorkspace(question) {
   return `
     <div class="${classes}" id="notebookWorkspace" style="--notebook-left-width:${dock.leftWidth}px;--notebook-right-width:${dock.rightWidth}px">
       ${navigatorTop ? '' : `<aside class="notebook-side left ${dock.leftOpen ? '' : 'dock-hidden'}" id="notebookLeftPanel">${renderNotebookLeftPanel()}</aside>`}
-      <main class="notebook-center">
+      <main class="notebook-center ${state.notebookEditorMode === 'typing' ? 'typing-mode' : 'handwriting-mode'}">
         ${renderNotebookToolbar()}
         ${navigatorTop && dock.leftOpen ? `<section class="notebook-top-navigator"><aside class="notebook-side left" id="notebookLeftPanel">${renderNotebookLeftPanel()}</aside></section>` : ''}
-        ${renderNotebookCanvas()}
+        ${renderNotebookEditorSurface()}
         <div class="notebook-pages" id="notebookPages">${renderNotebookPages()}</div>
       </main>
       <aside class="notebook-side right ${dock.rightOpen ? '' : 'dock-hidden'}" id="notebookRightPanel">${renderNotebookRightPanelHtml(question)}</aside>
@@ -10077,8 +10809,8 @@ function getNotebookDockConfig() {
     if (parsed && typeof parsed === 'object') saved = parsed;
   } catch(e) {}
   state.notebookDockConfig = {
-    leftOpen: saved.leftOpen !== false,
-    rightOpen: saved.rightOpen !== false,
+    leftOpen: saved.leftOpen === true,
+    rightOpen: saved.rightOpen === true,
     navigatorPosition: saved.navigatorPosition === 'top' ? 'top' : 'side',
     leftWidth: Math.max(200, Math.min(460, Number(saved.leftWidth || 280))),
     rightWidth: Math.max(240, Math.min(560, Number(saved.rightWidth || 340))),
@@ -10389,14 +11121,13 @@ function renderHandwritingPractice() {
         <button class="btn-back" onclick="goBackRoute()" aria-label="返回">←</button>
         <h1>${escapeHtml(title)}</h1>
         <div class="topbar-actions">
-          ${session.freeMode ? '<button class="btn-text" onclick="renameCurrentNotebook()" title="重命名笔记本">重命名</button>' : ''}
+          <div class="notebook-editor-mode-switch" aria-label="编辑模式"><button class="${state.notebookEditorMode === 'typing' ? 'active' : ''}" type="button" onclick="setNotebookEditorMode('typing')">打字</button><button class="${state.notebookEditorMode === 'handwriting' ? 'active' : ''}" type="button" onclick="setNotebookEditorMode('handwriting')">手写</button></div>
           ${question ? `<div class="notebook-question-nav"><button onclick="changeInkQuestion(-1)" ${state.currentIndex <= 0 ? 'disabled' : ''}>←</button><span>${state.currentIndex + 1}/${session.questions.length}</span><button onclick="changeInkQuestion(1)" ${state.currentIndex >= session.questions.length - 1 ? 'disabled' : ''}>→</button></div>` : ''}
-          ${isNotebookFreeLayout() ? '<button class="btn-text" onclick="showNotebookLayoutMenu()">布局</button>' : ''}
-          <button class="btn-text notebook-mobile-pane" onclick="toggleNotebookMobilePane('left')" aria-label="题目与笔记">目录</button>
+          <button class="btn-text notebook-mobile-pane" onclick="toggleNotebookMobilePane('left')" aria-label="题目与笔记" title="目录">☰</button>
+          <button class="btn-text notebook-mobile-pane" onclick="showNotebookPagesSheet()" aria-label="页面" title="页面">▦</button>
           <span class="notebook-save-state" id="notebookSaveState">${escapeHtml(state.notebookSaveState)}</span>
-          <button class="btn-text" onclick="saveCurrentInkNote()">保存</button>
-          <button class="btn-text" onclick="showNotebookExportMenu()">导出</button>
-          <button class="btn-text notebook-mobile-pane" onclick="toggleNotebookMobilePane('right')" aria-label="解析与图层">面板</button>
+          <button class="btn-text notebook-mobile-pane" onclick="toggleNotebookMobilePane('right')" aria-label="解析与图层" title="面板">▤</button>
+          <button class="btn-text" onclick="showNotebookTopMenu()" aria-label="更多操作" title="更多操作">⋯</button>
         </div>
       </div>
       ${renderNotebookDocumentTabs()}
@@ -10408,7 +11139,7 @@ function renderHandwritingPractice() {
     <input id="notebookSnbxInput" type="file" accept=".snbx,application/zip" multiple hidden onchange="importNotebookSnbxFiles(this)">
   `;
   if (isNotebookFreeLayout()) initializeNotebookDockLayout();
-  initializeNotebookViewport();
+  if (state.notebookEditorMode === 'handwriting') initializeNotebookViewport();
   window.requestAnimationFrame(renderNotebookPageThumbnails);
 }
 
@@ -10448,11 +11179,67 @@ function renderNotebookToolbar() {
           ${drawingTool ? ['#202522','#1f6feb','#b42318','#6f42c1'].map(item => `<button class="notebook-color ${color === item ? 'active' : ''}" style="background:${item}" onclick="setNotebookColor('${item}')" title="选择颜色" aria-label="选择颜色"></button>`).join('') : ''}
           ${tool !== 'pan' ? `<input class="notebook-width" type="range" min="2" max="18" step="1" value="${size}" oninput="setNotebookSize(this.value)" title="笔画粗细" aria-label="笔画粗细">` : ''}
           ${drawingTool ? `<button class="notebook-tool ${state.inkStraightLine ? 'active' : ''}" data-notebook-straight-line onclick="toggleNotebookStraightLine()" title="直线模式" aria-label="直线模式">╱</button>` : ''}
-          <label class="notebook-pen-only"><input type="checkbox" ${state.inkPenOnly ? 'checked' : ''} onchange="setNotebookPenOnly(this.checked)">掌托</label>
+          ${renderNotebookInputModeSwitch()}
         `}
       </div>
     </div>
   `;
+}
+
+function renderNotebookInputModeSwitch() {
+  return `<div class="notebook-input-mode-switch" aria-label="手写输入方式"><button class="${state.inkPenOnly ? 'active' : ''}" type="button" onclick="setNotebookPenOnly(true)">笔写字</button><button class="${state.inkPenOnly ? '' : 'active'}" type="button" onclick="setNotebookPenOnly(false)">手指写字</button></div>`;
+}
+
+function updateNotebookBodyText(value) {
+  if (!state.notebookSession) return;
+  state.notebookSession.setPageBodyText(value);
+  state.notebookSaveState = '正在保存…';
+  const label = document.getElementById('notebookSaveState');
+  if (label) label.textContent = state.notebookSaveState;
+}
+
+async function setNotebookEditorMode(mode) {
+  const next = mode === 'typing' ? 'typing' : 'handwriting';
+  if (!state.notebookSession || state.notebookEditorMode === next) return;
+  if (state.notebookEditorMode === 'typing') await saveCurrentInkNote({ silent: true });
+  state.notebookEditorMode = next;
+  state.notebookSession.document.lastEditorMode = next;
+  await getNotebookRepository().put(state.notebookSession.document);
+  renderHandwritingPractice();
+}
+
+function showNotebookTopMenu() {
+  closeAppDialog();
+  const notebook = state.notebookSession?.document;
+  if (!notebook) return;
+  const mask = document.createElement('div');
+  mask.className = 'app-dialog-mask';
+  const mobileSheet = !isNotebookFreeLayout();
+  mask.innerHTML = `<div class="app-dialog ${mobileSheet ? 'notebook-mobile-sheet' : ''}" role="dialog" aria-modal="true" aria-label="笔记操作"><h3>笔记操作</h3><div class="action-grid">${mobileSheet ? '<button type="button" onclick="closeAppDialog();showNotebookPagesSheet()">页面</button>' : ''}${notebook.kind === 'free' ? '<button type="button" onclick="closeAppDialog();renameCurrentNotebook()">重命名</button>' : ''}${isNotebookFreeLayout() ? '<button class="secondary" type="button" onclick="closeAppDialog();showNotebookLayoutMenu()">布局</button>' : ''}<button class="secondary" type="button" onclick="closeAppDialog();saveCurrentInkNote()">立即保存</button><button class="secondary" type="button" onclick="closeAppDialog();showNotebookExportMenu()">导出</button></div><div class="app-dialog-actions single"><button class="secondary" type="button" onclick="closeAppDialog()">关闭</button></div></div>`;
+  document.body.appendChild(mask);
+  mask.onclick = event => { if (event.target === mask) closeAppDialog(); };
+}
+
+function showNotebookPagesSheet() {
+  closeAppDialog();
+  if (!state.notebookSession?.document) return;
+  const mask = document.createElement('div');
+  mask.className = 'app-dialog-mask';
+  mask.innerHTML = `<div class="app-dialog notebook-mobile-sheet" role="dialog" aria-modal="true" aria-label="页面管理"><h3>页面</h3><div class="notebook-pages notebook-pages-sheet-list" id="notebookPagesSheet">${renderNotebookPages()}</div><div class="app-dialog-actions single"><button class="secondary" type="button" onclick="closeAppDialog()">完成</button></div></div>`;
+  document.body.appendChild(mask);
+  mask.onclick = event => { if (event.target === mask) closeAppDialog(); };
+  window.requestAnimationFrame(renderNotebookPageThumbnails);
+}
+
+function showNotebookToolSettingsSheet() {
+  closeAppDialog();
+  const source = document.querySelector('.notebook-subtoolbar');
+  if (!source) return;
+  const mask = document.createElement('div');
+  mask.className = 'app-dialog-mask';
+  mask.innerHTML = `<div class="app-dialog notebook-mobile-sheet" role="dialog" aria-modal="true" aria-label="工具设置"><h3>工具设置</h3><div class="notebook-mobile-tool-settings">${source.innerHTML}</div><div class="app-dialog-actions single"><button class="secondary" type="button" onclick="closeAppDialog()">完成</button></div></div>`;
+  document.body.appendChild(mask);
+  mask.onclick = event => { if (event.target === mask) closeAppDialog(); };
 }
 
 function renderNotebookLeftPanel() {
@@ -11054,10 +11841,13 @@ function getNotebookSummaryContext() {
   const notebook = session?.document;
   const page = session?.page;
   if (!notebook || !page) return null;
-  const textObjects = page.objects.filter(object => object.visible && ['text', 'link'].includes(object.type)).map(object => ({
+  const textObjects = [
+    ...(page.bodyText ? [{ type: 'body', text: String(page.bodyText).slice(0, 12000) }] : []),
+    ...page.objects.filter(object => object.visible && ['text', 'link'].includes(object.type)).map(object => ({
     type: object.type,
     text: String(object.data?.text || object.data?.url || '').slice(0, 3000),
-  })).filter(item => item.text);
+    })),
+  ].filter(item => item.text);
   const strokeCount = page.layers.reduce((sum, layer) => sum + (layer.visible ? layer.strokes.length : 0), 0);
   const visualObjectCount = page.objects.filter(object => object.visible && ['image', 'question'].includes(object.type)).length;
   const question = getCurrentNotebookQuestion();
@@ -11214,6 +12004,7 @@ async function saveCurrentInkNote(options = {}) {
   if (!notebook) return;
   window.clearTimeout(state.notebookSaveTimer);
   try {
+    notebook.lastEditorMode = state.notebookEditorMode;
     notebook.lastViewport = state.notebookViewport ? {
       scale: state.notebookViewport.scale,
       offsetX: state.notebookViewport.offsetX,
@@ -11263,11 +12054,13 @@ function refreshNotebookToolbar() {
 
 function setNotebookTool(tool) {
   state.inkTool = tool;
+  if (tool === 'select') state.notebookSubtoolbarOpen = true;
   state.notebookViewport?.setTool(tool);
   refreshNotebookToolbar();
 }
 
 function toggleNotebookSubtoolbar() {
+  if (!isNotebookFreeLayout()) return showNotebookToolSettingsSheet();
   state.notebookSubtoolbarOpen = !state.notebookSubtoolbarOpen;
   refreshNotebookToolbar();
 }
@@ -11283,6 +12076,11 @@ function setNotebookColor(color) {
 function setNotebookPenOnly(enabled) {
   state.inkPenOnly = Boolean(enabled);
   state.notebookViewport?.setStyle({ penOnly: state.inkPenOnly });
+  refreshNotebookToolbar();
+  document.querySelectorAll('.notebook-input-mode-switch').forEach(control => {
+    control.children[0]?.classList.toggle('active', state.inkPenOnly);
+    control.children[1]?.classList.toggle('active', !state.inkPenOnly);
+  });
 }
 
 function setNotebookSize(value) {
@@ -11538,7 +12336,7 @@ function insertNotebookImage(file) {
 }
 
 function isBlankNotebookPage(page) {
-  return Boolean(page) && !(page.objects || []).length && !(page.layers || []).some(layer => (layer.strokes || []).length) && !page.background?.assetId;
+  return Boolean(page) && !String(page.bodyText || '').trim() && !(page.objects || []).length && !(page.layers || []).some(layer => (layer.strokes || []).length) && !page.background?.assetId;
 }
 
 async function prepareNotebookPdfImport(input) {
@@ -11760,6 +12558,7 @@ function toggleNotebookStraightLine() {
   state.inkStraightLine = !state.inkStraightLine;
   state.notebookViewport?.setStraightLine(state.inkStraightLine);
   refreshNotebookToolbar();
+  document.querySelectorAll('[data-notebook-straight-line]').forEach(button => button.classList.toggle('active', state.inkStraightLine));
 }
 
 function renameCurrentNotebookPage() {
@@ -11898,16 +12697,20 @@ async function jumpInkQuestion(index) {
 }
 
 async function createFreeNotebook(mode = 'paged') {
+  closeAppDialog();
   const title = window.prompt('笔记本名称', '新笔记');
   if (!title?.trim()) return;
   await saveCurrentInkNote({ silent: true });
-  const document = QuizNotebook.createDocument({ title: title.trim(), kind: 'free', mode: mode === 'edgeless' ? 'edgeless' : 'paged' });
+  const selectedFolder = ['all', 'unfiled'].includes(state.notebookLibraryFolderId) ? '' : state.notebookLibraryFolderId;
+  const document = QuizNotebook.createDocument({
+    title: title.trim(),
+    kind: 'free',
+    mode: mode === 'edgeless' ? 'edgeless' : 'paged',
+    folderId: selectedFolder,
+  });
   await getNotebookRepository().put(document);
   await loadNotebookDocuments();
-  state.inkSession.freeMode = true;
-  state.inkSession.title = '自由笔记';
-  await activateNotebookDocument(document);
-  renderHandwritingPractice();
+  return openHandwritingPractice([], { freeMode: true, documentId: document.id });
 }
 
 function setNotebookDocumentMode(mode) {
@@ -11993,8 +12796,21 @@ function renameCurrentNotebook() {
 }
 
 async function renameNotebookById(id) {
-  if (state.notebookSession?.document.id !== id) await openFreeNotebook(id);
-  renameCurrentNotebook();
+  if (state.view !== 'notebookLibrary') {
+    if (state.notebookSession?.document.id !== id) await openFreeNotebook(id);
+    renameCurrentNotebook();
+    return;
+  }
+  const documentItem = await getNotebookRepository().get(id);
+  if (!documentItem || documentItem.kind !== 'free') return;
+  askText('笔记本名称', documentItem.title, async name => {
+    const clean = String(name || '').trim();
+    if (!clean) return;
+    documentItem.title = clean;
+    await getNotebookRepository().put(documentItem);
+    await loadNotebookDocuments();
+    renderNotebookLibraryPage();
+  });
 }
 
 async function openFreeNotebook(id) {
@@ -12017,6 +12833,11 @@ function deleteFreeNotebook(id) {
     await getNotebookAssetRepository()?.deleteByDocument(id).catch(() => {});
     assets.forEach(assetId => state.notebookAssetCache.delete(assetId));
     await loadNotebookDocuments();
+    if (state.view === 'notebookLibrary') {
+      renderNotebookLibraryPage();
+      showToast('笔记本已删除');
+      return;
+    }
     if (state.notebookSession?.document.id === id) {
       const next = state.notebookDocuments.find(item => item.kind === 'free');
       if (next) await activateNotebookDocument(next);
@@ -12339,8 +13160,14 @@ function rekeyImportedNotebook(document, assets) {
   imported.title = `${imported.title}（导入）`;
   imported.kind = 'free';
   imported.binding = null;
+  imported.folderId = ['all', 'unfiled'].includes(state.notebookLibraryFolderId) ? '' : state.notebookLibraryFolderId;
   const pageIds = new Map();
   const assetIds = new Map();
+  if (imported.cover?.mode === 'image' && imported.cover.assetId) {
+    const nextCoverAssetId = newNotebookImportId('cover');
+    assetIds.set(imported.cover.assetId, nextCoverAssetId);
+    imported.cover.assetId = nextCoverAssetId;
+  }
   imported.pages.forEach(page => {
     const oldPageId = page.id;
     page.id = newNotebookImportId('page');
@@ -12358,6 +13185,7 @@ function rekeyImportedNotebook(document, assets) {
     }
   });
   imported.activePageId = pageIds.get(document.activePageId) || imported.pages[0]?.id || '';
+  if (imported.cover?.mode === 'page') imported.cover.pageId = pageIds.get(imported.cover.pageId) || imported.activePageId;
   imported.bookmarks = (imported.bookmarks || []).map(bookmark => ({ ...bookmark, id: newNotebookImportId('bookmark'), pageId: pageIds.get(bookmark.pageId) || imported.activePageId }));
   imported.createdAt = Date.now();
   imported.updatedAt = Date.now();
@@ -12365,7 +13193,7 @@ function rekeyImportedNotebook(document, assets) {
     ...asset,
     id: assetIds.get(asset.id) || newNotebookImportId('asset'),
     documentId: imported.id,
-    pageId: pageIds.get(asset.pageId) || imported.activePageId,
+    pageId: asset.role === 'cover' ? '' : (pageIds.get(asset.pageId) || imported.activePageId),
   }));
   return { document: imported, assets: importedAssets, sourceDocumentId };
 }
@@ -12386,6 +13214,11 @@ async function importNotebookSnbxFiles(input) {
       importedCount += 1;
     }
     await loadNotebookDocuments();
+    if (state.view === 'notebookLibrary') {
+      renderNotebookLibraryPage();
+      showToast(`已导入 ${importedCount} 个笔记包`);
+      return;
+    }
     closeAppDialog();
     const newest = state.notebookDocuments.find(document => document.title.endsWith('（导入）'));
     if (newest) {
@@ -13456,9 +14289,14 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () 
 });
 let notebookLayoutResizeTimer = null;
 window.addEventListener('resize', () => {
-  if (state.view !== 'handwriting') return;
   window.clearTimeout(notebookLayoutResizeTimer);
   notebookLayoutResizeTimer = window.setTimeout(() => {
+    if (state.view === 'notebookLibrary') {
+      const nextMobileLayout = isNotebookLibraryMobileLayout();
+      if (nextMobileLayout !== state.notebookLibraryMobileLayout) renderNotebookLibraryPage();
+      return;
+    }
+    if (state.view !== 'handwriting') return;
     const nextFreeLayout = isNotebookFreeLayout();
     if (nextFreeLayout !== state.notebookFreeLayoutActive) renderHandwritingPractice();
   }, 120);

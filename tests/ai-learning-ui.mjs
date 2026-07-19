@@ -136,6 +136,7 @@ try {
     state.notebookSession.addObject('text', { text: '概念一：测试文本笔记' }, { x: 120, y: 160, width: 500, height: 160 });
     state.notebookRightTab = 'ai';
     state.notebookAiMode = 'summary';
+    getNotebookDockConfig().rightOpen = true;
     state.aiConfig.visionEnabled = false;
     renderHandwritingPractice();
   });

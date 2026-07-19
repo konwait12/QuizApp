@@ -105,7 +105,11 @@ try {
   });
   assert.equal(canvasHasVariation, true);
 
-  await page.evaluate(() => setNotebookLeftTab('notebooks'));
+  await page.evaluate(() => {
+    getNotebookDockConfig().leftOpen = true;
+    renderHandwritingPractice();
+    setNotebookLeftTab('notebooks');
+  });
   await page.locator('#notebookLeftPanel .notebook-search').fill('Beta');
   assert.equal(await page.locator('#notebookLeftPanel .notebook-list-item').count(), 1);
   await page.waitForTimeout(1700);
@@ -116,6 +120,8 @@ try {
     const linked = QuizNotebook.createDocument({ id: 'linked-knowledge-test', title: 'Linked knowledge note', kind: 'free' });
     await getNotebookRepository().put(linked);
     await loadNotebookDocuments();
+    getNotebookDockConfig().rightOpen = true;
+    renderHandwritingPractice();
     setNotebookRightTab('info');
   });
   await page.getByRole('button', { name: '添加', exact: true }).click();

@@ -155,6 +155,8 @@ try {
   assert.equal(markerStroke.points.length, 2, 'straight-line mode should retain only its endpoints');
 
   const layerCountBeforeMerge = await page.evaluate(() => {
+    getNotebookDockConfig().rightOpen = true;
+    renderHandwritingPractice();
     state.notebookSession.addLayer('待合并图层');
     state.notebookRightTab = 'layers';
     renderNotebookRightPanel();
@@ -264,19 +266,18 @@ try {
   assert.equal(await page.locator('.notebook-edgeless-status').count(), 1);
   const edgelessExpansion = await page.evaluate(() => {
     const viewport = state.notebookViewport;
-    const object = state.notebookSession.addObject('text', { text: 'stable' }, { x: 900, y: 700, width: 120, height: 80 });
     viewport.scale = 1;
     viewport.offsetX = 480;
     viewport.offsetY = 400;
-    const before = { x: object.x + viewport.offsetX, y: object.y + viewport.offsetY };
     const width = state.notebookSession.page.width;
     viewport.ensureEdgelessViewport();
-    const after = { x: object.x + viewport.offsetX, y: object.y + viewport.offsetY };
+    const widthAfterPan = state.notebookSession.page.width;
+    viewport.ensureEdgelessBounds(width + 200, 800, width + 260, 860);
     viewport.requestRender();
-    return { before, after, expanded: state.notebookSession.page.width > width };
+    return { panExpanded: widthAfterPan > width, contentExpanded: state.notebookSession.page.width > widthAfterPan };
   });
-  assert.deepEqual(edgelessExpansion.after, edgelessExpansion.before);
-  assert.equal(edgelessExpansion.expanded, true);
+  assert.equal(edgelessExpansion.panExpanded, false, 'panning should not grow the edgeless canvas');
+  assert.equal(edgelessExpansion.contentExpanded, true, 'content near the edge should grow the edgeless canvas');
   await page.locator('.notebook-document-tab').filter({ hasText: '英语阅读笔记' }).click();
   await page.waitForFunction(id => state.notebookSession?.document.id === id, tabIds[1]);
   assert.equal(await page.evaluate(() => state.notebookSession.document.id), tabIds[1]);

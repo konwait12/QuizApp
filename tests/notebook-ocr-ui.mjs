@@ -56,7 +56,11 @@ try {
   assert.equal(await page.evaluate(() => state.notebookSession.page.objects.length), 0);
   assert.match(await page.evaluate(() => QuizPdfNotebook.documentSearchText(state.notebookSession.document)), /修正后的 ocr 文本/);
 
-  await page.evaluate(() => setNotebookRightTab('info'));
+  await page.evaluate(() => {
+    getNotebookDockConfig().rightOpen = true;
+    renderHandwritingPractice();
+    setNotebookRightTab('info');
+  });
   assert.match(await page.locator('#notebookRightPanel').innerText(), /本页 OCR/);
   assert.match(await page.locator('#notebookRightPanel').innerText(), /修正后的 OCR 文本/);
 

@@ -17,7 +17,7 @@
 (function attachQuizNotebook(global) {
   'use strict';
 
-  const SCHEMA_VERSION = 4;
+  const SCHEMA_VERSION = 5;
   const DEFAULT_PAGE_SIZE = { width: 1200, height: 1600 };
   const thumbnailAssetCache = new Map();
 
@@ -66,6 +66,8 @@
         links: Array.isArray(options.backgroundLinks) ? clone(options.backgroundLinks) : [],
       },
       ocr: options.ocr && typeof options.ocr === 'object' ? clone(options.ocr) : null,
+      bodyText: String(options.bodyText || ''),
+      bodyUpdatedAt: Number(options.bodyUpdatedAt || 0),
       layers: [layer],
       activeLayerId: layer.id,
       objects: [],
@@ -88,6 +90,9 @@
       title: options.title || '未命名笔记',
       kind: options.kind === 'question' ? 'question' : 'free',
       binding: options.binding || null,
+      folderId: String(options.folderId || ''),
+      cover: normalizeCover(options.cover),
+      lastEditorMode: ['typing', 'handwriting'].includes(options.lastEditorMode) ? options.lastEditorMode : '',
       tags: Array.isArray(options.tags) ? options.tags.map(item => String(item || '').trim()).filter(Boolean) : [],
       links: Array.isArray(options.links) ? clone(options.links) : [],
       bookmarks: Array.isArray(options.bookmarks) ? clone(options.bookmarks) : [],
@@ -99,6 +104,19 @@
       completed: false,
       createdAt: now,
       updatedAt: now,
+    };
+  }
+
+  function normalizeCover(raw) {
+    const mode = ['preset', 'image', 'page'].includes(raw?.mode) ? raw.mode : 'preset';
+    return {
+      mode,
+      preset: String(raw?.preset || 'sage'),
+      assetId: mode === 'image' ? String(raw?.assetId || '') : '',
+      pageId: mode === 'page' ? String(raw?.pageId || '') : '',
+      focusX: clamp(raw?.focusX ?? .5, 0, 1),
+      focusY: clamp(raw?.focusY ?? .5, 0, 1),
+      zoom: clamp(raw?.zoom ?? 1, 1, 3),
     };
   }
 
@@ -180,6 +198,8 @@
         source: String(raw.ocr.source || ''),
         createdAt: Number(raw.ocr.createdAt || Date.now()),
       } : null,
+      bodyText: String(raw?.bodyText || ''),
+      bodyUpdatedAt: Number(raw?.bodyUpdatedAt || 0),
       layers,
       activeLayerId: layers.some(layer => layer.id === raw?.activeLayerId) ? raw.activeLayerId : layers[0].id,
       objects: Array.isArray(raw?.objects) ? raw.objects.map(normalizeObject) : [],
@@ -199,6 +219,9 @@
       title: raw.title || raw.name || '未命名笔记',
       kind: raw.kind === 'question' ? 'question' : 'free',
       binding: raw.binding || null,
+      folderId: String(raw.folderId || ''),
+      cover: normalizeCover(raw.cover),
+      lastEditorMode: ['typing', 'handwriting'].includes(raw.lastEditorMode) ? raw.lastEditorMode : '',
       tags: Array.isArray(raw.tags) ? raw.tags.map(item => String(item || '').trim()).filter(Boolean) : [],
       links: Array.isArray(raw.links) ? raw.links.filter(item => item && typeof item === 'object').map(item => ({ ...item })) : [],
       bookmarks: Array.isArray(raw.bookmarks) ? raw.bookmarks.filter(item => item && pages.some(page => page.id === item.pageId)).map(item => ({
@@ -262,6 +285,46 @@
     });
     const inset = Math.max(2, Number(padding || 0));
     return { x: minX - inset, y: minY - inset, width: maxX - minX + inset * 2, height: maxY - minY + inset * 2 };
+  }
+
+  function drawPageBodyText(context, page) {
+    const text = String(page?.bodyText || '');
+    if (!text) return;
+    const marginX = Math.max(72, page.width * .075);
+    const marginTop = Math.max(88, page.height * .065);
+    const maxWidth = Math.max(160, page.width - marginX * 2);
+    const fontSize = clamp(page.width / 34, 26, 38);
+    const lineHeight = fontSize * 1.75;
+    const maxY = page.height - marginTop;
+    let y = marginTop;
+    context.save();
+    context.fillStyle = '#202522';
+    context.font = `${fontSize}px "Microsoft YaHei","Noto Sans SC",sans-serif`;
+    context.textBaseline = 'top';
+    for (const paragraph of text.split('\n')) {
+      if (!paragraph) {
+        y += lineHeight;
+        if (y > maxY) break;
+        continue;
+      }
+      let line = '';
+      for (const character of paragraph) {
+        const candidate = line + character;
+        if (line && context.measureText(candidate).width > maxWidth) {
+          context.fillText(line, marginX, y);
+          y += lineHeight;
+          line = character;
+          if (y > maxY) break;
+        } else {
+          line = candidate;
+        }
+      }
+      if (y > maxY) break;
+      if (line) context.fillText(line, marginX, y);
+      y += lineHeight;
+      if (y > maxY) break;
+    }
+    context.restore();
   }
 
   function translatePageContent(page, dx, dy) {
@@ -574,6 +637,15 @@
       page.updatedAt = Date.now();
       this.commitHistory('rename-page');
       this.emit('pagechange', { id: page.id, action: 'rename' });
+      return true;
+    }
+
+    setPageBodyText(value) {
+      const text = String(value || '');
+      if (this.page.bodyText === text) return false;
+      this.page.bodyText = text;
+      this.page.bodyUpdatedAt = Date.now();
+      this.emit('change', { label: 'page-body-text' });
       return true;
     }
 
@@ -999,12 +1071,7 @@
 
     ensureEdgelessViewport() {
       if (!this.isEdgeless) return;
-      const view = this.viewportSize;
-      const left = -this.offsetX / this.scale;
-      const top = -this.offsetY / this.scale;
-      const right = (view.width - this.offsetX) / this.scale;
-      const bottom = (view.height - this.offsetY) / this.scale;
-      this.ensureEdgelessBounds(left, top, right, bottom);
+      this.constrainViewport();
     }
 
     zoomAt(screenX, screenY, factor) {
@@ -1015,7 +1082,6 @@
       this.scale = clamp(this.scale * factor, .15, 6);
       this.offsetX = localX - before.x * this.scale;
       this.offsetY = localY - before.y * this.scale;
-      this.ensureEdgelessViewport();
       this.constrainViewport();
       this.saveViewport();
       this.onViewportChange({ scale: this.scale, offsetX: this.offsetX, offsetY: this.offsetY });
@@ -1068,7 +1134,6 @@
         this.zoomAt(event.clientX, event.clientY, Math.exp(-event.deltaY * .0015));
       } else {
         this.offsetX -= event.deltaX;
-        this.ensureEdgelessViewport();
         this.constrainViewport();
         this.saveViewport();
         this.onViewportChange({ scale: this.scale, offsetX: this.offsetX, offsetY: this.offsetY });
@@ -1080,6 +1145,12 @@
       if (event.pointerType === 'touch') {
         this.touchPoints.set(event.pointerId, { x: event.clientX, y: event.clientY });
         if (this.touchPoints.size >= 2) {
+          if (this.pointer?.mode === 'draw') {
+            const strokes = this.session.layer.strokes;
+            const index = strokes.indexOf(this.pointer.stroke);
+            if (index >= 0) strokes.splice(index, 1);
+            this.session.historyStart = null;
+          }
           const points = [...this.touchPoints.values()];
           this.pinch = {
             distance: Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y),
@@ -1215,7 +1286,6 @@
       if (this.pointer.mode === 'pan') {
         this.offsetX += event.clientX - this.pointer.x;
         this.offsetY += event.clientY - this.pointer.y;
-        this.ensureEdgelessViewport();
         this.constrainViewport();
         this.pointer.x = event.clientX;
         this.pointer.y = event.clientY;
@@ -1265,6 +1335,10 @@
         if (this.straightLine) this.pointer.stroke.points.splice(1, Infinity, endPoint);
         else this.pointer.stroke.points.push(endPoint);
         this.pointer.stroke.bounds = computeBounds(this.pointer.stroke.points, this.pointer.stroke.size);
+        if (this.isEdgeless) {
+          const bounds = this.pointer.stroke.bounds;
+          this.ensureEdgelessBounds(bounds.x, bounds.y, bounds.x + bounds.width, bounds.y + bounds.height);
+        }
         this.session.commitHistory('stroke');
         this.onChange('stroke');
       } else if (this.pointer.mode === 'erase') {
@@ -1281,6 +1355,8 @@
         this.session.commitHistory(`transform-${this.pointer.mode}`);
         this.onChange(`transform-${this.pointer.mode}`);
       }
+      this.constrainViewport();
+      this.saveViewport();
       this.pointer = null;
       this.requestRender();
     }
@@ -1462,6 +1538,7 @@
       context.fillRect(0, 0, page.width, page.height);
       context.shadowColor = 'transparent';
       this.renderBackground(context, page);
+      this.renderBodyText(context, page);
       this.renderObjects(context, page, -1);
       page.layers.forEach((layer, index) => {
         if (layer.visible) this.renderLayer(context, layer);
@@ -1528,6 +1605,11 @@
         image.onerror = () => this.assetImageCache.delete(key);
         image.src = source;
       }).catch(() => this.assetImageCache.delete(key));
+    }
+
+    renderBodyText(context, page) {
+      if (!page.bodyText) return;
+      drawPageBodyText(context, page);
     }
 
     renderLayer(context, layer) {
@@ -1721,6 +1803,7 @@
         context.beginPath(); context.moveTo(0, y); context.lineTo(page.width, y); context.stroke();
       }
     }
+    if (page.bodyText) drawPageBodyText(context, page);
     page.layers.filter(layer => layer.visible).forEach(layer => {
       context.save();
       context.globalAlpha = Number(layer.opacity ?? 1);

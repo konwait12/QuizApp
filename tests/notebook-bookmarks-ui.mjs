@@ -41,6 +41,10 @@ try {
   await page.getByRole('button', { name: '添加当前页书签' }).click();
   assert.equal(await page.locator('.notebook-page-bookmark').count(), 2);
 
+  await page.evaluate(() => {
+    getNotebookDockConfig().leftOpen = true;
+    renderHandwritingPractice();
+  });
   await page.getByRole('button', { name: '书签', exact: true }).click();
   assert.equal(await page.locator('.notebook-bookmark-item').count(), 2);
   await page.screenshot({ path: path.join(outputDirectory, 'notebook-bookmarks-tablet.png'), fullPage: true });

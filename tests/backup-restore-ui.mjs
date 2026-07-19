@@ -33,15 +33,31 @@ try {
   const result = await page.evaluate(async () => {
     const probeKey = 'quizapp_backup_test_probe';
     const noteId = 'backup-test-note';
+    const coverAssetId = 'backup-test-cover';
+    const folderId = 'folder:backup-test';
     const rollbackNoteId = 'backup-test-rollback-note';
     const bankId = 'backup-test-large-bank';
     const repository = getNotebookRepository();
+    const assetRepository = getNotebookAssetRepository();
     await repository.delete(noteId).catch(() => {});
     await repository.delete(rollbackNoteId).catch(() => {});
+    await assetRepository.deleteByDocument(noteId).catch(() => {});
 
     localStorage.setItem(probeKey, 'original');
     localStorage.setItem('quizapp_ai_config', JSON.stringify({ provider: 'deepseek', apiKey: 'secret-from-source' }));
-    await repository.put(QuizNotebook.createDocument({ id: noteId, title: 'Backup test note', kind: 'free' }));
+    const uiConfig = JSON.parse(localStorage.getItem(UI_CONFIG_KEY) || '{}');
+    uiConfig.notebookLibraryViewDesktop = 'list';
+    uiConfig.notebookLibraryViewMobile = 'covers';
+    localStorage.setItem(UI_CONFIG_KEY, JSON.stringify(uiConfig));
+    localStorage.setItem(NOTEBOOK_FOLDERS_KEY, JSON.stringify([{ id: folderId, name: '备份文件夹', createdAt: 1 }]));
+    await repository.put(QuizNotebook.createDocument({
+      id: noteId,
+      title: 'Backup test note',
+      kind: 'free',
+      folderId,
+      cover: { mode: 'image', assetId: coverAssetId, focusX: .5, focusY: .5, zoom: 1 },
+    }));
+    await assetRepository.putMany([{ id: coverAssetId, documentId: noteId, pageId: '', role: 'cover', mimeType: 'image/png', dataUrl: 'data:image/png;base64,iVBORw0KGgo=', createdAt: 1 }]);
     await persistLargeBanks([{ id: bankId, name: 'Backup test bank', path: ['Test', 'Large'], questions: [] }]);
 
     const backup = await QuizBackup.create({
@@ -52,6 +68,9 @@ try {
     });
     const inspection = await QuizBackup.inspect(backup);
     const backedAiConfig = JSON.parse(backup.data.localStorage.quizapp_ai_config || '{}');
+    const backedUiConfig = JSON.parse(backup.data.localStorage[UI_CONFIG_KEY] || '{}');
+    const backedFolders = JSON.parse(backup.data.localStorage[NOTEBOOK_FOLDERS_KEY] || '[]');
+    const backedCoverAsset = backup.data.indexedDB.stores[NOTEBOOK_ASSET_STORE_NAME]?.records?.find(record => record.value?.id === coverAssetId)?.value || null;
 
     const corrupted = structuredClone(backup);
     corrupted.data.localStorage[probeKey] = 'tampered';
@@ -59,11 +78,17 @@ try {
 
     localStorage.setItem(probeKey, 'mutated');
     localStorage.setItem('quizapp_ai_config', JSON.stringify({ provider: 'custom', apiKey: 'current-device-secret' }));
+    localStorage.setItem(NOTEBOOK_FOLDERS_KEY, '[]');
+    localStorage.setItem(UI_CONFIG_KEY, JSON.stringify({ notebookLibraryViewDesktop: 'covers', notebookLibraryViewMobile: 'list' }));
     await repository.delete(noteId);
+    await assetRepository.deleteByDocument(noteId);
     await persistLargeBanks([]);
     await QuizBackup.restore(backup, { databaseName: INK_DB_NAME });
     const restoredProbe = localStorage.getItem(probeKey);
     const restoredNote = await repository.get(noteId);
+    const restoredCoverAsset = await assetRepository.get(coverAssetId);
+    const restoredFolders = JSON.parse(localStorage.getItem(NOTEBOOK_FOLDERS_KEY) || '[]');
+    const restoredUiConfig = JSON.parse(localStorage.getItem(UI_CONFIG_KEY) || '{}');
     const restoredBank = (await readLargeBanks([bankId]))[0] || null;
     const restoredAiConfig = JSON.parse(localStorage.getItem('quizapp_ai_config') || '{}');
 
@@ -91,6 +116,7 @@ try {
     const rollbackProbe = localStorage.getItem(probeKey);
 
     await repository.delete(noteId).catch(() => {});
+    await assetRepository.deleteByDocument(noteId).catch(() => {});
     await repository.delete(rollbackNoteId).catch(() => {});
     await persistLargeBanks([]);
     localStorage.removeItem(probeKey);
@@ -98,9 +124,15 @@ try {
     return {
       valid: inspection.valid,
       secretExcluded: !Object.hasOwn(backedAiConfig, 'apiKey'),
+      notebookPreferencesBackedUp: backedUiConfig.notebookLibraryViewDesktop === 'list' && backedUiConfig.notebookLibraryViewMobile === 'covers',
+      notebookFoldersBackedUp: backedFolders.some(folder => folder.id === folderId),
+      coverAssetBackedUp: backedCoverAsset?.role === 'cover' && backedCoverAsset?.documentId === noteId,
       corruptedRejected: !corruptedInspection.valid,
       restoredProbe,
       restoredNote: Boolean(restoredNote),
+      restoredCoverAsset: restoredCoverAsset?.role === 'cover',
+      restoredFolder: restoredFolders.some(folder => folder.id === folderId),
+      restoredNotebookPreferences: restoredUiConfig.notebookLibraryViewDesktop === 'list' && restoredUiConfig.notebookLibraryViewMobile === 'covers',
       restoredBank: Boolean(restoredBank),
       currentSecretPreserved: restoredAiConfig.apiKey === 'current-device-secret',
       rollbackError,
@@ -114,9 +146,15 @@ try {
 
   assert.equal(result.valid, true);
   assert.equal(result.secretExcluded, true);
+  assert.equal(result.notebookPreferencesBackedUp, true);
+  assert.equal(result.notebookFoldersBackedUp, true);
+  assert.equal(result.coverAssetBackedUp, true);
   assert.equal(result.corruptedRejected, true);
   assert.equal(result.restoredProbe, 'original');
   assert.equal(result.restoredNote, true);
+  assert.equal(result.restoredCoverAsset, true);
+  assert.equal(result.restoredFolder, true);
+  assert.equal(result.restoredNotebookPreferences, true);
   assert.equal(result.restoredBank, true);
   assert.equal(result.currentSecretPreserved, true);
   assert.match(result.rollbackError, /已回滚原数据/);
@@ -154,6 +192,8 @@ try {
   console.log(JSON.stringify({
     checksumValidation: true,
     defaultSecretExclusion: true,
+    notebookFoldersAndPreferences: true,
+    notebookCoverAssets: true,
     transactionalRestore: true,
     rollbackAfterInjectedFailure: true,
     responsiveScreenshots: true,

@@ -193,11 +193,12 @@ try {
   await auditPage('question overview', 'output/playwright/endfield-overview-tablet.png');
   await page.evaluate(() => closeQuestionOverview());
 
-  await page.evaluate(async () => openFreeNotebookLibrary());
+  await page.evaluate(async () => openHandwritingPractice([], { freeMode: true }));
   await page.locator('.notebook-workspace').waitFor({ state: 'visible' });
   await auditPage('notebook', 'output/playwright/endfield-notebook-tablet.png');
 
   await page.setViewportSize({ width: 390, height: 844 });
+  await page.waitForFunction(() => state.view === 'handwriting' && state.notebookFreeLayoutActive === false);
   await auditPage('notebook mobile', 'output/playwright/endfield-notebook-mobile.png');
 
   await page.reload({ waitUntil: 'domcontentloaded' });

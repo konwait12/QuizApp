@@ -44,6 +44,8 @@ try {
     await getNotebookRepository().put(first);
     await getNotebookRepository().put(second);
     await loadNotebookDocuments();
+    getNotebookDockConfig().leftOpen = true;
+    renderHandwritingPractice();
     setNotebookLeftTab('notebooks');
     return { firstId: first.id, secondId: second.id, questionKey: questionKey(question) };
   });

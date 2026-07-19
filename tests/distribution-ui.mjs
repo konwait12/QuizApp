@@ -33,13 +33,12 @@ const release = () => ({
   ],
 });
 const announcements = {
-  announcements: [{
-    id: 'remote-distribution-test',
-    title: '远程测试公告',
-    date: '2026-07-18',
-    latest: true,
-    body: '<p>公告分发链路测试。</p>',
-  }],
+  announcements: [
+    { id: 'remote-distribution-old', title: '较早远程公告', date: '2026-07-20', body: '<p>较早公告正文。</p>' },
+    { id: 'remote-distribution-latest', title: '最新远程公告', date: '2026-07-22', body: '<p>最新公告正文。</p>' },
+    { id: 'remote-distribution-middle', title: '中间远程公告', date: '2026-07-21', body: '<p>中间公告正文。</p>' },
+    { id: 'remote-distribution-latest', title: '重复 ID 公告', date: '2026-07-01', body: '<p>不应重复展示。</p>' },
+  ],
 };
 const manifest = {
   schemaVersion: 2,
@@ -118,15 +117,61 @@ try {
   await page.screenshot({ path: 'output/playwright/distribution-update-tablet.png' });
   await page.getByRole('button', { name: '稍后' }).click();
 
+  await page.setViewportSize({ width: 390, height: 844 });
   await page.evaluate(async () => {
     state.uiConfig.autoAnnouncementCheck = true;
     try { return await checkForRemoteAnnouncements({ manual: false }); }
     finally { state.uiConfig.autoAnnouncementCheck = false; }
   });
   await page.getByRole('heading', { name: 'QuizApp 公告' }).waitFor({ state: 'visible' });
-  assert.match(await page.locator('.announcement-dialog').innerText(), /远程测试公告/);
+  const startupAnnouncementText = await page.locator('.announcement-dialog').innerText();
+  assert.match(startupAnnouncementText, /最新远程公告/);
+  assert.doesNotMatch(startupAnnouncementText, /中间远程公告|较早远程公告/, 'startup should show exactly one latest unread announcement');
+  await page.evaluate(() => clearToast());
+  await page.screenshot({ path: 'output/playwright/announcement-startup-mobile.png', fullPage: false });
+  const startupActionBox = await page.getByRole('button', { name: '知道了' }).boundingBox();
+  const startupDialogBox = await page.locator('.announcement-dialog').boundingBox();
+  assert.ok(startupActionBox.x > startupDialogBox.x + startupDialogBox.width / 2, 'startup acknowledgement should stay on the right');
   await page.getByRole('button', { name: '知道了' }).click();
-  assert.equal(await page.evaluate(() => hasUnreadAnnouncements()), false, 'closing the announcement should mark it read');
+  assert.equal(await page.evaluate(() => isAnnouncementRead(getAllAnnouncements().find(item => item.id === 'remote-distribution-latest'))), true, 'closing startup should mark only the displayed announcement read');
+  assert.equal(await page.evaluate(() => isAnnouncementRead(getAllAnnouncements().find(item => item.id === 'remote-distribution-middle'))), false, 'older announcements should remain unread');
+  await page.evaluate(() => openAnnouncementBoard());
+  await page.getByRole('heading', { name: '系统通知', exact: true }).waitFor({ state: 'visible' });
+  const boardBox = await page.locator('.announcement-board-dialog').boundingBox();
+  const boardViewport = page.viewportSize();
+  assert.ok(boardBox.width >= boardViewport.width - 1 && boardBox.height >= boardViewport.height - 1, 'system notification board should be an independent full-screen page');
+  assert.equal(await page.locator('.announcement-card').count() >= 3, true);
+  assert.equal(await page.locator('.announcement-entry').count(), 0, 'system notification board should use complete cards, not collapsible summaries');
+  const boardScroll = await page.locator('.announcement-board-dialog .announcement-body').evaluate(element => {
+    element.scrollTop = element.scrollHeight;
+    return { scrollHeight: element.scrollHeight, clientHeight: element.clientHeight, scrollTop: element.scrollTop };
+  });
+  assert.ok(boardScroll.scrollHeight > boardScroll.clientHeight && boardScroll.scrollTop > 0, `system notification board should scroll through multiple cards: ${JSON.stringify(boardScroll)}`);
+  assert.equal(await page.locator('.announcement-time').first().evaluate(element => getComputedStyle(element).textAlign), 'center');
+  await page.locator('.announcement-board-dialog .announcement-body').evaluate(element => { element.scrollTop = 0; });
+  await page.screenshot({ path: 'output/playwright/announcement-board-mobile.png', fullPage: false });
+  const remoteBoardTitles = await page.locator('.announcement-card h4').allTextContents();
+  assert.deepEqual(remoteBoardTitles.slice(0, 3), ['最新远程公告', '中间远程公告', '较早远程公告']);
+  assert.equal(await page.evaluate(() => getAllAnnouncements().filter(item => item.id === 'remote-distribution-latest').length), 1, 'merged announcements should deduplicate stable IDs');
+  assert.equal(await page.evaluate(() => hasUnreadAnnouncements()), false, 'opening the full board should mark all visible announcements read');
+  await page.getByRole('button', { name: '返回' }).click();
+  assert.equal(await page.locator('.mail-button.unread').count(), 0, 'opening the board should clear the home mail badge');
+  await page.setViewportSize({ width: 1180, height: 820 });
+  await page.evaluate(() => openAnnouncementBoard());
+  await page.getByRole('heading', { name: '系统通知', exact: true }).waitFor({ state: 'visible' });
+  await page.screenshot({ path: 'output/playwright/announcement-board-tablet.png', fullPage: false });
+  await page.getByRole('button', { name: '返回' }).click();
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.evaluate(async () => {
+    state.uiConfig.autoAnnouncementCheck = true;
+    try { return await checkForRemoteAnnouncements({ manual: false }); }
+    finally { state.uiConfig.autoAnnouncementCheck = false; }
+  });
+  await page.waitForTimeout(80);
+  assert.equal(await page.locator('.app-dialog-mask').count(), 0, 'automatic announcement check should stay silent when nothing is unread');
+  await page.evaluate(() => checkForRemoteAnnouncements({ manual: true }));
+  await page.getByText(/公告已经是最新，没有未读公告/).waitFor({ state: 'visible' });
+  await page.getByRole('button', { name: '知道了' }).click();
 
   await page.evaluate(async () => {
     state.uiConfig.autoBankUpdateCheck = true;
@@ -224,6 +269,10 @@ try {
     manualNoUpdateNotice: true,
     versionDialog: true,
     remoteAnnouncement: true,
+    announcementBoard: true,
+    announcementStableIdDeduplication: true,
+    automaticAnnouncementSilence: true,
+    manualNoAnnouncementNotice: true,
     automaticBankDiscovery: true,
     bankManifestFingerprint: true,
     automaticBankDismissal: true,

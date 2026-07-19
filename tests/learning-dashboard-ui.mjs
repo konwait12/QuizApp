@@ -64,6 +64,24 @@ try {
   });
 
   await page.locator('.hub-study-status').waitFor({ state: 'visible' });
+  await page.evaluate(() => openPracticeProgressDetails());
+  const progressDialog = page.getByRole('dialog', { name: '分科目做题进度' });
+  await progressDialog.waitFor({ state: 'visible' });
+  const progressDialogAlignment = await progressDialog.evaluate(element => {
+    const button = element.querySelector('.app-dialog-actions button');
+    const dialogRect = element.getBoundingClientRect();
+    const buttonRect = button.getBoundingClientRect();
+    return {
+      buttonCenter: buttonRect.left + buttonRect.width / 2,
+      dialogCenter: dialogRect.left + dialogRect.width / 2,
+    };
+  });
+  assert.ok(
+    progressDialogAlignment.buttonCenter > progressDialogAlignment.dialogCenter,
+    'progress dialog close action should be aligned on the right',
+  );
+  await progressDialog.screenshot({ path: 'output/playwright/progress-details-close-right-tablet.png' });
+  await progressDialog.getByRole('button', { name: '关闭' }).click();
   assert.ok(await page.locator('.study-subject-chip').count() > 0, 'study page should expose subjects as in-place selectors');
   assert.equal(await page.locator('.hub-study-subjects .subject-card').count(), 0, 'study page should not reuse library navigation cards');
   const subjectChips = page.locator('.study-subject-chip');
@@ -73,6 +91,7 @@ try {
   assert.equal(await page.evaluate(() => state.mainTab), 'study');
   assert.equal(await page.locator('.study-subject-chip.active').count(), 1);
   assert.ok(await page.locator('.study-scope-chip').count() > 0, 'selected subject should expose its available ranges');
+  await page.addStyleTag({ content: '.study-scope-switcher{max-width:560px}' });
   const scopeSelect = page.locator('[data-choice-id="studyScopeSelect"]');
   await scopeSelect.locator('.choice-trigger').click();
   await scopeSelect.locator('.choice-menu').waitFor({ state: 'visible' });
@@ -82,10 +101,45 @@ try {
     await page.locator('.study-scope-chip').count(),
     'study scope dropdown should mirror the horizontal scope shortcuts',
   );
-  if (await scopeSelect.locator('.choice-option').count() > 1) {
-    await scopeSelect.locator('.choice-option').nth(1).click();
+  const scopeOptionCount = await scopeSelect.locator('.choice-option').count();
+  if (scopeOptionCount > 1) {
+    await scopeSelect.locator('.choice-option').nth(scopeOptionCount - 1).evaluate(element => element.click());
     assert.equal(await page.evaluate(() => state.view), 'home', 'dropdown scope selection should stay on the study dashboard');
     assert.equal(await page.evaluate(() => state.mainTab), 'study');
+    const scopeStripState = await page.locator('.study-scope-switcher').evaluate(element => {
+      const active = element.querySelector('.study-scope-chip.active');
+      const stripRect = element.getBoundingClientRect();
+      const activeRect = active.getBoundingClientRect();
+      return {
+        activeVisible: activeRect.left >= stripRect.left - 1 && activeRect.right <= stripRect.right + 1,
+        overflow: element.scrollWidth > element.clientWidth,
+        scrollLeft: element.scrollLeft,
+      };
+    });
+    assert.equal(scopeStripState.activeVisible, true, 'dropdown selection should reveal the active horizontal scope chip');
+    assert.equal(scopeStripState.overflow, true, 'scope regression fixture should exercise a horizontally overflowing strip');
+    await page.screenshot({ path: 'output/playwright/study-scope-follow-tablet.png', fullPage: false });
+    assert.ok(scopeStripState.scrollLeft > 0, 'revealing the last scope should move the horizontal strip');
+    const directSelection = await page.locator('.study-scope-switcher').evaluate(element => {
+      const before = element.scrollLeft;
+      const target = element.querySelector('.study-scope-chip.active')?.previousElementSibling;
+      if (!target) throw new Error('Expected a visible scope before the active last scope');
+      const targetText = target.textContent.trim();
+      target.click();
+      return { before, targetText };
+    });
+    await page.locator('.study-scope-switcher').waitFor({ state: 'visible' });
+    const restoredScrollLeft = await page.locator('.study-scope-switcher').evaluate(element => element.scrollLeft);
+    assert.equal(
+      (await page.locator('.study-scope-chip.active').innerText()).trim(),
+      directSelection.targetText,
+      'direct horizontal selection should update the active scope',
+    );
+    assert.ok(
+      Math.abs(restoredScrollLeft - directSelection.before) <= 1,
+      `direct horizontal selection should preserve its viewport: ${directSelection.before} -> ${restoredScrollLeft}`,
+    );
+    await page.screenshot({ path: 'output/playwright/study-scope-direct-preserved-tablet.png', fullPage: false });
   }
   const scopes = page.locator('.study-scope-chip');
   if (await scopes.count() > 1) await scopes.nth(1).click();
@@ -154,6 +208,9 @@ try {
     examStats: true,
     subjectFirstFlow: true,
     scopeDropdown: true,
+    progressDialogActionAlignment: true,
+    scopeAutoReveal: true,
+    scopeScrollPreservation: true,
     inPlaceSubjectAndScopeSelection: true,
     modeEntryAndReturn: true,
     subjectStatistics: true,

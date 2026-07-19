@@ -310,7 +310,7 @@
     (document?.links || []).forEach(link => chunks.push(link.label || '', link.target || ''));
     (document?.bookmarks || []).forEach(bookmark => chunks.push(bookmark.label || '', bookmark.note || ''));
     (document?.pages || []).forEach(page => {
-      chunks.push(page.name || '', page.background?.sourceName || '', page.background?.searchText || '', page.ocr?.text || '');
+      chunks.push(page.name || '', page.bodyText || '', page.background?.sourceName || '', page.background?.searchText || '', page.ocr?.text || '');
       (page.objects || []).forEach(object => chunks.push(
         object.data?.text || '',
         object.data?.label || '',

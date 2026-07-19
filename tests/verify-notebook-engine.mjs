@@ -18,8 +18,20 @@ const moduleUrl = pathToFileURL(path.resolve('notebook/speedynote-notebook.js'))
 await import(`${moduleUrl.href}?test=${Date.now()}`);
 
 const { createDocument, NotebookSession, CanvasViewport } = globalThis.QuizNotebook;
+assert.equal(globalThis.QuizNotebook.SCHEMA_VERSION, 5, 'notebook schema should expose the library/body-text revision');
+const legacyDocument = globalThis.QuizNotebook.normalizeDocument({ schemaVersion: 4, title: 'Legacy', pages: [{}] });
+assert.equal(legacyDocument.folderId, '', 'schema 4 documents should gain an unfiled default');
+assert.equal(legacyDocument.cover.mode, 'preset', 'schema 4 documents should gain a default cover');
+assert.equal(legacyDocument.pages[0].bodyText, '', 'schema 4 pages should gain an empty body text field');
+assert.equal(legacyDocument.lastEditorMode, '', 'schema 4 documents should not force an editor mode');
+const libraryDocument = createDocument({ title: 'Library fields', folderId: 'folder:test', cover: { mode: 'image', assetId: 'cover:test' }, lastEditorMode: 'typing' });
+assert.equal(libraryDocument.folderId, 'folder:test');
+assert.equal(libraryDocument.cover.assetId, 'cover:test');
+assert.equal(libraryDocument.lastEditorMode, 'typing');
 const document = createDocument({ title: 'Notebook engine test' });
 const session = new NotebookSession(document);
+assert.equal(session.setPageBodyText('同页文字正文'), true);
+assert.equal(session.page.bodyText, '同页文字正文');
 
 const first = session.addObject('text', { text: 'A' }, { x: 20, y: 30, width: 120, height: 80 });
 const second = session.addObject('text', { text: 'B' }, { x: 220, y: 130, width: 140, height: 90 });
@@ -105,6 +117,34 @@ assert.equal(viewport.straightLine, true, 'straight-line mode should be configur
 assert.equal(viewport.tool, 'marker', 'marker should be a first-class drawing tool');
 viewport.destroy();
 
+const inputSession = new NotebookSession(createDocument({ title: 'Input modes' }));
+const inputViewport = new CanvasViewport(canvas, inputSession, { getStroke: points => points });
+const touchEvent = (pointerId, x, y) => ({ pointerType: 'touch', pointerId, clientX: x, clientY: y, button: 0, pressure: .5, timeStamp: Date.now(), preventDefault() {} });
+inputViewport.setStyle({ penOnly: true });
+inputViewport.pointerDown(touchEvent(1, 620, 370));
+assert.equal(inputViewport.pointer?.mode, 'pan', 'pen-writing mode should use one-finger touch for panning');
+assert.equal(inputSession.layer.strokes.length, 0);
+inputViewport.pointerUp(touchEvent(1, 620, 370));
+inputViewport.setStyle({ penOnly: false });
+inputViewport.pointerDown(touchEvent(2, 620, 370));
+assert.equal(inputViewport.pointer?.mode, 'draw', 'finger-writing mode should draw with one-finger touch');
+inputViewport.pointerMove(touchEvent(2, 640, 390));
+inputViewport.pointerUp(touchEvent(2, 650, 400));
+assert.equal(inputSession.layer.strokes.length, 1);
+for (const [index, penOnly] of [true, false].entries()) {
+  inputViewport.setStyle({ penOnly });
+  inputViewport.scale = 1;
+  const firstId = 10 + index * 2;
+  const secondId = firstId + 1;
+  inputViewport.pointerDown(touchEvent(firstId, 480, 300));
+  inputViewport.pointerDown(touchEvent(secondId, 580, 300));
+  inputViewport.pointerMove(touchEvent(secondId, 680, 300));
+  assert.ok(inputViewport.scale > 1, `${penOnly ? 'pen-writing' : 'finger-writing'} mode should keep two-finger pinch zoom`);
+  inputViewport.pointerUp(touchEvent(secondId, 680, 300));
+  inputViewport.pointerUp(touchEvent(firstId, 480, 300));
+}
+inputViewport.destroy();
+
 const edgelessDocument = createDocument({ title: 'Edgeless test', mode: 'edgeless' });
 assert.equal(edgelessDocument.mode, 'edgeless');
 assert.ok(edgelessDocument.pages[0].width >= 3600 && edgelessDocument.pages[0].height >= 2800, 'edgeless documents should start with a usable workspace');
@@ -114,15 +154,12 @@ const edgelessViewport = new CanvasViewport(canvas, edgelessSession, { getStroke
 edgelessViewport.scale = 1;
 edgelessViewport.offsetX = 500;
 edgelessViewport.offsetY = 420;
-const objectScreenBeforeExpansion = { x: anchorObject.x + edgelessViewport.offsetX, y: anchorObject.y + edgelessViewport.offsetY };
 const widthBeforeExpansion = edgelessSession.page.width;
 edgelessViewport.ensureEdgelessViewport();
-const objectScreenAfterExpansion = { x: anchorObject.x + edgelessViewport.offsetX, y: anchorObject.y + edgelessViewport.offsetY };
-assert.deepEqual(objectScreenAfterExpansion, objectScreenBeforeExpansion, 'left/top canvas expansion should not move existing content on screen');
-assert.ok(edgelessSession.page.width > widthBeforeExpansion, 'panning beyond the left edge should expand the canvas');
-const widthAfterLeftExpansion = edgelessSession.page.width;
-edgelessViewport.ensureEdgelessBounds(widthAfterLeftExpansion + 200, 800, widthAfterLeftExpansion + 200, 800);
-assert.ok(edgelessSession.page.width > widthAfterLeftExpansion, 'drawing beyond the right edge should expand the canvas');
+assert.equal(edgelessSession.page.width, widthBeforeExpansion, 'panning should not expand the edgeless canvas');
+const widthBeforeContentExpansion = edgelessSession.page.width;
+edgelessViewport.ensureEdgelessBounds(widthBeforeContentExpansion + 200, 800, widthBeforeContentExpansion + 200, 800);
+assert.ok(edgelessSession.page.width > widthBeforeContentExpansion, 'content beyond the right edge should expand the canvas');
 assert.equal(edgelessViewport.pageContains({ x: -1000, y: -1000 }), true, 'edgeless mode should accept points beyond the current bounds');
 edgelessViewport.destroy();
 
@@ -134,6 +171,8 @@ assert.equal(modeSession.document.mode, 'paged');
 
 console.log(JSON.stringify({
   multiSelect: true,
+  schema5Compatibility: true,
+  pageBodyText: true,
   copyPaste: true,
   groupDelete: true,
   pageReorder: true,
@@ -145,6 +184,8 @@ console.log(JSON.stringify({
   polygonLasso: true,
   mergeLayerDown: true,
   edgelessExpansion: true,
-  edgelessStableAnchor: true,
+  edgelessPanDoesNotExpand: true,
+  touchInputModes: true,
+  twoFingerPinchModes: true,
   documentModeUndo: true,
 }, null, 2));

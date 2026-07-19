@@ -151,6 +151,20 @@
     context.restore();
   }
 
+  function drawBodyText(context, page) {
+    if (!page.bodyText) return;
+    const marginX = Math.max(72, page.width * .075);
+    const marginTop = Math.max(88, page.height * .065);
+    const fontSize = clamp(page.width / 34, 26, 38);
+    const lineHeight = fontSize * 1.75;
+    context.save();
+    context.fillStyle = '#202522';
+    context.font = `${fontSize}px "Microsoft YaHei","Noto Sans SC",sans-serif`;
+    context.textBaseline = 'top';
+    wrapText(context, page.bodyText, marginX, marginTop, page.width - marginX * 2, lineHeight, page.height - marginTop);
+    context.restore();
+  }
+
   function drawObject(context, object, images) {
     context.save();
     context.translate(object.x + object.width / 2, object.y + object.height / 2);
@@ -209,6 +223,7 @@
     context.save();
     context.scale(scale, scale);
     drawBackground(context, page, images);
+    drawBodyText(context, page);
     drawObjects(context, page, images, -1);
     (page.layers || []).forEach((layer, index) => {
       if (layer.visible) {

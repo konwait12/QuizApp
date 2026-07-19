@@ -119,6 +119,7 @@ try {
   assert.ok(exportResult.greenPixels < 15, 'hidden green layer should not be exported');
   assert.ok(exportResult.darkPixels > 50, 'PDF background/text should remain visible');
 
+  await page.getByRole('button', { name: '更多操作' }).click();
   await page.getByRole('button', { name: '导出', exact: true }).click();
   await page.getByRole('heading', { name: '导出笔记' }).waitFor({ state: 'visible' });
   await page.screenshot({ path: path.join(outputDirectory, 'notebook-export-desktop.png'), fullPage: true });
