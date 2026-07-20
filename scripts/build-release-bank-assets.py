@@ -68,14 +68,14 @@ def segment_sort_key(segment: object) -> tuple:
     return (9, chunks, text)
 
 
-def bank_file_sort_key(path: Path) -> tuple:
+def bank_file_sort_key(path: Path, source_root: Path = DATA_DIR) -> tuple:
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
         logical_path = normalize_path(payload.get("path") or payload.get("路径") or [])
     except Exception:
         logical_path = []
     if not logical_path:
-        relative = path.relative_to(DATA_DIR).with_suffix("")
+        relative = path.relative_to(source_root).with_suffix("")
         logical_path = [part for part in relative.parts if part]
     return tuple(segment_sort_key(part) for part in logical_path)
 
@@ -112,19 +112,45 @@ def load_bank(path: Path) -> dict:
     return payload
 
 
-def source_bank_files() -> list[Path]:
-    return sorted(DATA_DIR.rglob("*.json"), key=bank_file_sort_key)
+def source_bank_files(source_root: Path) -> list[Path]:
+    candidates = [path for path in source_root.rglob("*.json") if path.name != "export-report.json"]
+    return sorted(candidates, key=lambda path: bank_file_sort_key(path, source_root))
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Build per-bank GitHub Release assets.")
     parser.add_argument("--dry-run", action="store_true", help="Validate sources without copying large bank files.")
+    parser.add_argument(
+        "--extra-dir",
+        action="append",
+        default=[],
+        type=Path,
+        help="Append another directory of validated bank JSON files after the built-in data directory.",
+    )
     args = parser.parse_args()
-    source_files = source_bank_files()
+    source_roots = [DATA_DIR, *(path.resolve() for path in args.extra_dir)]
+    for source_root in source_roots:
+        if not source_root.is_dir():
+            raise ValueError(f"Bank source directory does not exist: {source_root}")
+    source_files = [path for source_root in source_roots for path in source_bank_files(source_root)]
+    seen_ids: set[str] = set()
+    seen_paths: set[tuple[str, ...]] = set()
+    for source in source_files:
+        bank = load_bank(source)
+        bank_id = str(bank.get("id") or "").strip()
+        logical_path = tuple(normalize_path(bank.get("path")))
+        if bank_id and bank_id in seen_ids:
+            raise ValueError(f"Duplicate bank id: {bank_id}")
+        if logical_path in seen_paths:
+            raise ValueError(f"Duplicate bank path: {' / '.join(logical_path)}")
+        if bank_id:
+            seen_ids.add(bank_id)
+        seen_paths.add(logical_path)
     if args.dry_run:
         print(json.dumps({
             "banks": len(source_files),
             "bytes": sum(source.stat().st_size for source in source_files),
+            "sourceDirectories": len(source_roots),
             "restrictedBanksIncluded": False,
         }, ensure_ascii=False))
         return
@@ -162,7 +188,7 @@ def main() -> None:
         json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
-    print(json.dumps({"outDir": str(OUT_DIR), "banks": len(entries)}, ensure_ascii=False))
+    print(json.dumps({"outDir": str(OUT_DIR), "banks": len(entries), "sourceDirectories": len(source_roots)}, ensure_ascii=False))
 
 
 if __name__ == "__main__":

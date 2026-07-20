@@ -49,8 +49,13 @@ try {
   assert.equal(await page.locator('.tool-group').count(), 0, 'tool panels should default to collapsed');
   await page.locator('.tool-toggle').click();
   assert.equal(await page.locator('.tool-group').count(), 1, 'tool panel toggle should expand the existing tool cards');
-  await page.locator('.tool-toggle').click();
+  assert.equal(await page.evaluate(() => window.handleNativeBack()), true, 'native back should consume an expanded tool panel');
   assert.equal(await page.locator('.tool-group').count(), 0, 'tool panel toggle should collapse again');
+
+  await page.evaluate(() => showNotice('返回键弹窗测试'));
+  assert.equal(await page.locator('.app-dialog-mask').count(), 1);
+  assert.equal(await page.evaluate(() => window.handleNativeBack()), true, 'native back should close a dialog before navigating');
+  assert.equal(await page.locator('.app-dialog-mask').count(), 0);
   assert.equal(await page.locator('.main-nav-button').count(), 4);
   await assertNoHorizontalOverflow('desktop home');
   await page.screenshot({ path: 'output/playwright/main-shell-desktop.png', fullPage: true });
@@ -129,6 +134,17 @@ try {
   await page.locator('.quiz-topbar').waitFor({ state: 'visible' });
   await assertNoHorizontalOverflow('mobile quiz');
   await page.screenshot({ path: 'output/playwright/quiz-mobile-current.png', fullPage: true });
+  await page.evaluate(() => openHandwritingPractice([], {
+    questions: state.activeSession.questions,
+    fromQuiz: true,
+    index: state.currentIndex,
+  }));
+  await page.locator('.notebook-view').waitFor({ state: 'visible' });
+  await page.evaluate(() => toggleNotebookMobilePane('left'));
+  await page.locator('.notebook-workspace.show-left').waitFor({ state: 'visible' });
+  assert.equal(await page.evaluate(() => window.handleNativeBack()), true, 'native back should close the notebook drawer');
+  assert.equal(await page.locator('.notebook-workspace.show-left').count(), 0);
+  assert.equal(await page.evaluate(() => state.view), 'handwriting', 'closing a drawer must not leave the notebook');
   assert.deepEqual(pageErrors, []);
   console.log(JSON.stringify({
     fourMainTabs: true,

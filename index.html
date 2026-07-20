@@ -2607,7 +2607,7 @@ body[data-system-theme="endfield"] .exam-options button.selected span{color:#101
 <body>
 <div class="app" id="app"></div>
 
-<script src="./vendor/perfect-freehand.min.js?v=1.0.22"></script>
+<script src="./vendor/perfect-freehand.min.js?v=1.0.23"></script>
 <script src="./vendor/ts-fsrs.umd.js?v=5.4.1"></script>
 <script src="./vendor/pdfjs/pdf.min.js?v=3.11.174"></script>
 <script src="./vendor/pdf-lib/pdf-lib.min.js?v=1.17.1"></script>
@@ -2617,23 +2617,23 @@ body[data-system-theme="endfield"] .exam-options button.selected span{color:#101
 <script src="./vendor/cytoscape/cytoscape.min.js?v=3.33.1"></script>
 <script src="./vendor/tesseract/tesseract.min.js?v=7.0.0"></script>
 <script src="./vendor/jszip.min.js?v=3.10.1"></script>
-<script src="./notebook/speedynote-notebook.js?v=1.0.22"></script>
-<script src="./notebook/pdf-notebook.js?v=1.0.22"></script>
-<script src="./notebook/notebook-export.js?v=1.0.22"></script>
-<script src="./notebook/rich-objects.js?v=1.0.22"></script>
-<script src="./notebook/knowledge-graph.js?v=1.0.22"></script>
-<script src="./notebook/ocr.js?v=1.0.22"></script>
-<script src="./notebook/ocr-ui.js?v=1.0.22"></script>
-<script src="./review/fsrs-review.js?v=1.0.22"></script>
-<script src="./review/review-ui.js?v=1.0.22"></script>
-<script src="./exam/exam-ui.js?v=1.0.22"></script>
-<script src="./ai/learning-tasks.js?v=1.0.22"></script>
-<script src="./backup/local-backup.js?v=1.0.22"></script>
-<script src="./shell/main-hub.js?v=1.0.22"></script>
+<script src="./notebook/speedynote-notebook.js?v=1.0.23"></script>
+<script src="./notebook/pdf-notebook.js?v=1.0.23"></script>
+<script src="./notebook/notebook-export.js?v=1.0.23"></script>
+<script src="./notebook/rich-objects.js?v=1.0.23"></script>
+<script src="./notebook/knowledge-graph.js?v=1.0.23"></script>
+<script src="./notebook/ocr.js?v=1.0.23"></script>
+<script src="./notebook/ocr-ui.js?v=1.0.23"></script>
+<script src="./review/fsrs-review.js?v=1.0.23"></script>
+<script src="./review/review-ui.js?v=1.0.23"></script>
+<script src="./exam/exam-ui.js?v=1.0.23"></script>
+<script src="./ai/learning-tasks.js?v=1.0.23"></script>
+<script src="./backup/local-backup.js?v=1.0.23"></script>
+<script src="./shell/main-hub.js?v=1.0.23"></script>
 <script>
 // ========== State ==========
 const STORAGE_KEY = 'quizapp_banks';
-const APP_VERSION = 'v1.0.22';
+const APP_VERSION = 'v1.0.23';
 const APP_BUILD_COMMIT = 'dev';
 const RELEASE_API_URL = 'https://api.github.com/repos/konwait12/QuizApp/releases/latest';
 const RELEASE_PAGE_URL = 'https://github.com/konwait12/QuizApp/releases/latest';
@@ -2761,7 +2761,7 @@ const NOTEBOOK_ASSET_STORE_NAME = 'notebook_assets';
 const NOTEBOOK_ASSET_DOCUMENT_INDEX = 'documentId';
 const LARGE_BANK_THRESHOLD = 750000;
 const UI_CONFIG_VERSION = 2;
-const ANNOUNCEMENT_ID = 'release-v1.0.22';
+const ANNOUNCEMENT_ID = 'release-v1.0.23';
 const ANNOUNCEMENT_SEEN_KEY = 'quizapp_announcement_seen';
 const ANNOUNCEMENT_SUPPRESS_KEY = 'quizapp_announcement_suppressed';
 const ANNOUNCEMENT_READ_IDS_KEY = 'quizapp_announcement_read_ids';
@@ -2803,6 +2803,18 @@ const AI_QUESTION_SYSTEM_PROMPT = `你是严谨的题目解析教师。你会收
 给出简短、可复习的记忆线索。
 规则：以提供的结构化正确答案为准；如果题目、选项与答案明显矛盾，必须指出矛盾但不要私自改答案；不得编造教材原文或来源。`;
 const ANNOUNCEMENTS = [
+  {
+    id: 'release-v1.0.23',
+    title: 'v1.0.23 考研数学题库与移动端修复',
+    date: '2026-07-20',
+    body: `
+      <ul>
+        <li>新增 2 套公开考研数学题库，共 72 个分节、870 道图片题，并包含对应解析图片。</li>
+        <li>修复部分 Android WebView 无法读取 APK 内置 PDF 的问题，本地资源读取失败时会自动切换兼容链路。</li>
+        <li>手机系统返回键会优先收起弹窗、抽屉、下拉菜单、工具设置和展开内容，再返回上一页。</li>
+        <li>精简项目公开说明，保留安装、功能、隐私与开源许可等必要信息。</li>
+      </ul>`,
+  },
   {
     id: 'release-v1.0.22',
     title: 'v1.0.22 考研数学 PDF 与文档式笔记阅读',
@@ -3307,8 +3319,63 @@ function goBackRoute() {
   }
 }
 
+function isVisibleBackTarget(element) {
+  if (!element || element.hidden) return false;
+  const style = window.getComputedStyle(element);
+  if (style.display === 'none' || style.visibility === 'hidden') return false;
+  const bounds = element.getBoundingClientRect();
+  return bounds.width > 0 && bounds.height > 0;
+}
+
+function closeExpandedInterface() {
+  const masks = Array.from(document.querySelectorAll('.app-dialog-mask')).filter(isVisibleBackTarget);
+  if (masks.length) {
+    masks[masks.length - 1].remove();
+    return true;
+  }
+
+  const openChoice = document.querySelector('.choice-select.open');
+  if (openChoice) {
+    closeChoiceSelects();
+    return true;
+  }
+
+  if (state.view === 'handwriting' && state.notebookMobilePane) {
+    toggleNotebookMobilePane('');
+    return true;
+  }
+
+  if (state.aiHistoryOpen) {
+    state.aiHistoryOpen = false;
+    document.getElementById('aiHistoryPane')?.classList.remove('open');
+    return true;
+  }
+
+  if (state.view === 'handwriting' && state.notebookSubtoolbarOpen) {
+    state.notebookSubtoolbarOpen = false;
+    refreshNotebookToolbar();
+    return true;
+  }
+
+  const expandedButtons = Array.from(document.querySelectorAll('.tool-toggle[aria-expanded="true"], .chapter-expand-icon[aria-expanded="true"]'))
+    .filter(isVisibleBackTarget);
+  if (expandedButtons.length) {
+    expandedButtons[expandedButtons.length - 1].click();
+    return true;
+  }
+
+  const openDetails = Array.from(document.querySelectorAll('details[open]')).filter(isVisibleBackTarget);
+  if (openDetails.length) {
+    const focused = openDetails.find(item => item.contains(document.activeElement));
+    (focused || openDetails[openDetails.length - 1]).open = false;
+    return true;
+  }
+
+  return false;
+}
+
 window.handleNativeBack = function handleNativeBack() {
-  return goBackRoute();
+  return closeExpandedInterface() || goBackRoute();
 };
 
 function backFromQuiz() {

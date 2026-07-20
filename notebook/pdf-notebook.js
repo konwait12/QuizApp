@@ -161,14 +161,43 @@
     };
   }
 
+  async function readUrlArrayBuffer(source) {
+    let fetchError = null;
+    try {
+      const response = await fetch(source);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      return await response.arrayBuffer();
+    } catch (error) {
+      fetchError = error;
+    }
+
+    if (typeof XMLHttpRequest !== 'function') throw fetchError;
+    try {
+      return await new Promise((resolve, reject) => {
+        const request = new XMLHttpRequest();
+        request.open('GET', source, true);
+        request.responseType = 'arraybuffer';
+        request.onload = () => {
+          const success = (request.status >= 200 && request.status < 300) || (request.status === 0 && request.response);
+          if (success && request.response) resolve(request.response);
+          else reject(new Error(`HTTP ${request.status || 0}`));
+        };
+        request.onerror = () => reject(new Error(`HTTP ${request.status || 0}`));
+        request.send();
+      });
+    } catch (xhrError) {
+      const fetchMessage = String(fetchError?.message || fetchError || 'Fetch 不可用');
+      const xhrMessage = String(xhrError?.message || xhrError || 'XHR 不可用');
+      throw new Error(`本地 PDF 读取失败（Fetch：${fetchMessage}；XHR：${xhrMessage}）`);
+    }
+  }
+
   async function loadPdfUrl(url) {
     const source = String(url || '').trim();
     if (!source) throw new Error('PDF 来源地址为空');
     if (sourceCache.has(source)) return sourceCache.get(source);
     const pending = (async () => {
-      const response = await fetch(source);
-      if (!response.ok) throw new Error(`PDF 读取失败：HTTP ${response.status}`);
-      const data = new Uint8Array(await response.arrayBuffer());
+      const data = new Uint8Array(await readUrlArrayBuffer(source));
       const loadingTask = global.pdfjsLib.getDocument({ data });
       const document = await loadingTask.promise;
       return { document, loadingTask, fileName: source.split('/').pop() || '内置 PDF', fileSize: data.byteLength, totalPages: document.numPages };

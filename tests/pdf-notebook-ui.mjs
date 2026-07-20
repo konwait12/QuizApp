@@ -13,6 +13,7 @@ const fixture = path.resolve('tests/fixtures/notebook-pdf-test.pdf');
 const browser = await chromium.launch({
   headless: true,
   ...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE } : {}),
+  ...(appUrl.startsWith('file:') ? { args: ['--allow-file-access-from-files'] } : {}),
 });
 const page = await browser.newPage({ viewport: { width: 1180, height: 820 } });
 const pageErrors = [];
@@ -62,6 +63,21 @@ try {
   assert.equal(repairedBuiltIns.firstPageSourceUrl, repairedBuiltIns.sourceUrl);
   assert.equal(repairedBuiltIns.bodyText, '旧记录正文');
   assert.equal(repairedBuiltIns.hasLegacyStroke, true);
+  const fallbackFixture = appUrl.startsWith('file:')
+    ? { source: 'data/考研数学/_documents/做题本/数学一-基础篇.pdf', totalPages: 303 }
+    : { source: 'tests/fixtures/notebook-pdf-test.pdf', totalPages: 2 };
+  const fetchFallback = await page.evaluate(async source => {
+    const originalFetch = window.fetch;
+    window.fetch = async () => { throw new TypeError('simulated WebView file Fetch failure'); };
+    try {
+      const loaded = await QuizPdfNotebook.loadPdfUrl(source);
+      return { totalPages: loaded.totalPages, fileSize: loaded.fileSize };
+    } finally {
+      window.fetch = originalFetch;
+      await QuizPdfNotebook.releasePdfSourcesExcept('');
+    }
+  }, fallbackFixture.source);
+  assert.equal(fetchFallback.totalPages, fallbackFixture.totalPages, 'XHR should load a local PDF when WebView Fetch rejects file assets');
   await page.evaluate(() => openNotebookFromLibrary('builtin-pdf:zhangyu:math1:basic'));
   await page.waitForFunction(() => state.notebookSession?.document?.id === 'builtin-pdf:zhangyu:math1:basic' && Boolean(state.notebookSession.page.background.assetId), null, { timeout: 60000 });
   await page.locator('#notebookContinuousScroll').waitFor({ state: 'visible' });
@@ -108,6 +124,7 @@ try {
     scroller.dispatchEvent(new Event('scroll'));
   });
   await page.waitForFunction(() => state.notebookSession?.page?.background?.sourcePage === 10, null, { timeout: 60000 });
+  await page.waitForFunction(() => document.querySelector('.notebook-page-status span')?.textContent === '10/303', null, { timeout: 60000 });
   const pageTenReaderState = await page.evaluate(() => ({
     pageStatus: document.querySelector('.notebook-page-status span')?.textContent,
     pageElements: document.querySelectorAll('.notebook-continuous-page').length,

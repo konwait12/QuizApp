@@ -37,6 +37,8 @@ assert.match(bridge, /public void chooseBackupDestination\(String fileName\)/);
 assert.match(bridge, /public void chooseDocumentDestination\(String fileName, String mimeType\)/);
 
 assert.match(index, /window\.handleNativeBack = function handleNativeBack/);
+assert.match(index, /closeExpandedInterface\(\) \|\| goBackRoute\(\)/);
+assert.match(index, /state\.notebookMobilePane/);
 assert.match(index, /window\.QuizAppNative\.openBankDirectory/);
 assert.match(index, /window\.QuizAppNative\.downloadAndInstallApk/);
 assert.match(build, /Copy-Item -LiteralPath \(Join-Path \$projectRoot "index\.html"\)/);
