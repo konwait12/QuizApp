@@ -46,6 +46,8 @@
   }
 
   function snapshotQuestion(question) {
+    const keepMediaUrl = value => !String(value || '').startsWith('data:') || String(value || '').length < 4096;
+    const builtin = question.explanations?.builtin || {};
     return {
       id: question.id || '',
       type: question.type || '',
@@ -53,6 +55,14 @@
       options: Array.isArray(question.options) ? question.options.slice(0, 12) : [],
       ans: String(question.ans || ''),
       exp: String(question.exp || ''),
+      questionImages: Array.isArray(question.questionImages) ? question.questionImages.filter(keepMediaUrl) : [],
+      explanations: {
+        ...(question.explanations || {}),
+        builtin: { ...builtin, images: Array.isArray(builtin.images) ? builtin.images.filter(keepMediaUrl) : [] },
+      },
+      source: question.source && typeof question.source === 'object'
+        ? { ...question.source }
+        : null,
       sourceSubject: question.sourceSubject || '',
       sourceChapter: question.sourceChapter || '',
       sourcePath: Array.isArray(question.sourcePath) ? question.sourcePath : [],

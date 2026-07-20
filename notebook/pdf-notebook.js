@@ -4,6 +4,7 @@
 
   const ASSET_STORE_NAME = 'notebook_assets';
   const DOCUMENT_INDEX_NAME = 'documentId';
+  const sourceCache = new Map();
 
   function requestValue(request) {
     return new Promise((resolve, reject) => {
@@ -158,6 +159,34 @@
       totalPages: document.numPages,
       outline,
     };
+  }
+
+  async function loadPdfUrl(url) {
+    const source = String(url || '').trim();
+    if (!source) throw new Error('PDF 来源地址为空');
+    if (sourceCache.has(source)) return sourceCache.get(source);
+    const pending = (async () => {
+      const response = await fetch(source);
+      if (!response.ok) throw new Error(`PDF 读取失败：HTTP ${response.status}`);
+      const data = new Uint8Array(await response.arrayBuffer());
+      const loadingTask = global.pdfjsLib.getDocument({ data });
+      const document = await loadingTask.promise;
+      return { document, loadingTask, fileName: source.split('/').pop() || '内置 PDF', fileSize: data.byteLength, totalPages: document.numPages };
+    })().catch(error => {
+      sourceCache.delete(source);
+      throw error;
+    });
+    sourceCache.set(source, pending);
+    return pending;
+  }
+
+  async function releasePdfSourcesExcept(activeUrl = '') {
+    const active = String(activeUrl || '');
+    for (const [url, pending] of sourceCache.entries()) {
+      if (url === active) continue;
+      sourceCache.delete(url);
+      try { await (await pending).loadingTask?.destroy(); } catch(e) {}
+    }
   }
 
   async function resolveDestinationPage(pdf, destination) {
@@ -328,6 +357,8 @@
     NotebookAssetRepository,
     parsePageRange,
     loadPdf,
+    loadPdfUrl,
+    releasePdfSourcesExcept,
     renderPdfPage,
     renderPdfPages,
     extractPdfOutline,

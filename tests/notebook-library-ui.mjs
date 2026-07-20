@@ -45,8 +45,38 @@ try {
 
   assert.equal(await page.evaluate(() => state.view), 'notebookLibrary');
   assert.equal(await page.locator('.notebook-library-grid').count(), 1, 'desktop should default to cover mode');
+  assert.equal(await page.locator('.notebook-create-card').count(), 1, 'cover mode should keep the StarNote-style new notebook tile first');
   assert.match(await page.locator('.notebook-folder-list').innerText(), /线性代数/);
-  assert.equal(await page.locator('.notebook-cover-card').count(), 3, 'all notes should include free and question-bound documents');
+  assert.match(await page.locator('.notebook-folder-list').innerText(), /考研数学/);
+  assert.equal(await page.locator('.notebook-cover-card').count(), 12, 'library should include three notes and nine built-in math PDFs');
+  const builtInMathDocuments = await page.evaluate(() => {
+    const documents = state.notebookDocuments.filter(item => item.builtIn && item.pdfSource);
+    return {
+      count: documents.length,
+      allInMathFolder: documents.every(item => getNotebookDocumentFolderId(item) === notebookSubjectFolderId('考研数学')),
+    };
+  });
+  assert.equal(builtInMathDocuments.count, 9, 'nine built-in math PDFs should be registered');
+  assert.equal(builtInMathDocuments.allInMathFolder, true, 'built-in PDFs should stay in the postgraduate math subject folder');
+  await page.getByRole('button', { name: /考研数学/ }).click();
+  assert.equal(await page.locator('.notebook-cover-card').count(), 9, 'postgraduate math folder should contain exactly the built-in PDFs');
+  assert.deepEqual(await page.locator('.notebook-cover-card .notebook-cover-title').allTextContents(), [
+    '张宇1000题 数学一 基础篇',
+    '张宇1000题 数学一 强化篇',
+    '张宇1000题 数学二 基础篇',
+    '张宇1000题 数学二 强化篇',
+    '张宇1000题 数学三 基础篇',
+    '张宇1000题 数学三 强化篇',
+    '张宇1000题 数学一 解析',
+    '张宇1000题 数学二 解析',
+    '张宇1000题 数学三 解析',
+  ], 'built-in PDF order should follow the published workbook and solution sequence');
+  await page.screenshot({ path: 'output/playwright/notebook-library-built-in-math-pdfs.png', fullPage: true });
+  await page.locator('.notebook-folder-item').filter({ hasText: '全部笔记' }).click();
+  await page.getByRole('button', { name: 'PDF', exact: true }).click();
+  assert.equal(await page.locator('.notebook-cover-card').count(), 9, 'PDF filter should show the nine built-in documents');
+  await page.getByRole('button', { name: '全部', exact: true }).click();
+  assert.equal(await page.locator('.notebook-cover-card').count(), 12);
   const questionFolder = await page.evaluate(() => {
     const item = state.notebookDocuments.find(documentItem => documentItem.kind === 'question');
     return { id: item.id, folderId: getNotebookDocumentFolderId(item), expected: notebookSubjectFolderId('线性代数') };
@@ -156,18 +186,18 @@ try {
   assert.equal(mobileOpenMode.mode, 'typing', `fresh mobile free note should open in typing mode: ${JSON.stringify({ beforeMobileOpen, mobileOpenMode })}`);
   assert.equal(await page.locator('.notebook-document-tabs').isVisible(), false, 'mobile editor should keep a single top bar');
   assert.equal(await page.locator('.notebook-center > .notebook-pages').isVisible(), false, 'mobile editor should not reserve canvas space for the page strip');
-  await page.getByRole('button', { name: '页面', exact: true }).click();
+  await page.getByRole('button', { name: '页面概览', exact: true }).click();
   await page.getByRole('dialog', { name: '页面管理' }).waitFor({ state: 'visible' });
   assert.equal(await page.locator('#notebookPagesSheet .notebook-page-thumb').count(), 1);
   await page.screenshot({ path: 'output/playwright/notebook-pages-mobile-sheet.png', fullPage: true });
   await page.getByRole('button', { name: '完成' }).click();
-  await page.locator('.notebook-typing-editor').fill('手机正文\n保留换行');
+  await page.locator('.notebook-continuous-textarea, .notebook-typing-editor').fill('手机正文\n保留换行');
   await page.waitForFunction(async ({ id, text }) => {
     const saved = await getNotebookRepository().get(id);
     return saved?.pages?.find(pageItem => pageItem.id === saved.activePageId)?.bodyText === text;
   }, { id: freeId, text: '手机正文\n保留换行' });
   const typingBounds = await page.evaluate(() => ({
-    editorBottom: document.querySelector('.notebook-typing-editor').getBoundingClientRect().bottom,
+    editorBottom: document.querySelector('.notebook-continuous-textarea, .notebook-typing-editor').getBoundingClientRect().bottom,
     workspaceBottom: document.querySelector('.notebook-center').getBoundingClientRect().bottom,
   }));
   assert.ok(typingBounds.editorBottom <= typingBounds.workspaceBottom, `typing surface should stay within the mobile workspace: ${JSON.stringify(typingBounds)}`);
@@ -203,7 +233,8 @@ try {
   await dispatchTouch('pointerup', 71, centerX + 24, centerY + 18);
   const penTouchAfter = await page.evaluate(() => ({ strokes: state.notebookSession.layer.strokes.length, x: state.notebookViewport.offsetX, y: state.notebookViewport.offsetY }));
   assert.equal(penTouchAfter.strokes, penTouchBefore.strokes, 'pen-writing mode should not draw from one-finger touch');
-  assert.ok(penTouchAfter.x !== penTouchBefore.x || penTouchAfter.y !== penTouchBefore.y, 'pen-writing mode should pan with one-finger touch');
+  assert.deepEqual(penTouchAfter, penTouchBefore, 'pen-writing mode should leave one-finger movement to the document scroller instead of panning inside the page');
+  assert.match(await canvas.evaluate(element => getComputedStyle(element).touchAction), /pan-x.*pan-y|pan-y.*pan-x/, 'pen-writing mode should expose native document scrolling on the active page');
 
   await page.getByRole('button', { name: '工具设置' }).click();
   await page.getByRole('button', { name: '手指写字' }).click();
@@ -222,14 +253,16 @@ try {
   assert.ok(await page.evaluate(scale => state.notebookViewport.scale > scale, pinchScaleBefore), 'two-finger touch should zoom the canvas in finger-writing mode');
   await page.setViewportSize({ width: 320, height: 568 });
   await page.waitForTimeout(180);
-  const mobileToolbarBounds = await page.locator('.notebook-toolbar').evaluate(element => {
+  const mobileToolbarBounds = await page.locator('.notebook-toolbar').evaluate(async element => {
     const buttons = [...element.querySelectorAll('button')];
     const firstLeft = buttons[0].getBoundingClientRect().left;
     element.scrollLeft = element.scrollWidth;
+    await new Promise(resolve => requestAnimationFrame(resolve));
     return {
       firstLeft,
       lastRight: buttons.at(-1).getBoundingClientRect().right,
       viewportWidth: innerWidth,
+      scrollLeft: element.scrollLeft,
       scrollable: element.scrollWidth > element.clientWidth,
     };
   });
@@ -287,6 +320,7 @@ try {
   console.log(JSON.stringify({
     subjectFolderMapping: true,
     customFolderLifecycle: true,
+    builtInMathPdfLibrary: true,
     questionSubjectBinding: true,
     notebookMove: true,
     createInCurrentFolder: true,

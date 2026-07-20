@@ -151,7 +151,11 @@ try {
   await page.locator('.announcement-board-dialog .announcement-body').evaluate(element => { element.scrollTop = 0; });
   await page.screenshot({ path: 'output/playwright/announcement-board-mobile.png', fullPage: false });
   const remoteBoardTitles = await page.locator('.announcement-card h4').allTextContents();
-  assert.deepEqual(remoteBoardTitles.slice(0, 3), ['最新远程公告', '中间远程公告', '较早远程公告']);
+  assert.deepEqual(
+    remoteBoardTitles.filter(title => ['最新远程公告', '中间远程公告', '较早远程公告'].includes(title)),
+    ['最新远程公告', '中间远程公告', '较早远程公告'],
+    'remote announcements should retain newest-first order when newer built-in release notices are merged',
+  );
   assert.equal(await page.evaluate(() => getAllAnnouncements().filter(item => item.id === 'remote-distribution-latest').length), 1, 'merged announcements should deduplicate stable IDs');
   assert.equal(await page.evaluate(() => hasUnreadAnnouncements()), false, 'opening the full board should mark all visible announcements read');
   await page.getByRole('button', { name: '返回' }).click();

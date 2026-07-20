@@ -26,7 +26,11 @@ const browser = await chromium.launch({
 });
 const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
 const pageErrors = [];
+const consoleErrors = [];
+const requestFailures = [];
 page.on('pageerror', error => pageErrors.push(error.message));
+page.on('console', message => { if (message.type() === 'error') consoleErrors.push(message.text()); });
+page.on('requestfailed', request => requestFailures.push(`${request.method()} ${request.url()} ${request.failure()?.errorText || ''}`));
 
 try {
   await page.addInitScript(bank => {
@@ -74,6 +78,99 @@ try {
   await page.getByLabel('当前题目手写笔记').click();
   await page.locator('.notebook-view').waitFor({ state: 'visible' });
   await page.waitForFunction(() => Boolean(state.notebookViewport && state.notebookSession));
+  const questionStrip = page.locator('.notebook-question-strip');
+  await questionStrip.waitFor({ state: 'visible' });
+  assert.equal(await questionStrip.getAttribute('open'), '');
+  assert.match(await questionStrip.innerText(), new RegExp(statefulText(await page.evaluate(() => getCurrentNotebookQuestion().q)).slice(0, 12)));
+  assert.equal(await page.locator('.notebook-workspace.note-editor-layout:not(.show-right)').count(), 1, 'question handwriting should keep the right drawer closed by default');
+  const questionToolbarPlacement = await page.evaluate(() => {
+    const stripRect = document.querySelector('.notebook-question-strip').getBoundingClientRect();
+    const toolbarRect = document.querySelector('.notebook-toolbar-stack').getBoundingClientRect();
+    return { stripBottom: stripRect.bottom, toolbarTop: toolbarRect.top };
+  });
+  assert.ok(questionToolbarPlacement.toolbarTop >= questionToolbarPlacement.stripBottom, `writing tools should start below the expanded question: ${JSON.stringify(questionToolbarPlacement)}`);
+  const canvasWidthBeforeDrawer = await page.locator('.notebook-center').evaluate(element => element.getBoundingClientRect().width);
+  await page.getByRole('button', { name: '资料与目录' }).click();
+  await page.locator('.notebook-workspace.show-left').waitFor({ state: 'visible' });
+  assert.equal(await page.locator('.notebook-center').evaluate(element => element.getBoundingClientRect().width), canvasWidthBeforeDrawer, 'opening the directory drawer must not shrink the writing canvas');
+  const compactQuestionHeight = await page.locator('.notebook-list-item').first().evaluate(element => element.getBoundingClientRect().height);
+  assert.ok(compactQuestionHeight <= 40, `question picker should stay compact: ${compactQuestionHeight}`);
+  await page.getByRole('button', { name: '关闭目录' }).click();
+  const initialPagePosition = await page.locator('.notebook-continuous-scroll').evaluate(scroller => {
+    const pageElement = scroller.querySelector('.notebook-continuous-page.active');
+    const scrollerRect = scroller.getBoundingClientRect();
+    const pageRect = pageElement.getBoundingClientRect();
+    return { pageTop: pageRect.top, viewportTop: scrollerRect.top, viewportBottom: scrollerRect.bottom };
+  });
+  assert.ok(initialPagePosition.pageTop >= initialPagePosition.viewportTop - 1, `initial notebook page should open at its top: ${JSON.stringify(initialPagePosition)}`);
+  assert.ok(initialPagePosition.pageTop < initialPagePosition.viewportBottom, 'initial notebook page should be visible');
+  await page.getByTitle('更多操作').click();
+  await page.getByRole('button', { name: '纸张模板', exact: true }).click();
+  const paperDialog = page.getByRole('dialog', { name: '纸张模板' });
+  await paperDialog.waitFor({ state: 'visible' });
+  assert.equal(await paperDialog.locator('[data-notebook-paper-template]').count(), 8, 'paper picker should expose the StarNote-inspired template groups');
+  const paperScrollLayout = await paperDialog.evaluate(dialog => {
+    const groups = dialog.querySelector('.notebook-paper-groups');
+    return {
+      dialogOverflow: getComputedStyle(dialog).overflowY,
+      groupsOverflow: getComputedStyle(groups).overflowY,
+      rows: getComputedStyle(dialog).gridTemplateRows.split(' ').length,
+    };
+  });
+  assert.equal(paperScrollLayout.dialogOverflow, 'hidden', 'paper dialog should not create a second scroll container');
+  assert.equal(paperScrollLayout.groupsOverflow, 'auto', 'only the paper template list should scroll');
+  assert.equal(paperScrollLayout.rows, 5, 'paper dialog should keep its header, scope, list, spacing, and actions in separate rows');
+  await paperDialog.getByRole('button', { name: '新增页', exact: true }).click();
+  await paperDialog.getByRole('button', { name: '康奈尔', exact: true }).click();
+  await paperDialog.locator('#notebookPaperSpacing').evaluate(element => {
+    element.value = '52';
+    element.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+  await page.waitForFunction(() => state.notebookSession.document.defaultPageBackground?.template === 'cornell' && state.notebookSession.document.defaultPageBackground?.spacing === 52);
+  assert.equal(await page.evaluate(() => state.notebookSession.page.background.template), 'grid', 'new-page paper settings should not alter the current page');
+  await page.screenshot({ path: 'output/playwright/notebook-paper-templates.png', fullPage: true });
+  await paperDialog.getByRole('button', { name: '完成' }).click();
+
+  await page.getByTitle('更多操作').click();
+  await page.getByRole('button', { name: '自定义工具栏', exact: true }).click();
+  let toolbarDialog = page.getByRole('dialog', { name: '自定义工具栏' });
+  await toolbarDialog.waitFor({ state: 'visible' });
+  await page.screenshot({ path: 'output/playwright/notebook-custom-toolbar.png', fullPage: true });
+  await toolbarDialog.getByRole('checkbox', { name: '显示马克笔' }).uncheck();
+  assert.equal(await page.locator('[data-notebook-tool="marker"]').count(), 0, 'hidden notebook tools should leave the primary toolbar');
+  assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem(UI_CONFIG_KEY)).notebookToolbarTools.includes('marker')), false);
+  await toolbarDialog.getByRole('button', { name: '下移钢笔' }).click();
+  toolbarDialog = page.getByRole('dialog', { name: '自定义工具栏' });
+  assert.equal(await page.locator('[data-notebook-tool]').first().getAttribute('data-notebook-tool'), 'highlighter', 'toolbar order should update immediately');
+  await toolbarDialog.getByRole('button', { name: '恢复默认' }).click();
+  toolbarDialog = page.getByRole('dialog', { name: '自定义工具栏' });
+  assert.equal(await page.locator('[data-notebook-tool]').first().getAttribute('data-notebook-tool'), 'pen');
+  assert.equal(await page.locator('[data-notebook-tool="marker"]').count(), 1, 'reset should restore hidden tools');
+  await toolbarDialog.getByRole('button', { name: '完成' }).click();
+  await page.getByTitle('工具设置').click();
+  await page.getByRole('button', { name: '快捷笔盒' }).click();
+  const penCaseDialog = page.getByRole('dialog', { name: '快捷笔盒' });
+  await penCaseDialog.waitFor({ state: 'visible' });
+  assert.equal(await penCaseDialog.locator('[data-notebook-pen-preset]').count(), 4, 'quick pen case should expose four useful presets');
+  assert.match(await penCaseDialog.locator('.notebook-pen-case-grid').evaluate(element => getComputedStyle(element).gridTemplateColumns), /\S+\s+\S+/, 'desktop pen case should use two compact columns');
+  await page.screenshot({ path: 'output/playwright/notebook-pen-case.png', fullPage: true });
+  await penCaseDialog.getByRole('button', { name: '黄色重点' }).click();
+  const selectedPenPreset = await page.evaluate(() => ({
+    tool: state.inkTool,
+    color: state.inkColor,
+    size: state.inkSize,
+    viewportTool: state.notebookViewport.tool,
+    viewportColor: state.notebookViewport.color,
+    viewportSize: state.notebookViewport.size,
+  }));
+  assert.deepEqual(selectedPenPreset, {
+    tool: 'highlighter',
+    color: '#f2c94c',
+    size: 12,
+    viewportTool: 'highlighter',
+    viewportColor: '#f2c94c',
+    viewportSize: 12,
+  }, 'a pen-case preset should switch tool, color, and width atomically');
   const zoomBehavior = await page.evaluate(() => {
     const viewport = state.notebookViewport;
     const rect = viewport.canvas.getBoundingClientRect();
@@ -155,7 +252,7 @@ try {
   assert.equal(markerStroke.points.length, 2, 'straight-line mode should retain only its endpoints');
 
   const layerCountBeforeMerge = await page.evaluate(() => {
-    getNotebookDockConfig().rightOpen = true;
+    state.notebookMobilePane = 'right';
     renderHandwritingPractice();
     state.notebookSession.addLayer('待合并图层');
     state.notebookRightTab = 'layers';
@@ -164,6 +261,7 @@ try {
   });
   await page.getByRole('button', { name: '向下合并' }).click();
   assert.equal(await page.evaluate(() => state.notebookSession.page.layers.length), layerCountBeforeMerge - 1);
+  await page.getByRole('button', { name: '关闭面板' }).click();
 
   const snbxRoundTrip = await page.evaluate(async () => {
     const document = state.notebookSession.document;
@@ -183,12 +281,72 @@ try {
   assert.equal(snbxRoundTrip.assetCount, 1);
   assert.match(snbxRoundTrip.assetDataUrl, /^data:text\/plain;base64,/);
 
-  await page.getByTitle('新增页面').click();
-  await page.getByTitle('新增页面').click();
+  await page.getByTitle('在末尾新增页面', { exact: true }).evaluate(button => button.click());
+  await page.getByTitle('在末尾新增页面', { exact: true }).evaluate(button => button.click());
   assert.equal(await page.locator('.notebook-page-thumb').count(), 3);
-  assert.equal(await page.locator('[data-notebook-page-preview]').count(), 3);
-  const draggedPageId = await page.locator('.notebook-page-thumb').nth(2).getAttribute('data-page-id');
-  await page.locator('.notebook-page-thumb').nth(2).dragTo(page.locator('.notebook-page-thumb').nth(0));
+  const pageTemplates = await page.evaluate(() => state.notebookSession.document.pages.map(item => ({ template: item.background.template, spacing: item.background.spacing })));
+  assert.deepEqual(pageTemplates, [
+    { template: 'grid', spacing: 40 },
+    { template: 'cornell', spacing: 52 },
+    { template: 'cornell', spacing: 52 },
+  ], 'new pages should use the separately configured paper default');
+  await page.screenshot({ path: 'output/playwright/notebook-cornell-pages.png', fullPage: true });
+  await page.evaluate(async () => {
+    state.notebookPaperScope = 'all';
+    await applyNotebookPaperTemplate('grid');
+  });
+  assert.equal(await page.evaluate(() => state.notebookSession.document.pages.every(item => item.background.template === 'grid')), true, 'whole-notebook paper changes should update every regular page');
+  assert.equal(await page.locator('.notebook-continuous-page').count(), 3);
+  const verticalFlow = await page.locator('.notebook-continuous-scroll').evaluate(element => ({
+    flow: element.dataset.pageFlow,
+    overflow: element.scrollHeight > element.clientHeight,
+  }));
+  assert.equal(verticalFlow.flow, 'vertical');
+  assert.equal(verticalFlow.overflow, true, 'three notebook pages should form a vertically scrollable document');
+  const preservedPageScroll = await page.evaluate(() => {
+    const scroller = document.getElementById('notebookContinuousScroll');
+    const target = scroller.querySelectorAll('.notebook-continuous-page')[1];
+    scroller.scrollTop = target.offsetTop + 72;
+    const before = scroller.scrollTop;
+    const targetId = target.dataset.continuousPageId;
+    target.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    return { before, targetId };
+  });
+  await page.waitForFunction(targetId => document.querySelector('.notebook-continuous-page.active')?.dataset.continuousPageId === targetId, preservedPageScroll.targetId);
+  const restoredPageScroll = await page.locator('.notebook-continuous-scroll').evaluate(scroller => scroller.scrollTop);
+  assert.ok(Math.abs(restoredPageScroll - preservedPageScroll.before) <= 1, `selecting a visible continuous page should preserve the reading position: ${JSON.stringify({ before: preservedPageScroll.before, after: restoredPageScroll })}`);
+  await page.getByTitle('更多操作').click();
+  await page.getByRole('button', { name: '页面设置', exact: true }).click();
+  await page.getByRole('button', { name: '横向', exact: true }).click();
+  await page.waitForFunction(() => state.notebookSession.page.width > state.notebookSession.page.height);
+  await page.waitForFunction(() => {
+    const element = document.querySelector('.notebook-continuous-page.active');
+    return element && parseFloat(element.style.getPropertyValue('--notebook-page-ratio')) > 1 && element.getBoundingClientRect().width > 0;
+  });
+  const landscapePaperBounds = await page.locator('.notebook-continuous-page.active').evaluate(element => {
+    const rect = element.getBoundingClientRect();
+    return { width: rect.width, height: rect.height, ratio: getComputedStyle(element).aspectRatio, style: element.getAttribute('style') };
+  });
+  assert.ok(landscapePaperBounds.width > landscapePaperBounds.height, `horizontal paper should be physically wider than it is tall: ${JSON.stringify(landscapePaperBounds)}`);
+  await page.getByTitle('更多操作').click();
+  await page.getByRole('button', { name: '页面设置', exact: true }).click();
+  await page.getByRole('button', { name: '左右翻页', exact: true }).click();
+  const horizontalFlow = await page.locator('.notebook-continuous-scroll').evaluate(element => ({
+    flow: element.dataset.pageFlow,
+    overflow: element.scrollWidth > element.clientWidth,
+  }));
+  assert.equal(horizontalFlow.flow, 'horizontal');
+  assert.equal(horizontalFlow.overflow, true, 'horizontal mode should lay pages out to the right');
+  await page.screenshot({ path: 'output/playwright/notebook-horizontal-flow.png', fullPage: true });
+  await page.getByTitle('更多操作').click();
+  await page.getByRole('button', { name: '页面设置', exact: true }).click();
+  await page.getByRole('button', { name: '上下翻页', exact: true }).click();
+  assert.equal(await page.locator('[data-notebook-page-preview]').count(), 5);
+  await page.getByTitle('页面概览').click();
+  const pageSheet = page.getByRole('dialog', { name: '页面管理' });
+  await pageSheet.waitFor({ state: 'visible' });
+  const draggedPageId = await pageSheet.locator('.notebook-page-thumb').nth(2).getAttribute('data-page-id');
+  await pageSheet.locator('.notebook-page-thumb').nth(2).dragTo(pageSheet.locator('.notebook-page-thumb').nth(0));
   assert.equal(await page.evaluate(() => state.notebookSession.document.pages[0].id), draggedPageId);
   const renamedPage = await page.evaluate(() => {
     const pageId = state.notebookSession.document.activePageId;
@@ -197,38 +355,25 @@ try {
   assert.equal(renamedPage, true);
   assert.equal(await page.evaluate(() => state.notebookSession.page.name), '课堂推导');
 
-  const thumbnailHasPixels = await page.locator('[data-notebook-page-preview]').first().evaluate(canvas => {
+  const thumbnailHasPixels = await pageSheet.locator('.notebook-page-thumb [data-notebook-page-preview]').first().evaluate(canvas => {
     const pixels = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
     return pixels.some((value, index) => index % 4 !== 3 && value !== 0);
   });
   assert.equal(thumbnailHasPixels, true);
+  await pageSheet.getByRole('button', { name: '完成' }).click();
   await page.screenshot({ path: 'output/playwright/notebook-tablet-advanced.png', fullPage: true });
 
-  const dockState = await page.evaluate(() => {
-    const dock = getNotebookDockConfig();
-    dock.navigatorPosition = 'top';
-    dock.leftOpen = true;
-    dock.rightOpen = true;
-    dock.leftWidth = 312;
-    dock.rightWidth = 368;
-    dock.panBoundary = 144;
-    saveNotebookDockConfig();
-    renderHandwritingPractice();
-    return getNotebookDockConfig();
-  });
-  assert.equal(dockState.navigatorPosition, 'top');
-  assert.equal(dockState.panBoundary, 144);
-  assert.equal(await page.locator('.notebook-top-navigator').count(), 1);
-  await page.getByTitle('收起顶部目录').click();
-  assert.equal(await page.locator('.notebook-top-navigator').count(), 0);
-  const collapsedRows = await page.locator('.notebook-center').evaluate(element => getComputedStyle(element).gridTemplateRows);
-  assert.ok(!collapsedRows.split(' ').some(value => Number.parseFloat(value) >= 140 && Number.parseFloat(value) <= 160), `collapsed top navigator should not reserve its former row: ${collapsedRows}`);
-  await page.locator('.notebook-dock-toggle.left').click();
-  assert.equal(await page.locator('.notebook-top-navigator').count(), 1);
-  const persistedDock = await page.evaluate(() => JSON.parse(localStorage.getItem(NOTEBOOK_DOCK_KEY)));
-  assert.equal(persistedDock.navigatorPosition, 'top');
-  assert.equal(persistedDock.leftOpen, true);
-  await page.screenshot({ path: 'output/playwright/notebook-dock-top-verified.png', fullPage: true });
+  assert.equal(await page.locator('[data-notebook-resizer]').count(), 0, 'the StarNote-style editor should not expose layout resize handles');
+  const canvasWidthBeforePanel = await page.locator('.notebook-center').evaluate(element => element.getBoundingClientRect().width);
+  await page.getByRole('button', { name: '解析、图层与信息' }).click();
+  await page.locator('.notebook-workspace.show-right').waitFor({ state: 'visible' });
+  assert.equal(await page.locator('.notebook-center').evaluate(element => element.getBoundingClientRect().width), canvasWidthBeforePanel, 'opening the inspector drawer must overlay instead of resizing the canvas');
+  await page.screenshot({ path: 'output/playwright/notebook-starnote-drawer.png', fullPage: true });
+  await page.getByRole('button', { name: '关闭面板' }).click();
+  await page.getByRole('button', { name: '收起工具栏' }).click();
+  assert.equal(await page.locator('[data-notebook-tool]').count(), 1, 'collapsed writing rail should retain only the active tool');
+  await page.getByRole('button', { name: '展开工具栏' }).click();
+  assert.ok(await page.locator('[data-notebook-tool]').count() >= 5, 'expanded writing rail should restore the configured tool set');
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.evaluate(() => renderHandwritingPractice());
@@ -246,6 +391,35 @@ try {
   assert.ok(mobileFit.left >= 0, 'mobile page should not be clipped on the left');
   assert.ok(mobileFit.right <= mobileFit.width + 1, 'mobile page should fit inside the canvas width');
   await page.screenshot({ path: 'output/playwright/notebook-mobile-advanced.png', fullPage: true });
+  await page.evaluate(() => showNotebookPaperMenu());
+  const mobilePaperDialog = page.getByRole('dialog', { name: '纸张模板' });
+  await mobilePaperDialog.waitFor({ state: 'visible' });
+  const mobilePaperBounds = await mobilePaperDialog.boundingBox();
+  assert.ok(mobilePaperBounds && mobilePaperBounds.x >= 0 && mobilePaperBounds.x + mobilePaperBounds.width <= 391, 'mobile paper sheet should fit the viewport');
+  await page.screenshot({ path: 'output/playwright/notebook-paper-templates-mobile.png', fullPage: true });
+  const mobilePaperScroll = await mobilePaperDialog.evaluate(dialog => {
+    const list = dialog.querySelector('.notebook-paper-groups');
+    const actions = dialog.querySelector('.app-dialog-actions');
+    const before = actions.getBoundingClientRect().top;
+    list.scrollTop = list.scrollHeight;
+    const after = actions.getBoundingClientRect().top;
+    return {
+      dialogScrollable: dialog.scrollHeight > dialog.clientHeight + 1,
+      listScrollable: list.scrollHeight > list.clientHeight + 1,
+      actionShift: Math.abs(after - before),
+    };
+  });
+  assert.equal(mobilePaperScroll.dialogScrollable, false, 'mobile paper sheet should not scroll as a whole');
+  assert.equal(mobilePaperScroll.listScrollable, true, 'mobile template list should remain scrollable');
+  assert.ok(mobilePaperScroll.actionShift < 1, `mobile paper actions should stay fixed while templates scroll: ${JSON.stringify(mobilePaperScroll)}`);
+  await page.screenshot({ path: 'output/playwright/notebook-paper-templates-mobile-scrolled.png', fullPage: true });
+  await mobilePaperDialog.getByRole('button', { name: '完成' }).click();
+  await page.evaluate(() => showNotebookPenCaseMenu());
+  const mobilePenCaseDialog = page.getByRole('dialog', { name: '快捷笔盒' });
+  await mobilePenCaseDialog.waitFor({ state: 'visible' });
+  assert.doesNotMatch(await mobilePenCaseDialog.locator('.notebook-pen-case-grid').evaluate(element => getComputedStyle(element).gridTemplateColumns), /\S+\s+\S+/, 'mobile pen case should collapse to one column');
+  await page.screenshot({ path: 'output/playwright/notebook-pen-case-mobile.png', fullPage: true });
+  await mobilePenCaseDialog.getByRole('button', { name: '关闭' }).click();
 
   await page.setViewportSize({ width: 1280, height: 800 });
   const tabIds = await page.evaluate(async () => {
@@ -316,6 +490,8 @@ try {
     `quiz viewport should be restored: ${JSON.stringify({ before: quizContext, after: restoredQuizContext })}`,
   );
   assert.deepEqual(pageErrors, []);
+  assert.deepEqual(consoleErrors, []);
+  assert.deepEqual(requestFailures, []);
   console.log(JSON.stringify({
     quizEntryAndReturn: true,
     lassoMultiSelect: true,
@@ -326,13 +502,19 @@ try {
     pageThumbnailPixels: true,
     pageDragReorder: true,
     pageRename: true,
-    dockCollapseAndTopNavigation: true,
+    starnoteShellAndContinuousPages: true,
     multiDocumentTabs: true,
     edgelessCanvasUi: true,
     batchSnbxExport: true,
     anchoredZoomAndBoundedPan: true,
     responsiveScreenshots: true,
+    consoleAndNetworkHealth: true,
+    paperTemplatesAndCustomToolbar: true,
   }, null, 2));
 } finally {
   await browser.close();
+}
+
+function statefulText(value) {
+  return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

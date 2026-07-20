@@ -79,7 +79,8 @@ const requiredCurrentCapabilities = [
 ];
 const missingCurrentCapabilities = requiredCurrentCapabilities.filter(name => !currentSources.includes(name));
 assert.deepEqual(missingCurrentCapabilities, [], `current capabilities missing: ${missingCurrentCapabilities.join(', ')}`);
-assert.ok(!/gradient\(/i.test(currentSources), 'current product source should not contain gradients');
+const productSourcesWithoutPaperGuides = currentSources.replace(/\.notebook-paper-preview\[data-template=[^\]]+\]\{[^}]*\}/g, '');
+assert.ok(!/gradient\(/i.test(productSourcesWithoutPaperGuides), 'current product source should not contain decorative gradients');
 
 console.log(JSON.stringify({
   legacyFunctions: legacyFunctions.size,

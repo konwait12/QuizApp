@@ -24,10 +24,35 @@ assert.equal(legacyDocument.folderId, '', 'schema 4 documents should gain an unf
 assert.equal(legacyDocument.cover.mode, 'preset', 'schema 4 documents should gain a default cover');
 assert.equal(legacyDocument.pages[0].bodyText, '', 'schema 4 pages should gain an empty body text field');
 assert.equal(legacyDocument.lastEditorMode, '', 'schema 4 documents should not force an editor mode');
+assert.equal(legacyDocument.pages[0].background.template, 'grid', 'legacy page backgrounds should map to the equivalent paper template');
+assert.equal(legacyDocument.defaultPageBackground.template, 'grid', 'legacy documents should gain a default template for new pages');
+assert.equal(legacyDocument.defaultPageOrientation, 'portrait', 'legacy documents should infer their default paper orientation');
 const libraryDocument = createDocument({ title: 'Library fields', folderId: 'folder:test', cover: { mode: 'image', assetId: 'cover:test' }, lastEditorMode: 'typing' });
 assert.equal(libraryDocument.folderId, 'folder:test');
 assert.equal(libraryDocument.cover.assetId, 'cover:test');
 assert.equal(libraryDocument.lastEditorMode, 'typing');
+const templateDocument = createDocument({
+  title: 'Paper templates',
+  page: { backgroundType: 'plain', backgroundTemplate: 'cornell', spacing: 52 },
+  defaultPageBackground: { type: 'plain', template: 'reading', spacing: 44 },
+});
+assert.equal(templateDocument.pages[0].background.template, 'cornell');
+assert.equal(templateDocument.defaultPageBackground.template, 'reading');
+assert.equal(templateDocument.defaultPageOrientation, 'portrait');
+const landscapeDocument = createDocument({ defaultPageOrientation: 'landscape', page: { width: 1200, height: 900 } });
+assert.equal(landscapeDocument.defaultPageOrientation, 'landscape');
+assert.ok(landscapeDocument.pages[0].width > landscapeDocument.pages[0].height);
+const paperOperations = { strokes: 0, fills: 0 };
+const paperContext = {
+  save() {}, restore() {}, beginPath() {}, moveTo() {}, lineTo() {}, arc() {},
+  stroke() { paperOperations.strokes += 1; },
+  fill() { paperOperations.fills += 1; },
+};
+globalThis.QuizNotebook.drawPaperTemplate(paperContext, templateDocument.pages[0]);
+assert.ok(paperOperations.strokes > 8, 'Cornell paper should render dividers and writing lines');
+templateDocument.pages[0].background.template = 'dots';
+globalThis.QuizNotebook.drawPaperTemplate(paperContext, templateDocument.pages[0], { right: 180, bottom: 180 });
+assert.ok(paperOperations.fills > 4, 'dot paper should render visible guide points');
 const document = createDocument({ title: 'Notebook engine test' });
 const session = new NotebookSession(document);
 assert.equal(session.setPageBodyText('同页文字正文'), true);
@@ -145,6 +170,29 @@ for (const [index, penOnly] of [true, false].entries()) {
 }
 inputViewport.destroy();
 
+const readerSession = new NotebookSession(createDocument({ title: 'Paged reader input' }));
+const readerViewport = new CanvasViewport(canvas, readerSession, { getStroke: points => points, nativeScroll: true, fitMargin: 0 });
+let ordinaryWheelPrevented = false;
+const readerScale = readerViewport.scale;
+readerViewport.wheel({ ctrlKey: false, deltaX: 0, deltaY: 180, clientX: 620, clientY: 370, preventDefault() { ordinaryWheelPrevented = true; } });
+assert.equal(ordinaryWheelPrevented, false, 'a paged reader should leave ordinary wheel input to the document scroller');
+assert.equal(readerViewport.scale, readerScale, 'ordinary reader wheel input should not zoom the page');
+let zoomWheelPrevented = false;
+readerViewport.wheel({ ctrlKey: true, deltaX: 0, deltaY: -180, clientX: 620, clientY: 370, preventDefault() { zoomWheelPrevented = true; } });
+assert.equal(zoomWheelPrevented, true, 'explicit Ctrl+wheel zoom should consume the wheel event');
+assert.ok(readerViewport.scale > readerScale, 'explicit Ctrl+wheel should zoom the page');
+readerViewport.setStyle({ penOnly: true });
+readerViewport.pointerDown(touchEvent(30, 620, 370));
+assert.equal(readerViewport.pointer, null, 'pen-writing mode should leave one-finger touch to native document scrolling');
+assert.equal(readerSession.layer.strokes.length, 0);
+readerViewport.pointerUp(touchEvent(30, 620, 370));
+readerViewport.setStyle({ penOnly: false });
+readerViewport.pointerDown(touchEvent(31, 620, 370));
+assert.equal(readerViewport.pointer?.mode, 'draw', 'finger-writing mode should still draw inside the paged reader');
+readerViewport.pointerUp(touchEvent(31, 640, 390));
+assert.equal(readerSession.layer.strokes.length, 1);
+readerViewport.destroy();
+
 const edgelessDocument = createDocument({ title: 'Edgeless test', mode: 'edgeless' });
 assert.equal(edgelessDocument.mode, 'edgeless');
 assert.ok(edgelessDocument.pages[0].width >= 3600 && edgelessDocument.pages[0].height >= 2800, 'edgeless documents should start with a usable workspace');
@@ -172,6 +220,7 @@ assert.equal(modeSession.document.mode, 'paged');
 console.log(JSON.stringify({
   multiSelect: true,
   schema5Compatibility: true,
+  paperTemplates: true,
   pageBodyText: true,
   copyPaste: true,
   groupDelete: true,
@@ -186,6 +235,7 @@ console.log(JSON.stringify({
   edgelessExpansion: true,
   edgelessPanDoesNotExpand: true,
   touchInputModes: true,
+  pagedReaderNativeScroll: true,
   twoFingerPinchModes: true,
   documentModeUndo: true,
 }, null, 2));

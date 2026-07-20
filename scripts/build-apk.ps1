@@ -1,9 +1,8 @@
 param(
-    [string]$Version = "v1.0.21",
+    [string]$Version = "v1.0.22",
   [string]$AppVersion = "",
   [int]$VersionCode = 0,
-  [string]$BuildCommit = "",
-  [switch]$IncludePostgraduateBanks
+  [string]$BuildCommit = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -134,17 +133,17 @@ $bankAssetSources = @($sourceBankFiles | ForEach-Object {
     RelativePath = $_.FullName.Substring($sourceDataRootFull.Length).TrimStart("\", "/").Replace("\", "/")
   }
 })
-$postgraduateRoot = Join-Path $projectRoot "output\xiaoyi-question-banks"
-$postgraduateReport = Join-Path $postgraduateRoot "export-report.json"
-if ($IncludePostgraduateBanks -and (Test-Path -LiteralPath $postgraduateReport)) {
-  $postgraduateRootFull = (Resolve-Path -LiteralPath $postgraduateRoot).Path.TrimEnd("\", "/")
-  $postgraduateFiles = Get-ChildItem -LiteralPath $postgraduateRoot -Filter "*.json" -Recurse -File |
-    Where-Object { $_.Name -ne "export-report.json" } |
-    Sort-Object FullName
-  $bankAssetSources += @($postgraduateFiles | ForEach-Object {
-    $relative = $_.FullName.Substring($postgraduateRootFull.Length).TrimStart("\", "/").Replace("\", "/")
-    [pscustomobject]@{ File = $_; RelativePath = "postgraduate/$relative" }
-  })
+$sourceDataAssets = Get-ChildItem -LiteralPath $sourceDataRoot -File -Recurse |
+  Where-Object { $_.Extension -notin @(".json") } |
+  Sort-Object FullName
+foreach ($asset in $sourceDataAssets) {
+  $relativePath = $asset.FullName.Substring($sourceDataRootFull.Length).TrimStart("\", "/").Replace("\", "/")
+  $assetTarget = Join-Path $assetDataDir ($relativePath.Replace("/", [System.IO.Path]::DirectorySeparatorChar))
+  $assetTargetDir = Split-Path -Parent $assetTarget
+  if (-not (Test-Path -LiteralPath $assetTargetDir)) {
+    New-Item -ItemType Directory -Force -Path $assetTargetDir | Out-Null
+  }
+  Copy-Item -LiteralPath $asset.FullName -Destination $assetTarget
 }
 for ($i = 0; $i -lt $bankAssetSources.Count; $i++) {
   $relativePath = $bankAssetSources[$i].RelativePath

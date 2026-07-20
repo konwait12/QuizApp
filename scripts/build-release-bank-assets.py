@@ -19,8 +19,65 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DATA_DIR = PROJECT_ROOT / "data"
 OUT_DIR = PROJECT_ROOT / "output" / "release-banks"
-POSTGRADUATE_DIR = PROJECT_ROOT / "output" / "xiaoyi-question-banks"
-POSTGRADUATE_REPORT = POSTGRADUATE_DIR / "export-report.json"
+
+SEGMENT_ORDER = {
+    "考研数学": 0,
+    "毛概": 10,
+    "习思": 20,
+    "基础篇": 0,
+    "强化篇": 1,
+    "数学一": 0,
+    "数学二": 1,
+    "数学三": 2,
+    "高等数学": 0,
+    "线性代数": 1,
+    "概率论与数理统计": 2,
+}
+
+
+def chinese_ordinal_to_number(token: object) -> int | None:
+    text = str(token or "").strip()
+    if not text:
+        return None
+    if text.isdigit():
+        return int(text)
+    digits = {"零": 0, "〇": 0, "一": 1, "二": 2, "两": 2, "三": 3, "四": 4, "五": 5, "六": 6, "七": 7, "八": 8, "九": 9}
+    if text in digits:
+        return digits[text]
+    if text == "十":
+        return 10
+    if text.startswith("十"):
+        return 10 + digits.get(text[1:], 0)
+    if text.endswith("十"):
+        return digits.get(text[:-1], 0) * 10
+    if "十" in text:
+        left, right = text.split("十", 1)
+        return digits.get(left, 1) * 10 + digits.get(right, 0)
+    return None
+
+
+def segment_sort_key(segment: object) -> tuple:
+    text = str(segment or "").strip()
+    if text in SEGMENT_ORDER:
+        return (0, SEGMENT_ORDER[text], text)
+    match = re.match(r"^第\s*([0-9零〇一二两三四五六七八九十百]+)\s*[章节讲]", text)
+    if match:
+        number = chinese_ordinal_to_number(match.group(1))
+        return (1, number if number is not None else 5000, text)
+    chunks = tuple((0, int(part)) if part.isdigit() else (1, part) for part in re.split(r"(\d+)", text) if part)
+    return (9, chunks, text)
+
+
+def bank_file_sort_key(path: Path) -> tuple:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        logical_path = normalize_path(payload.get("path") or payload.get("路径") or [])
+    except Exception:
+        logical_path = []
+    if not logical_path:
+        relative = path.relative_to(DATA_DIR).with_suffix("")
+        logical_path = [part for part in relative.parts if part]
+    return tuple(segment_sort_key(part) for part in logical_path)
 
 
 def normalize_path(value: object) -> list[str]:
@@ -56,17 +113,7 @@ def load_bank(path: Path) -> dict:
 
 
 def source_bank_files() -> list[Path]:
-    files = list(DATA_DIR.rglob("*.json"))
-    if POSTGRADUATE_REPORT.exists():
-        report = json.loads(POSTGRADUATE_REPORT.read_text(encoding="utf-8"))
-        for bank_group in report.get("publicBanks") or []:
-            for chapter in bank_group.get("chapters") or []:
-                for section in chapter.get("sections") or []:
-                    relative = Path(str(section.get("file") or ""))
-                    source = (POSTGRADUATE_DIR / relative).resolve()
-                    if source.is_relative_to(POSTGRADUATE_DIR.resolve()) and source.is_file():
-                        files.append(source)
-    return sorted(set(files), key=lambda item: str(item).lower())
+    return sorted(DATA_DIR.rglob("*.json"), key=bank_file_sort_key)
 
 
 def main() -> None:

@@ -38,6 +38,13 @@ try {
     state.uiConfig.showSavedProgressHint = false;
     setMainTab('home');
   });
+  assert.equal(await page.locator('.hub-notebook-entry').count(), 1, 'home should expose notebook as a prominent primary entry');
+  assert.match(await page.locator('.hub-notebook-entry').innerText(), /笔记本/);
+  await page.locator('.hub-notebook-entry').click();
+  await page.waitForFunction(() => state.view === 'notebookLibrary');
+  await page.locator('.notebook-library-title strong').filter({ hasText: '笔记资料库' }).waitFor({ state: 'visible' });
+  await page.getByRole('button', { name: '返回' }).click();
+  await page.waitForFunction(() => state.view === 'home');
   assert.equal(await page.locator('.home-toggle-row').count(), 1, 'legacy tool panel toggle should remain reachable on the new home shell');
   assert.equal(await page.locator('.tool-group').count(), 0, 'tool panels should default to collapsed');
   await page.locator('.tool-toggle').click();

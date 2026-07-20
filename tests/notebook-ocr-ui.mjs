@@ -57,7 +57,7 @@ try {
   assert.match(await page.evaluate(() => QuizPdfNotebook.documentSearchText(state.notebookSession.document)), /修正后的 ocr 文本/);
 
   await page.evaluate(() => {
-    getNotebookDockConfig().rightOpen = true;
+    state.notebookMobilePane = 'right';
     renderHandwritingPractice();
     setNotebookRightTab('info');
   });

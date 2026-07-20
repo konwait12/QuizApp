@@ -36,16 +36,19 @@ try {
   });
   assert.equal(await page.locator('.notebook-page-thumb').count(), 3);
 
-  await page.getByRole('button', { name: '添加当前页书签' }).click();
-  await page.locator('.notebook-page-thumb').first().click();
-  await page.getByRole('button', { name: '添加当前页书签' }).click();
+  await page.getByRole('button', { name: '资料与目录' }).click();
+  await page.getByRole('button', { name: '书签', exact: true }).click();
+  await page.getByRole('button', { name: '为当前页添加书签' }).click();
+  await page.getByRole('button', { name: '关闭目录' }).click();
+  await page.getByRole('button', { name: '页面概览' }).click();
+  const pageSheet = page.getByRole('dialog', { name: '页面管理' });
+  await pageSheet.locator('.notebook-page-thumb').first().click();
+  await pageSheet.getByRole('button', { name: '完成' }).click();
+  await page.getByRole('button', { name: '资料与目录' }).click();
+  await page.getByRole('button', { name: '书签', exact: true }).click();
+  await page.getByRole('button', { name: '为当前页添加书签' }).click();
   assert.equal(await page.locator('.notebook-page-bookmark').count(), 2);
 
-  await page.evaluate(() => {
-    getNotebookDockConfig().leftOpen = true;
-    renderHandwritingPractice();
-  });
-  await page.getByRole('button', { name: '书签', exact: true }).click();
   assert.equal(await page.locator('.notebook-bookmark-item').count(), 2);
   await page.screenshot({ path: path.join(outputDirectory, 'notebook-bookmarks-tablet.png'), fullPage: true });
 

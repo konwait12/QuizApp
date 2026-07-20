@@ -8,6 +8,7 @@
     { key: 'study', label: '学习', icon: '◴' },
     { key: 'profile', label: '我的', icon: '●' },
   ];
+  const tabIcons = { home: 'home', library: 'pages', study: 'target', profile: 'user' };
 
   function validTab(value) {
     return tabs.some(tab => tab.key === value) ? value : 'home';
@@ -16,7 +17,7 @@
   function renderNavigation(active) {
     return `<nav class="main-nav" aria-label="主导航">${tabs.map(tab => `
       <button class="main-nav-button ${active === tab.key ? 'active' : ''}" onclick="setMainTab('${tab.key}')" aria-label="${tab.label}">
-        <span class="icon">${tab.icon}</span><span>${tab.label}</span>
+        <span class="icon">${renderNotebookIcon(tabIcons[tab.key], tab.label)}</span><span>${tab.label}</span>
       </button>
     `).join('')}</nav>`;
   }
@@ -25,7 +26,7 @@
     const titles = { home: '学习首页', library: '题库', study: '学习', profile: '我的' };
     let actions = '';
     if (context.tab === 'home') {
-      actions = `<button class="btn-text" onclick="toggleEditMode()">${context.editMode ? '完成' : '编辑'}</button><button class="btn-icon mail-button ${context.unreadAnnouncements ? 'unread' : ''}" onclick="openAnnouncementBoard()" aria-label="公告栏" title="公告栏">✉</button>`;
+      actions = `<button class="btn-text" onclick="toggleEditMode()">${context.editMode ? '完成' : '编辑'}</button><button class="btn-icon mail-button ${context.unreadAnnouncements ? 'unread' : ''}" onclick="openAnnouncementBoard()" aria-label="公告栏" title="公告栏">${renderNotebookIcon('mail')}</button>`;
     } else if (context.tab === 'library') {
       actions = `<button class="btn-text" onclick="toggleEditMode()">${context.editMode ? '完成' : '编辑'}</button>`;
     } else if (context.tab === 'study') {
@@ -43,7 +44,7 @@
     const saved = context.saved;
     if (!saved || !context.showSavedProgressEntry) return '';
     return `<div class="saved-progress-float ${context.showSavedProgressHint ? 'has-hint' : ''}">
-      <div class="icon">续</div>
+      <div class="icon">${renderNotebookIcon('refresh')}</div>
       <div class="info">
         <strong>${escapeHtml(saved.title || '保存的练习')}</strong>
         <small>${saved.currentIndex + 1}/${context.savedTotal} · ${escapeHtml(saved.reviewMode ? '背题模式' : (saved.subtitle || '练习'))}</small>
@@ -60,18 +61,23 @@
         <button class="ai-entry" onclick="openAiChat()">
           <span class="ai-entry-mark">AI</span>
           <span class="ai-entry-copy"><strong>AI 助手</strong><small>${context.aiReady ? escapeHtml(context.aiModel) : '配置 API 后开始对话'}</small></span>
-          <span class="ai-entry-arrow">›</span>
+          <span class="ai-entry-arrow">${renderNotebookIcon('chevronRight')}</span>
         </button>
       </div>
+      <button class="hub-notebook-entry" onclick="openFreeNotebookLibrary()">
+        <span class="hub-notebook-entry-icon">${renderNotebookIcon('pages')}</span>
+        <span class="hub-notebook-entry-copy"><strong>笔记本</strong><small>考研数学资料 · 自由笔记 · 题目笔记</small></span>
+        <span class="hub-notebook-entry-action">打开</span>
+      </button>
       <div class="home-overview"><div class="home-metrics">${context.metricsHtml}</div></div>
       <div class="hub-section-title"><h2>选择科目开始学习</h2><button onclick="setMainTab('study')">查看全部</button></div>
       <div class="subjects-grid">${(context.editMode ? context.subjectEditCards : context.subjectCards).slice(0, 4).join('')}</div>
       <div class="hub-section-title"><h2>快捷入口</h2></div>
       <div class="hub-quick-grid compact-tools">
-        <button class="hub-quick-action" onclick="openReviewQueue()"><span class="icon">习</span><span>复习队列</span></button>
-        <button class="hub-quick-action" onclick="openWrongPractice('', '', true)"><span class="icon">错</span><span>错题集</span></button>
-        <button class="hub-quick-action" onclick="openFreeNotebookLibrary()"><span class="icon">记</span><span>自由笔记</span></button>
-        <button class="hub-quick-action" onclick="openExamSetup()"><span class="icon">考</span><span>模拟考试</span></button>
+        <button class="hub-quick-action" onclick="openReviewQueue()"><span class="icon">${renderNotebookIcon('refresh')}</span><span>复习队列</span></button>
+        <button class="hub-quick-action" onclick="openWrongPractice('', '', true)"><span class="icon">${renderNotebookIcon('alert')}</span><span>错题集</span></button>
+        <button class="hub-quick-action" onclick="openFreeNotebookLibrary()"><span class="icon">${renderNotebookIcon('pages')}</span><span>自由笔记</span></button>
+        <button class="hub-quick-action" onclick="openExamSetup()"><span class="icon">${renderNotebookIcon('exam')}</span><span>模拟考试</span></button>
       </div>
       <div class="home-toggle-row">${renderToolToggle('home-tools')}</div>
       ${context.editMode || context.homeToolsExpanded ? `<div class="tool-group">${context.toolPanelsHtml}</div>` : ''}
@@ -115,14 +121,14 @@
           <div class="study-scope-summary"><div><strong>${escapeHtml(study.selectedLabel)}</strong><small>已练 ${study.scopeAnswered}/${study.scopeQuestionCount} · 错题集 ${study.scopeWrong} · 今日本科 ${escapeHtml(formatStudyDuration(study.subjectStats.todaySeconds || 0))}</small></div><span>${study.scopePercent}%</span></div>
           <div class="hub-section-title"><h2>开始学习</h2><span class="settings-subtitle">当前范围 ${study.scopeQuestionCount} 题</span></div>
           <div class="study-mode-grid">
-            <button class="study-mode-entry" onclick="startSelectedStudyPractice(false)"><span class="icon">1</span><span>顺序练习</span></button>
-            <button class="study-mode-entry" onclick="startSelectedStudyPractice(true)"><span class="icon">↝</span><span>随机练习</span></button>
-            <button class="study-mode-entry" onclick="startSelectedStudyReview()"><span class="icon">答</span><span>背题模式</span></button>
-            <button class="study-mode-entry" onclick="openSelectedStudyAnswers()"><span class="icon">表</span><span>答案表</span></button>
-            <button class="study-mode-entry danger" onclick="openSelectedStudyWrongBook()"><span class="icon">错</span><span>错题集</span></button>
-            <button class="study-mode-entry" onclick="openSelectedStudyNotebook()"><span class="icon">写</span><span>题目笔记</span></button>
-            <button class="study-mode-entry" onclick="openReviewQueue()"><span class="icon">习</span><span>复习队列 ${review.due}</span></button>
-            <button class="study-mode-entry" onclick="openExamSetup()"><span class="icon">考</span><span>模拟考试</span></button>
+            <button class="study-mode-entry" onclick="startSelectedStudyPractice(false)"><span class="icon">${renderNotebookIcon('listOrdered')}</span><span>顺序练习</span></button>
+            <button class="study-mode-entry" onclick="startSelectedStudyPractice(true)"><span class="icon">${renderNotebookIcon('shuffle')}</span><span>随机练习</span></button>
+            <button class="study-mode-entry" onclick="startSelectedStudyReview()"><span class="icon">${renderNotebookIcon('book')}</span><span>背题模式</span></button>
+            <button class="study-mode-entry" onclick="openSelectedStudyAnswers()"><span class="icon">${renderNotebookIcon('list')}</span><span>答案表</span></button>
+            <button class="study-mode-entry danger" onclick="openSelectedStudyWrongBook()"><span class="icon">${renderNotebookIcon('alert')}</span><span>错题集</span></button>
+            <button class="study-mode-entry" onclick="openSelectedStudyNotebook()"><span class="icon">${renderNotebookIcon('pen')}</span><span>题目笔记</span></button>
+            <button class="study-mode-entry" onclick="openReviewQueue()"><span class="icon">${renderNotebookIcon('refresh')}</span><span>复习队列 ${review.due}</span></button>
+            <button class="study-mode-entry" onclick="openExamSetup()"><span class="icon">${renderNotebookIcon('exam')}</span><span>模拟考试</span></button>
           </div>` : ''}
       </div>
       <div class="hub-study-status">
@@ -133,10 +139,10 @@
       <details class="hub-global-practice">
         <summary>全库学习</summary>
         <div class="hub-quick-grid">
-          <button class="hub-quick-action" onclick="startAllPractice(false)"><span class="icon">1</span><span>全部顺序</span></button>
-          <button class="hub-quick-action" onclick="startAllPractice(true)"><span class="icon">↝</span><span>全部随机</span></button>
-          <button class="hub-quick-action" onclick="startAllReview()"><span class="icon">答</span><span>全部背题</span></button>
-          <button class="hub-quick-action" onclick="openAnswerLookup('', '')"><span class="icon">表</span><span>全部答案表</span></button>
+          <button class="hub-quick-action" onclick="startAllPractice(false)"><span class="icon">${renderNotebookIcon('listOrdered')}</span><span>全部顺序</span></button>
+          <button class="hub-quick-action" onclick="startAllPractice(true)"><span class="icon">${renderNotebookIcon('shuffle')}</span><span>全部随机</span></button>
+          <button class="hub-quick-action" onclick="startAllReview()"><span class="icon">${renderNotebookIcon('book')}</span><span>全部背题</span></button>
+          <button class="hub-quick-action" onclick="openAnswerLookup('', '')"><span class="icon">${renderNotebookIcon('list')}</span><span>全部答案表</span></button>
         </div>
       </details>
     </div>`;
@@ -146,11 +152,11 @@
     return `<div class="hub-profile">
       <div class="hub-profile-header"><div class="hub-profile-avatar">题</div><div><strong>QuizApp</strong><small>开源免费学习工具 · ${context.version}</small></div></div>
       <div class="hub-menu">
-        <button class="hub-menu-button" onclick="openSettings()"><span class="menu-icon">设</span><span><strong>应用设置</strong><small>外观、练习、保存、存储和说明</small></span><span class="arrow">›</span></button>
-        <button class="hub-menu-button" onclick="openAiSettings()"><span class="menu-icon">AI</span><span><strong>AI 与模型</strong><small>API Key、模型和本机 AI 数据</small></span><span class="arrow">›</span></button>
-        <button class="hub-menu-button" onclick="openAnnouncementBoard()"><span class="menu-icon">✉</span><span><strong>公告</strong><small>版本说明、项目公告和免责声明</small></span><span class="arrow">›</span></button>
-        <button class="hub-menu-button" onclick="checkForUpdates({manual:true})"><span class="menu-icon">↻</span><span><strong>检查更新</strong><small>通过 GitHub Release 获取 APK</small></span><span class="arrow">›</span></button>
-        <button class="hub-menu-button" onclick="openExternal('https://github.com/konwait12/QuizApp')"><span class="menu-icon">GH</span><span><strong>项目仓库</strong><small>源码、问题反馈和 Release</small></span><span class="arrow">›</span></button>
+        <button class="hub-menu-button" onclick="openSettings()"><span class="menu-icon">${renderNotebookIcon('settings')}</span><span><strong>应用设置</strong><small>外观、练习、保存、存储和说明</small></span><span class="arrow">${renderNotebookIcon('chevronRight')}</span></button>
+        <button class="hub-menu-button" onclick="openAiSettings()"><span class="menu-icon">AI</span><span><strong>AI 与模型</strong><small>API Key、模型和本机 AI 数据</small></span><span class="arrow">${renderNotebookIcon('chevronRight')}</span></button>
+        <button class="hub-menu-button" onclick="openAnnouncementBoard()"><span class="menu-icon">${renderNotebookIcon('mail')}</span><span><strong>公告</strong><small>版本说明、项目公告和免责声明</small></span><span class="arrow">${renderNotebookIcon('chevronRight')}</span></button>
+        <button class="hub-menu-button" onclick="checkForUpdates({manual:true})"><span class="menu-icon">${renderNotebookIcon('download')}</span><span><strong>检查更新</strong><small>通过 GitHub Release 获取 APK</small></span><span class="arrow">${renderNotebookIcon('chevronRight')}</span></button>
+        <button class="hub-menu-button" onclick="openExternal('https://github.com/konwait12/QuizApp')"><span class="menu-icon">GH</span><span><strong>项目仓库</strong><small>源码、问题反馈和 Release</small></span><span class="arrow">${renderNotebookIcon('chevronRight')}</span></button>
       </div>
     </div>`;
   }

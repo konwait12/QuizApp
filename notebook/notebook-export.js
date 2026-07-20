@@ -128,6 +128,10 @@
       if (image) context.drawImage(image, 0, 0, page.width, page.height);
       return;
     }
+    if (typeof global.QuizNotebook?.drawPaperTemplate === 'function') {
+      global.QuizNotebook.drawPaperTemplate(context, page, { lineWidth: 1 });
+      return;
+    }
     const spacing = Math.max(16, Number(background.spacing || 40));
     context.save();
     context.strokeStyle = background.patternColor || '#dfe6e2';

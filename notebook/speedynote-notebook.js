@@ -19,6 +19,7 @@
 
   const SCHEMA_VERSION = 5;
   const DEFAULT_PAGE_SIZE = { width: 1200, height: 1600 };
+  const PAPER_TEMPLATE_IDS = ['plain', 'lines', 'grid', 'dots', 'cornell', 'wrong', 'reading', 'meeting'];
   const thumbnailAssetCache = new Map();
 
   function uid(prefix = 'id') {
@@ -47,6 +48,29 @@
     };
   }
 
+  function normalizePaperTemplate(value, backgroundType = 'grid') {
+    const template = String(value || '');
+    if (PAPER_TEMPLATE_IDS.includes(template)) return template;
+    if (backgroundType === 'plain' || backgroundType === 'lines' || backgroundType === 'grid') return backgroundType;
+    return 'grid';
+  }
+
+  function normalizeDefaultPageBackground(raw, fallback = {}) {
+    const type = ['plain', 'grid', 'lines'].includes(raw?.type) ? raw.type : (['plain', 'grid', 'lines'].includes(fallback?.type) ? fallback.type : 'grid');
+    return {
+      type,
+      template: normalizePaperTemplate(raw?.template, normalizePaperTemplate(fallback?.template, type)),
+      color: raw?.color || fallback?.color || '#ffffff',
+      patternColor: raw?.patternColor || fallback?.patternColor || '#dfe6e2',
+      spacing: clamp(raw?.spacing ?? fallback?.spacing ?? 40, 20, 96),
+    };
+  }
+
+  function normalizePageOrientation(value, fallbackPage = {}) {
+    if (value === 'landscape' || value === 'portrait') return value;
+    return Number(fallbackPage.width || 0) > Number(fallbackPage.height || 0) ? 'landscape' : 'portrait';
+  }
+
   function createPage(options = {}) {
     const layer = createLayer();
     return {
@@ -56,10 +80,12 @@
       height: Number(options.height || DEFAULT_PAGE_SIZE.height),
       background: {
         type: options.backgroundType || 'grid',
+        template: normalizePaperTemplate(options.backgroundTemplate, options.backgroundType || 'grid'),
         color: options.backgroundColor || '#ffffff',
         patternColor: options.patternColor || '#dfe6e2',
         spacing: Number(options.spacing || 40),
         assetId: String(options.backgroundAssetId || ''),
+        sourceUrl: String(options.backgroundSourceUrl || ''),
         sourceName: String(options.sourceName || ''),
         sourcePage: Number(options.sourcePage || 0),
         searchText: String(options.searchText || ''),
@@ -89,14 +115,18 @@
       id: options.id || uid('notebook'),
       title: options.title || '未命名笔记',
       kind: options.kind === 'question' ? 'question' : 'free',
+      builtIn: Boolean(options.builtIn),
       binding: options.binding || null,
       folderId: String(options.folderId || ''),
       cover: normalizeCover(options.cover),
+      defaultPageBackground: normalizeDefaultPageBackground(options.defaultPageBackground, firstPage.background),
+      defaultPageOrientation: normalizePageOrientation(options.defaultPageOrientation, firstPage),
       lastEditorMode: ['typing', 'handwriting'].includes(options.lastEditorMode) ? options.lastEditorMode : '',
       tags: Array.isArray(options.tags) ? options.tags.map(item => String(item || '').trim()).filter(Boolean) : [],
       links: Array.isArray(options.links) ? clone(options.links) : [],
       bookmarks: Array.isArray(options.bookmarks) ? clone(options.bookmarks) : [],
       pdfOutline: Array.isArray(options.pdfOutline) ? clone(options.pdfOutline) : [],
+      pdfSource: options.pdfSource && typeof options.pdfSource === 'object' ? clone(options.pdfSource) : null,
       mode,
       pages: [firstPage],
       activePageId: firstPage.id,
@@ -182,10 +212,12 @@
       height: Number(raw?.height || raw?.size?.height || DEFAULT_PAGE_SIZE.height),
       background: {
         type: ['plain', 'grid', 'lines', 'question', 'pdf'].includes(raw?.background?.type) ? raw.background.type : 'grid',
+        template: normalizePaperTemplate(raw?.background?.template, raw?.background?.type),
         color: raw?.background?.color || '#ffffff',
         patternColor: raw?.background?.patternColor || '#dfe6e2',
         spacing: Number(raw?.background?.spacing || 40),
         assetId: String(raw?.background?.assetId || ''),
+        sourceUrl: String(raw?.background?.sourceUrl || ''),
         sourceName: String(raw?.background?.sourceName || ''),
         sourcePage: Number(raw?.background?.sourcePage || 0),
         searchText: String(raw?.background?.searchText || ''),
@@ -218,9 +250,12 @@
       id: raw.id || uid('notebook'),
       title: raw.title || raw.name || '未命名笔记',
       kind: raw.kind === 'question' ? 'question' : 'free',
+      builtIn: Boolean(raw.builtIn),
       binding: raw.binding || null,
       folderId: String(raw.folderId || ''),
       cover: normalizeCover(raw.cover),
+      defaultPageBackground: normalizeDefaultPageBackground(raw.defaultPageBackground, pages[0].background),
+      defaultPageOrientation: normalizePageOrientation(raw.defaultPageOrientation, pages[0]),
       lastEditorMode: ['typing', 'handwriting'].includes(raw.lastEditorMode) ? raw.lastEditorMode : '',
       tags: Array.isArray(raw.tags) ? raw.tags.map(item => String(item || '').trim()).filter(Boolean) : [],
       links: Array.isArray(raw.links) ? raw.links.filter(item => item && typeof item === 'object').map(item => ({ ...item })) : [],
@@ -237,6 +272,12 @@
         depth: Math.max(0, Number(item.depth || 0)),
         sourceName: String(item.sourceName || ''),
       })) : [],
+      pdfSource: raw.pdfSource && typeof raw.pdfSource === 'object' ? {
+        url: String(raw.pdfSource.url || ''),
+        fileName: String(raw.pdfSource.fileName || ''),
+        totalPages: Math.max(1, Number(raw.pdfSource.totalPages || pages.length)),
+        role: String(raw.pdfSource.role || ''),
+      } : null,
       mode: raw.mode === 'edgeless' ? 'edgeless' : 'paged',
       pages,
       activePageId: pages.some(page => page.id === raw.activePageId) ? raw.activePageId : pages[0].id,
@@ -361,6 +402,77 @@
       if (crosses) inside = !inside;
     }
     return inside;
+  }
+
+  function drawPaperTemplate(context, page, options = {}) {
+    const background = page.background || {};
+    if (background.type === 'pdf' || background.type === 'question') return;
+    const template = normalizePaperTemplate(background.template, background.type);
+    if (template === 'plain') return;
+    const spacing = clamp(background.spacing || 40, 20, 96);
+    const left = clamp(options.left ?? 0, 0, page.width);
+    const top = clamp(options.top ?? 0, 0, page.height);
+    const right = clamp(options.right ?? page.width, 0, page.width);
+    const bottom = clamp(options.bottom ?? page.height, 0, page.height);
+    const lineWidth = Math.max(.65, Number(options.lineWidth || 1));
+    const stroke = (x1, y1, x2, y2, emphasis = false) => {
+      context.beginPath();
+      context.lineWidth = emphasis ? lineWidth * 1.6 : lineWidth;
+      context.moveTo(x1, y1);
+      context.lineTo(x2, y2);
+      context.stroke();
+    };
+    context.save();
+    context.strokeStyle = background.patternColor || '#dfe6e2';
+    context.fillStyle = background.patternColor || '#dfe6e2';
+    if (template === 'dots') {
+      const radius = Math.max(1.4, Math.min(3.2, spacing * .055));
+      for (let x = Math.max(spacing, Math.floor(left / spacing) * spacing); x <= right; x += spacing) {
+        for (let y = Math.max(spacing, Math.floor(top / spacing) * spacing); y <= bottom; y += spacing) {
+          context.beginPath(); context.arc(x, y, radius, 0, Math.PI * 2); context.fill();
+        }
+      }
+      context.restore();
+      return;
+    }
+    if (template === 'grid') {
+      for (let x = Math.max(spacing, Math.floor(left / spacing) * spacing); x <= right; x += spacing) stroke(x, top, x, bottom);
+    }
+    if (template === 'grid' || template === 'lines') {
+      for (let y = Math.max(spacing, Math.floor(top / spacing) * spacing); y <= bottom; y += spacing) stroke(left, y, right, y);
+    }
+    if (template === 'cornell') {
+      const cueX = page.width * .28;
+      const summaryY = page.height * .82;
+      stroke(cueX, 0, cueX, summaryY, true);
+      stroke(0, summaryY, page.width, summaryY, true);
+      for (let y = spacing; y < summaryY; y += spacing) stroke(cueX, y, page.width, y);
+    }
+    if (template === 'wrong') {
+      const headerY = page.height * .12;
+      const answerY = page.height * .56;
+      stroke(0, headerY, page.width, headerY, true);
+      stroke(0, answerY, page.width, answerY, true);
+      stroke(page.width * .5, 0, page.width * .5, headerY, true);
+      for (let y = answerY + spacing; y < page.height; y += spacing) stroke(0, y, page.width, y);
+    }
+    if (template === 'reading') {
+      const headerY = page.height * .12;
+      const noteX = page.width * .68;
+      const footerY = page.height * .84;
+      stroke(0, headerY, page.width, headerY, true);
+      stroke(noteX, headerY, noteX, footerY, true);
+      stroke(0, footerY, page.width, footerY, true);
+      for (let y = headerY + spacing; y < footerY; y += spacing) stroke(0, y, noteX, y);
+    }
+    if (template === 'meeting') {
+      const headerY = page.height * .14;
+      const metaX = page.width * .27;
+      stroke(0, headerY, page.width, headerY, true);
+      stroke(metaX, 0, metaX, headerY, true);
+      for (let y = headerY + spacing; y < page.height; y += spacing) stroke(0, y, page.width, y);
+    }
+    context.restore();
   }
 
   function strokeContainsPoint(stroke, point, tolerance = 12) {
@@ -915,6 +1027,8 @@
       this.onSelectionChange = options.onSelectionChange || (() => {});
       this.onViewportChange = options.onViewportChange || (() => {});
       this.onLink = options.onLink || (() => {});
+      this.nativeScroll = Boolean(options.nativeScroll);
+      this.fitMargin = clamp(options.fitMargin ?? 32, 0, 96);
       this.tool = 'pen';
       this.color = '#202522';
       this.size = 5;
@@ -932,6 +1046,8 @@
       this.resolveAsset = typeof options.resolveAsset === 'function' ? options.resolveAsset : null;
       this.raf = 0;
       this.destroyed = false;
+      this.canvas.dataset.nativeScroll = this.nativeScroll ? 'true' : 'false';
+      this.canvas.dataset.penOnly = 'true';
       this.resizeObserver = global.ResizeObserver ? new ResizeObserver(() => this.resize()) : null;
       this.bind();
       this.resizeObserver?.observe(canvas);
@@ -990,7 +1106,10 @@
     setStyle({ color, size, penOnly } = {}) {
       if (color) this.color = color;
       if (size != null) this.size = clamp(size, 1, 48);
-      if (penOnly != null) this.penOnly = Boolean(penOnly);
+      if (penOnly != null) {
+        this.penOnly = Boolean(penOnly);
+        this.canvas.dataset.penOnly = this.penOnly ? 'true' : 'false';
+      }
     }
 
     setPanMargin(value) {
@@ -1012,7 +1131,7 @@
     fit() {
       const page = this.session.page;
       const view = this.viewportSize;
-      const margin = 32;
+      const margin = this.fitMargin;
       this.scale = this.isEdgeless
         ? clamp(Math.min(1, Math.max(.55, Math.min(view.width / 1200, view.height / 900))), .35, 1)
         : clamp(Math.min((view.width - margin * 2) / page.width, (view.height - margin * 2) / page.height), .15, 4);
@@ -1129,6 +1248,7 @@
     }
 
     wheel(event) {
+      if (this.nativeScroll && !event.ctrlKey) return;
       event.preventDefault();
       if (event.ctrlKey || Math.abs(event.deltaY) > Math.abs(event.deltaX)) {
         this.zoomAt(event.clientX, event.clientY, Math.exp(-event.deltaY * .0015));
@@ -1161,6 +1281,7 @@
         }
       }
       if (event.pointerType === 'touch' && this.penOnly && this.tool !== 'pan') {
+        if (this.nativeScroll) return;
         this.startPan(event);
         return;
       }
@@ -1558,26 +1679,18 @@
         this.renderAssetBackground(context, page, background);
         return;
       }
-      context.save();
-      context.strokeStyle = background.patternColor;
-      context.lineWidth = 1 / this.scale;
-      const spacing = Math.max(16, background.spacing);
       const view = this.viewportSize;
       const visibleLeft = clamp(-this.offsetX / this.scale, 0, page.width);
       const visibleTop = clamp(-this.offsetY / this.scale, 0, page.height);
       const visibleRight = clamp((view.width - this.offsetX) / this.scale, 0, page.width);
       const visibleBottom = clamp((view.height - this.offsetY) / this.scale, 0, page.height);
-      if (background.type === 'grid') {
-        for (let x = Math.max(spacing, Math.floor(visibleLeft / spacing) * spacing); x <= visibleRight; x += spacing) {
-          context.beginPath(); context.moveTo(x, visibleTop); context.lineTo(x, visibleBottom); context.stroke();
-        }
-      }
-      if (background.type === 'grid' || background.type === 'lines') {
-        for (let y = Math.max(spacing, Math.floor(visibleTop / spacing) * spacing); y <= visibleBottom; y += spacing) {
-          context.beginPath(); context.moveTo(visibleLeft, y); context.lineTo(visibleRight, y); context.stroke();
-        }
-      }
-      context.restore();
+      drawPaperTemplate(context, page, {
+        left: visibleLeft,
+        top: visibleTop,
+        right: visibleRight,
+        bottom: visibleBottom,
+        lineWidth: 1 / this.scale,
+      });
     }
 
     renderAssetBackground(context, page, background) {
@@ -1790,19 +1903,7 @@
       }
       if (cached.loaded) context.drawImage(cached.image, 0, 0, page.width, page.height);
     }
-    context.strokeStyle = page.background?.patternColor || '#dfe6e2';
-    context.lineWidth = Math.max(1, 1 / scale);
-    const spacing = Math.max(20, Number(page.background?.spacing || 40));
-    if (page.background?.type === 'grid') {
-      for (let x = spacing; x < page.width; x += spacing) {
-        context.beginPath(); context.moveTo(x, 0); context.lineTo(x, page.height); context.stroke();
-      }
-    }
-    if (page.background?.type === 'grid' || page.background?.type === 'lines') {
-      for (let y = spacing; y < page.height; y += spacing) {
-        context.beginPath(); context.moveTo(0, y); context.lineTo(page.width, y); context.stroke();
-      }
-    }
+    drawPaperTemplate(context, page, { lineWidth: Math.max(1, 1 / scale) });
     if (page.bodyText) drawPageBodyText(context, page);
     page.layers.filter(layer => layer.visible).forEach(layer => {
       context.save();
@@ -1857,8 +1958,11 @@
     createLayer,
     normalizePage,
     normalizeDocument,
+    normalizePaperTemplate,
+    normalizePageOrientation,
     migrateLegacyInk,
     computeBounds,
+    drawPaperTemplate,
     renderPageThumbnail,
   };
 })(window);
